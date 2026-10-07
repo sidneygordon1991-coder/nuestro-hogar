@@ -7,6 +7,7 @@ type Tx={id:string;description:string;amount:number;type:string;transaction_date
 
 const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
 const today=()=>new Date().toISOString().slice(0,10);
+const authRedirectUrl=()=>`${window.location.origin}${import.meta.env.BASE_URL}`;
 
 export default function App(){
  const [session,setSession]=useState<Session|null>(null),[loading,setLoading]=useState(true);
@@ -24,9 +25,14 @@ export default function App(){
 }
 
 function Auth(){
- const [mode,setMode]=useState<'login'|'signup'>('login'),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
- async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);setMsg('');const f=new FormData(e.currentTarget),email=String(f.get('email')),password=String(f.get('password')),full_name=String(f.get('name')||'');const res=mode==='login'?await supabase.auth.signInWithPassword({email,password}):await supabase.auth.signUp({email,password,options:{data:{full_name}}});setBusy(false);if(res.error)setMsg(res.error.message);else if(mode==='signup'&&!res.data.session)setMsg('Revisa tu correo para confirmar la cuenta.')}
- return <main className="auth"><section className="auth-card"><div className="brand-mark">⌂</div><p className="eyebrow">TU ESPACIO COMPARTIDO</p><h1>Nuestro Hogar</h1><p className="muted">Finanzas, calendario, listas y vida familiar en un solo lugar.</p><form onSubmit={submit}>{mode==='signup'&&<input name="name" placeholder="Nombre completo" required/>}<input name="email" type="email" placeholder="Correo electrónico" required/><input name="password" type="password" minLength={6} placeholder="Contraseña" required/><button disabled={busy}>{busy?'Procesando...':mode==='login'?'Entrar':'Crear cuenta'}</button></form>{msg&&<p className="status">{msg}</p>}<button className="link" onClick={()=>setMode(mode==='login'?'signup':'login')}>{mode==='login'?'¿Primera vez? Crear cuenta':'Ya tengo cuenta'}</button></section></main>
+ const [mode,setMode]=useState<'login'|'signup'>('login'),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[pendingEmail,setPendingEmail]=useState('');
+ useEffect(()=>{const hash=new URLSearchParams(window.location.hash.replace(/^#/,''));
+   const error=hash.get('error_description');
+   if(error)setMsg(decodeURIComponent(error.replace(/\+/g,' ')));
+ },[]);
+ async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);setMsg('');const f=new FormData(e.currentTarget),email=String(f.get('email')),password=String(f.get('password')),full_name=String(f.get('name')||'');const res=mode==='login'?await supabase.auth.signInWithPassword({email,password}):await supabase.auth.signUp({email,password,options:{data:{full_name},emailRedirectTo:authRedirectUrl()}});setBusy(false);if(res.error)setMsg(res.error.message);else if(mode==='signup'&&!res.data.session){setPendingEmail(email);setMsg('Revisa tu correo para confirmar la cuenta. El enlace abrirá esta misma aplicación.')}}
+ async function resend(){if(!pendingEmail)return;setBusy(true);const {error}=await supabase.auth.resend({type:'signup',email:pendingEmail,options:{emailRedirectTo:authRedirectUrl()}});setBusy(false);setMsg(error?error.message:'Correo de confirmación reenviado. Usa el enlace más reciente.')}
+ return <main className="auth"><section className="auth-card"><div className="brand-mark">⌂</div><p className="eyebrow">TU ESPACIO COMPARTIDO</p><h1>Nuestro Hogar</h1><p className="muted">Finanzas, calendario, listas y vida familiar en un solo lugar.</p><form onSubmit={submit}>{mode==='signup'&&<input name="name" placeholder="Nombre completo" required/>}<input name="email" type="email" placeholder="Correo electrónico" required/><input name="password" type="password" minLength={6} placeholder="Contraseña" required/><button disabled={busy}>{busy?'Procesando...':mode==='login'?'Entrar':'Crear cuenta'}</button></form>{msg&&<p className="status">{msg}</p>}{pendingEmail&&<button className="link" disabled={busy} onClick={resend}>Reenviar correo de confirmación</button>}<button className="link" onClick={()=>{setMode(mode==='login'?'signup':'login');setMsg('')}}>{mode==='login'?'¿Primera vez? Crear cuenta':'Ya tengo cuenta'}</button></section></main>
 }
 
 function Onboarding({onDone}:{onDone:()=>void}){
