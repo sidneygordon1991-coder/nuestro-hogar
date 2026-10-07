@@ -1,0 +1,4 @@
+-- Applied to Supabase project dchihxrjtngwabbvsqap
+-- Initial schema for Nuestro Hogar. Source of truth is the applied migration in Supabase.
+-- Tables: profiles, households, household_members, lists, list_items, events,
+-- budget_categories, transactions, plus household RPC helpers and RLS policies.
