@@ -1,5 +1,5 @@
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronRight,Copy,Eye,History,LogOut,Phone,Save,Settings2,Shield,ShieldCheck,Trash2,UserCog,UserRound,Users,X} from 'lucide-react';
+import {AlertTriangle,Check,ChevronRight,Copy,Eye,History,LogOut,Phone,RefreshCw,Save,Settings2,Shield,ShieldCheck,Trash2,UserCog,UserRound,Users,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -26,17 +26,17 @@ const responsibilityDefs:{key:string;label:string}[]=[
  {key:'finances',label:'Finanzas'},{key:'shopping',label:'Compras'},{key:'calendar',label:'Agenda'},{key:'documents',label:'Documentos'},
  {key:'meals',label:'Comidas'},{key:'maintenance',label:'Mantenimiento'},{key:'planning',label:'Planeación'},{key:'home',label:'Hogar'}
 ];
-const initials=(name:string)=>name.split(/s+/).filter(Boolean).slice(0,2).map(x=>x[0]?.toUpperCase()).join('')||'?';
+const initials=(name:string)=>name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]?.toUpperCase()).join('')||'?';
 const emptyAccess:AccessInfo={role:'adult',can_manage_members:false,can_view_audit:false,modules:{finance:'none',calendar:'none',lists:'none',documents:'none',meals:'none',maintenance:'none',planning:'none',health:'none',monthly_close:'none',automations:'none'}};
 
 export default function FamilyCenter({household,onChanged}:{household:Household;onChanged?:()=>void}){
  const [members,setMembers]=useState<MemberRow[]>([]),[currentUser,setCurrentUser]=useState(''),[myAccess,setMyAccess]=useState<AccessInfo>(emptyAccess);
- const [editing,setEditing]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[copied,setCopied]=useState(false);
+ const [editing,setEditing]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[copied,setCopied]=useState(false),[inviteCode,setInviteCode]=useState(household.invite_code);
  const [managing,setManaging]=useState<MemberRow|null>(null),[memberAccess,setMemberAccess]=useState<MemberAccess|null>(null),[roleDraft,setRoleDraft]=useState('adult');
  const [overrides,setOverrides]=useState<Partial<Record<ModuleKey,AccessLevel>>>({}),[responsibilities,setResponsibilities]=useState<string[]>([]);
  const [audit,setAudit]=useState<AuditRow[]>([]),[auditNames,setAuditNames]=useState<Map<string,string>>(new Map());
 
- useEffect(()=>{load()},[household.id]);
+ useEffect(()=>{setInviteCode(household.invite_code);load()},[household.id]);
 
  async function load(){
   setBusy(true);setMessage('');
@@ -111,7 +111,15 @@ export default function FamilyCenter({household,onChanged}:{household:Household;
   if(error){setMessage(error.message);return}onChanged?.();window.location.reload();
  }
 
- async function copyInvite(){await navigator.clipboard.writeText(household.invite_code);setCopied(true);setTimeout(()=>setCopied(false),1400)}
+ async function copyInvite(){await navigator.clipboard.writeText(inviteCode);setCopied(true);setTimeout(()=>setCopied(false),1400)}
+ async function rotateInvite(){
+  if(!window.confirm('¿Generar un código nuevo? El código anterior dejará de funcionar inmediatamente.'))return;
+  setBusy(true);setMessage('');
+  const {data,error}=await supabase.rpc('rotate_household_invite_code',{p_household_id:household.id});
+  setBusy(false);
+  if(error){setMessage(error.message);return}
+  setInviteCode(String(data||''));setMessage('Código de invitación renovado. El anterior ya no funciona.');
+ }
 
  return <section className="family-v3">
   <div className="finance-top"><div><p className="eyebrow">MODO FAMILIA</p><h2 className="page-title">Mi familia</h2><p className="muted">Roles, responsabilidades, permisos y trazabilidad de lo que cambia en el hogar.</p></div>{me&&<button className="finance-new" onClick={()=>setEditing(true)}><UserRound/> Mi perfil</button>}</div>
@@ -149,7 +157,7 @@ export default function FamilyCenter({household,onChanged}:{household:Household;
 
   {myAccess.can_manage_members?<div className="invite-v2">
    <div><p className="eyebrow">INVITAR A ALGUIEN</p><h3>Comparte tu hogar</h3><p>Quien use el código ingresará inicialmente como Invitado con acceso mínimo. Después puedes asignarle el rol y los permisos adecuados aquí.</p></div>
-   <div className="invite-code-v2"><span>{household.invite_code}</span><button onClick={copyInvite}>{copied?<Check/>:<Copy/>}{copied?'Copiado':'Copiar'}</button></div>
+   <div className="invite-code-v2"><span>{inviteCode}</span><div><button onClick={copyInvite}>{copied?<Check/>:<Copy/>}{copied?'Copiado':'Copiar'}</button><button className="invite-rotate" onClick={rotateInvite} disabled={busy} title="Generar un código nuevo"><RefreshCw/>{busy?'Procesando':'Renovar'}</button></div></div>
   </div>:<div className="family-limited-note"><Shield/><div><strong>Invitaciones administradas</strong><span>Solo el propietario o un administrador puede compartir el código y cambiar permisos.</span></div></div>}
 
   {myAccess.can_view_audit&&<section className="family-audit-panel">
