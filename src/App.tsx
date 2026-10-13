@@ -1,28 +1,83 @@
-import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import type {Session} from '@supabase/supabase-js';
+import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import type {Session} from '@supabase/supabase-js';
 
 type Household={id:string;name:string;invite_code:string};
 type ListRow={id:string;title:string};
 type EventRow={id:string;title:string;event_date:string;start_time:string|null};
 type Tx={id:string;description:string;amount:number;type:string;transaction_date:string};
+type FinanceHome={income:number;expense:number;saving:number;available:number;pending:number;projected:number;overdue:number;nextPayment:string|null;nextPaymentAmount:number;nextPaymentDate:string|null;goalName:string|null;goalProgress:number};
 
 const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
-const today=()=>new Date().toISOString().slice(0,10);
+const localIso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
+const today=()=>localIso();
+const currentMonth=()=>{const d=new Date(),start=new Date(d.getFullYear(),d.getMonth(),1),end=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:localIso(start),end:localIso(end),month:localIso(start)}};
 const authRedirectUrl=()=>`${window.location.origin}${import.meta.env.BASE_URL}`;
 
 export default function App(){
  const [session,setSession]=useState<Session|null>(null),[loading,setLoading]=useState(true),[recovery,setRecovery]=useState(()=>new URLSearchParams(window.location.hash.replace(/^#/,'')).get('type')==='recovery');
  const [households,setHouseholds]=useState<Household[]>([]),[household,setHousehold]=useState<Household|null>(null);
  const [tab,setTab]=useState('inicio'),[lists,setLists]=useState<ListRow[]>([]),[events,setEvents]=useState<EventRow[]>([]),[txs,setTxs]=useState<Tx[]>([]);
+ const [financeHome,setFinanceHome]=useState<FinanceHome>({income:0,expense:0,saving:0,available:0,pending:0,projected:0,overdue:0,nextPayment:null,nextPaymentAmount:0,nextPaymentDate:null,goalName:null,goalProgress:0});
  useEffect(()=>{supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data}=supabase.auth.onAuthStateChange((event,s)=>{setSession(s);if(event==='PASSWORD_RECOVERY')setRecovery(true);if(event==='SIGNED_OUT')setRecovery(false)});return()=>data.subscription.unsubscribe()},[]);
  useEffect(()=>{if(session)loadHouseholds();else{setHouseholds([]);setHousehold(null)}},[session]);
- useEffect(()=>{if(household)loadData(household.id)},[household]);
+ useEffect(()=>{if(household)loadData(household.id)},[household,tab]);
  async function loadHouseholds(){const {data,error}=await supabase.from('household_members').select('household_id, households(id,name,invite_code)');if(error)return;const rows=(data||[]).map((r:any)=>r.households).filter(Boolean);setHouseholds(rows);if(rows[0])setHousehold(rows[0])}
- async function loadData(id:string){const [{data:l},{data:e},{data:t}]=await Promise.all([supabase.from('lists').select('id,title').eq('household_id',id).order('created_at',{ascending:false}),supabase.from('events').select('id,title,event_date,start_time').eq('household_id',id).gte('event_date',today()).order('event_date').limit(6),supabase.from('transactions').select('id,description,amount,type,transaction_date').eq('household_id',id).order('transaction_date',{ascending:false}).limit(20)]);setLists(l||[]);setEvents(e||[]);setTxs((t||[]) as Tx[])}
+ async function loadData(id:string){
+  const period=currentMonth();
+  const [listR,eventR,txR,catR,allocR,contR,recR,occR,memberFinanceR,goalR,goalContR]=await Promise.all([
+   supabase.from('lists').select('id,title').eq('household_id',id).order('created_at',{ascending:false}),
+   supabase.from('events').select('id,title,event_date,start_time').eq('household_id',id).gte('event_date',today()).order('event_date').limit(6),
+   supabase.from('transactions').select('id,description,amount,type,transaction_date').eq('household_id',id).gte('transaction_date',period.start).lte('transaction_date',period.end).order('transaction_date',{ascending:false}),
+   supabase.from('budget_categories').select('id,budget_group').eq('household_id',id),
+   supabase.from('budget_allocations').select('category_id,planned_amount').eq('household_id',id).eq('month',period.month),
+   supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id).gte('contribution_date',period.start).lte('contribution_date',period.end),
+   supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,created_at').eq('household_id',id).eq('active',true),
+   supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status').eq('household_id',id).eq('period_month',period.month),
+   supabase.from('finance_member_settings').select('monthly_income').eq('household_id',id),
+   supabase.from('savings_goals').select('id,name,target_amount,target_date').eq('household_id',id).eq('active',true).order('target_date',{ascending:true,nullsFirst:false}),
+   supabase.from('goal_contributions').select('goal_id,amount').eq('household_id',id)
+  ]);
+  setLists(listR.data||[]);setEvents(eventR.data||[]);setTxs((txR.data||[]) as Tx[]);
+  const txData=(txR.data||[]) as Tx[],categories=(catR.data||[]) as any[],allocations=(allocR.data||[]) as any[],recurring=(recR.data||[]) as any[];
+  const income=txData.filter(t=>t.type==='income').reduce((sum,t)=>sum+Number(t.amount),0);
+  const expense=txData.filter(t=>t.type==='expense').reduce((sum,t)=>sum+Number(t.amount),0);
+  const saving=(contR.data||[]).reduce((sum:any,row:any)=>sum+Number(row.amount),0);
+  const available=income-expense-saving;
+  const categoryGroup=new Map(categories.map((cat:any)=>[cat.id,cat.budget_group||'variable']));
+  const plannedByCategory=new Map(allocations.map((row:any)=>[row.category_id,Number(row.planned_amount)]));
+  const spentByCategory=new Map<string,number>();
+  for(const row of txData as any[]){if(row.type==='expense'&&row.category_id)spentByCategory.set(row.category_id,(spentByCategory.get(row.category_id)||0)+Number(row.amount))}
+  let occurrences=(occR.data||[]) as any[];
+  const missing=recurring.filter((r:any)=>localIso(new Date(r.created_at))<=period.end&&!occurrences.some((o:any)=>o.recurring_transaction_id===r.id));
+  if(missing.length){
+   const seeds=missing.map((r:any)=>{const last=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();const day=Math.min(Number(r.due_day),last);return{recurring_transaction_id:r.id,household_id:id,period_month:period.month,due_date:localIso(new Date(new Date().getFullYear(),new Date().getMonth(),day)),status:'pending'}});
+   await supabase.from('recurring_transaction_occurrences').upsert(seeds,{onConflict:'recurring_transaction_id,period_month',ignoreDuplicates:true});
+   const refreshed=await supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status').eq('household_id',id).eq('period_month',period.month);
+   occurrences=(refreshed.data||[]) as any[];
+  }
+  const recMap=new Map(recurring.map((r:any)=>[r.id,r]));
+  const openOccurrences=occurrences.filter((o:any)=>o.status==='pending');
+  const overdue=openOccurrences.filter((o:any)=>o.due_date<today()).length;
+  let pending=0,pendingOutsideFixed=0;const pendingFixedByCategory=new Map<string,number>();
+  for(const o of openOccurrences){const r:any=recMap.get(o.recurring_transaction_id);if(!r||r.type!=='expense')continue;const amount=Number(r.amount);pending+=amount;const group=r.category_id?categoryGroup.get(r.category_id)||'variable':'variable';if(group==='fixed'&&r.category_id)pendingFixedByCategory.set(r.category_id,(pendingFixedByCategory.get(r.category_id)||0)+amount);else pendingOutsideFixed+=amount}
+  let fixedCommitments=pendingOutsideFixed,variableRemaining=0,plannedSaving=0;
+  for(const cat of categories as any[]){const planned=plannedByCategory.get(cat.id)||0,spent=spentByCategory.get(cat.id)||0;if(cat.budget_group==='fixed')fixedCommitments+=Math.max(planned-spent,pendingFixedByCategory.get(cat.id)||0);else if(cat.budget_group==='saving')plannedSaving+=planned;else variableRemaining+=Math.max(planned-spent,0)}
+  const savingsRemaining=Math.max(plannedSaving-saving,0);
+  const configuredIncome=(memberFinanceR.data||[]).reduce((sum:any,row:any)=>sum+Number(row.monthly_income||0),0);
+  const expectedIncome=Math.max((configuredIncome||income)-income,0);
+  const projected=available+expectedIncome-fixedCommitments-savingsRemaining-variableRemaining;
+  const nextOccurrence=openOccurrences.slice().sort((a:any,b:any)=>String(a.due_date).localeCompare(String(b.due_date)))[0];
+  const nextRecurring:any=nextOccurrence?recMap.get(nextOccurrence.recurring_transaction_id):null;
+  const primaryGoal=(goalR.data||[])[0] as any;
+  const allGoalContributions=(goalContR.data||[]) as any[];
+  const goalSaved=primaryGoal?allGoalContributions.filter(row=>row.goal_id===primaryGoal.id).reduce((sum,row)=>sum+Number(row.amount),0):0;
+  const goalProgress=primaryGoal&&Number(primaryGoal.target_amount)>0?Math.min(100,Math.round(goalSaved/Number(primaryGoal.target_amount)*100)):0;
+  setFinanceHome({income,expense,saving,available,pending:fixedCommitments,projected,overdue,nextPayment:nextRecurring?.description||null,nextPaymentAmount:Number(nextRecurring?.amount||0),nextPaymentDate:nextOccurrence?.due_date||null,goalName:primaryGoal?.name||null,goalProgress});
+ }
  if(loading)return <div className="center"><div className="loader"/></div>;
  if(recovery)return <UpdatePassword onDone={()=>{setRecovery(false);window.history.replaceState({},'',authRedirectUrl())}}/>;
  if(!session)return <Auth/>;
  if(!household)return <Onboarding onDone={loadHouseholds}/>;
- return <Shell household={household} households={households} tab={tab} setTab={setTab} onSwitch={setHousehold} onRefresh={()=>loadData(household.id)} lists={lists} events={events} txs={txs}/>;
+ return <Shell household={household} households={households} tab={tab} setTab={setTab} onSwitch={setHousehold} onRefresh={()=>loadData(household.id)} lists={lists} events={events} txs={txs} financeHome={financeHome}/>;
 }
 
 function Auth(){
