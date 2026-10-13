@@ -817,7 +817,38 @@ export default function Finance({household}:{household:Household}){
 
   {showGoalForm&&<Modal title="Nueva meta" close={()=>setShowGoalForm(false)}><form className="finance-form" onSubmit={addGoal}><label>Nombre<input name="name" placeholder="Ej. Fondo de emergencia" required/></label><label>Meta<input name="target_amount" type="number" min="1" step=".01" placeholder="50000" required/></label><label>Fecha objetivo<input name="target_date" type="date"/></label><button className="finance-primary" disabled={busy}>Crear meta</button></form></Modal>}
 
-  {showAccountForm&&<Modal title="Nueva cuenta" close={()=>setShowAccountForm(false)}><form className="finance-form" onSubmit={addAccount}><label>Nombre<input name="name" placeholder="Ej. Cuenta principal" required/></label><div className="two"><label>Tipo<select name="account_type"><option value="checking">Cuenta bancaria</option><option value="savings">Ahorro</option><option value="cash">Efectivo</option><option value="credit">Tarjeta de crédito</option><option value="other">Otra</option></select></label><label>Saldo inicial<input name="opening_balance" type="number" step=".01" defaultValue="0"/></label></div><label>Propietario<select name="owner_user_id" defaultValue={currentUser}><option value="">Hogar</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select></label><label className="check-line"><input type="checkbox" name="is_shared" defaultChecked/> Cuenta compartida</label><button className="finance-primary" disabled={busy}>Agregar cuenta</button></form></Modal>}
+  {showAccountForm&&<Modal title={editingAccount?'Editar cuenta o deuda':'Nueva cuenta o deuda'} close={()=>{setShowAccountForm(false);setEditingAccount(null)}}><form className="finance-form" onSubmit={saveAccount}>
+   <label>Nombre<input name="name" defaultValue={editingAccount?.name||''} placeholder="Ej. Cuenta BI o Visa" required/></label>
+   <div className="two"><label>Tipo<select name="account_type" defaultValue={editingAccount?.account_type||'checking'}><option value="checking">Cuenta bancaria</option><option value="savings">Ahorro</option><option value="cash">Efectivo</option><option value="investment">Inversión</option><option value="credit">Tarjeta de crédito</option><option value="loan">Préstamo</option><option value="mortgage">Hipoteca</option><option value="other">Otra</option></select></label><label>Clase<select name="account_class" defaultValue={editingAccount?.account_class||'asset'}><option value="asset">Activo / dinero que tengo</option><option value="liability">Deuda / dinero que debo</option></select></label></div>
+   <div className="two"><label>Institución<input name="institution" defaultValue={editingAccount?.institution||''} placeholder="Ej. Banco Industrial"/></label><label>Saldo inicial / deuda actual<input name="opening_balance" type="number" min="0" step=".01" defaultValue={editingAccount?Number(editingAccount.opening_balance):0}/></label></div>
+   <div className="account-credit-fields">
+    <p>Datos opcionales para tarjetas y deudas</p>
+    <div className="two"><label>Límite de crédito<input name="credit_limit" type="number" min="0" step=".01" defaultValue={editingAccount?.credit_limit??''} placeholder="12000"/></label><label>Tasa anual %<input name="apr" type="number" min="0" step=".01" defaultValue={editingAccount?.apr??''} placeholder="0.00"/></label></div>
+    <div className="three"><label>Día de corte<input name="statement_day" type="number" min="1" max="31" defaultValue={editingAccount?.statement_day??''}/></label><label>Día de pago<input name="payment_due_day" type="number" min="1" max="31" defaultValue={editingAccount?.payment_due_day??''}/></label><label>Pago mínimo<input name="minimum_payment" type="number" min="0" step=".01" defaultValue={editingAccount?.minimum_payment??''}/></label></div>
+   </div>
+   <label>Propietario<select name="owner_user_id" defaultValue={editingAccount?.owner_user_id||currentUser}><option value="">Hogar</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select></label>
+   <label>Notas<input name="notes" defaultValue={editingAccount?.notes||''} placeholder="Opcional"/></label>
+   <label className="check-line"><input type="checkbox" name="is_shared" defaultChecked={editingAccount?.is_shared??true}/> Compartida con el hogar</label>
+   <button className="finance-primary" disabled={busy}><Check size={17}/>{busy?'Guardando...':editingAccount?'Guardar cambios':'Agregar cuenta'}</button>
+  </form></Modal>}
+
+  {showAssetForm&&<Modal title={editingAsset?'Editar activo':'Nuevo activo'} close={()=>{setShowAssetForm(false);setEditingAsset(null)}}><form className="finance-form" onSubmit={saveAsset}>
+   <label>Nombre<input name="name" defaultValue={editingAsset?.name||''} placeholder="Ej. Vehículo familiar" required/></label>
+   <div className="two"><label>Tipo<select name="asset_type" defaultValue={editingAsset?.asset_type||'vehicle'}><option value="property">Propiedad</option><option value="vehicle">Vehículo</option><option value="investment">Inversión externa</option><option value="valuable">Objeto de valor</option><option value="other">Otro</option></select></label><label>Valor estimado actual<input name="estimated_value" type="number" min="0" step=".01" defaultValue={editingAsset?Number(editingAsset.estimated_value):''} required/></label></div>
+   <div className="two"><label>Valor de compra<input name="purchase_value" type="number" min="0" step=".01" defaultValue={editingAsset?.purchase_value??''} placeholder="Opcional"/></label><label>Propietario<select name="owner_user_id" defaultValue={editingAsset?.owner_user_id||currentUser}><option value="">Hogar</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select></label></div>
+   <label>Notas<input name="notes" defaultValue={editingAsset?.notes||''} placeholder="Ej. Modelo, año, referencia"/></label>
+   <label className="check-line"><input type="checkbox" name="is_shared" defaultChecked={editingAsset?.is_shared??true}/> Activo compartido</label>
+   <button className="finance-primary" disabled={busy}><Check size={17}/>{busy?'Guardando...':editingAsset?'Guardar cambios':'Agregar activo'}</button>
+  </form></Modal>}
+
+  {showTransferForm&&<Modal title="Transferir / pagar deuda" close={()=>setShowTransferForm(false)}><form className="finance-form" onSubmit={addTransfer}>
+   <div className="transfer-explainer"><ArrowRightLeft/><div><strong>Movimiento entre cuentas</strong><small>No se registra como ingreso ni gasto. Si el destino es una tarjeta o préstamo, reduce la deuda.</small></div></div>
+   <label>Desde<select name="from_account_id" defaultValue={accountBalances.find(a=>a.account_class==='asset')?.id||''} required><option value="">Seleccionar cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name} · {accountTypeName(a.account_type)}</option>)}</select></label>
+   <label>Hacia<select name="to_account_id" defaultValue={accountBalances.find(a=>a.account_class==='liability')?.id||''} required><option value="">Seleccionar cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name} · {accountTypeName(a.account_type)}</option>)}</select></label>
+   <div className="two"><label>Monto<input name="amount" type="number" min=".01" step=".01" placeholder="0.00" required/></label><label>Fecha<input name="transfer_date" type="date" defaultValue={isoDate()} required/></label></div>
+   <label>Descripción<input name="description" placeholder="Ej. Pago tarjeta"/></label>
+   <button className="finance-primary" disabled={busy}><ArrowRightLeft/>{busy?'Guardando...':'Registrar transferencia'}</button>
+  </form></Modal>}
  </section>
 }
 
