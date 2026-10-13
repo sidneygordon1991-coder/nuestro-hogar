@@ -2,6 +2,7 @@ import {describe,expect,it} from 'vitest';
 import mainRaw from '../main.tsx?raw';
 import menuRaw from '../AppMenu.tsx?raw';
 import appRaw from '../App.tsx?raw';
+// @ts-ignore Node built-in is available to Vitest; the web-only tsconfig omits Node typings.
 import {readFileSync} from 'node:fs';
 const baseCss=readFileSync(new URL('../styles.css',import.meta.url),'utf8');
 const parityCss=readFileSync(new URL('../theme-light.css',import.meta.url),'utf8');
