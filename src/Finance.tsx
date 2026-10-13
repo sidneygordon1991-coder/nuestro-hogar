@@ -8,7 +8,8 @@ type Tx={id:string;description:string;amount:number;type:'income'|'expense';tran
 type Allocation={id:string;category_id:string;planned_amount:number;month:string};
 type Goal={id:string;name:string;target_amount:number;target_date:string|null;icon:string;active:boolean};
 type Contribution={id:string;goal_id:string;amount:number;contribution_date:string;created_by:string|null};
-type Recurring={id:string;description:string;amount:number;type:'income'|'expense';due_day:number;category_id:string|null;paid_by:string|null;is_shared:boolean};
+type Recurring={id:string;description:string;amount:number;type:'income'|'expense';due_day:number;category_id:string|null;account_id:string|null;paid_by:string|null;is_shared:boolean;created_at:string};
+type RecurringOccurrence={id:string;recurring_transaction_id:string;period_month:string;due_date:string;status:'pending'|'paid'|'skipped';paid_at:string|null;transaction_id:string|null};
 type Account={id:string;name:string;account_type:string;opening_balance:number;owner_user_id:string|null;is_shared:boolean;active:boolean};
 type Member={user_id:string;role:string;full_name:string};
 type Split={transaction_id:string;user_id:string;share_amount:number};
@@ -23,13 +24,14 @@ const monthDate=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(
 const monthBounds=(d:Date)=>{const start=new Date(d.getFullYear(),d.getMonth(),1),end=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:isoDate(start),end:isoDate(end)}};
 const monthLabel=(d:Date)=>d.toLocaleDateString('es-GT',{month:'long',year:'numeric'});
 const pct=(a:number,b:number)=>b>0?Math.min(100,Math.round((a/b)*100)):0;
+const dueDateForMonth=(d:Date,dueDay:number)=>{const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return isoDate(new Date(d.getFullYear(),d.getMonth(),Math.min(Math.max(1,dueDay),last)))};
 
 export default function Finance({household}:{household:Household}){
- const [tab,setTab]=useState<'summary'|'budget'|'transactions'|'contributions'|'goals'|'accounts'>('summary');
+ const [tab,setTab]=useState<'summary'|'budget'|'transactions'|'recurring'|'contributions'|'goals'|'accounts'>('summary');
  const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [categories,setCategories]=useState<Category[]>([]),[txs,setTxs]=useState<Tx[]>([]),[allocations,setAllocations]=useState<Allocation[]>([]);
- const [goals,setGoals]=useState<Goal[]>([]),[contributions,setContributions]=useState<Contribution[]>([]),[recurring,setRecurring]=useState<Recurring[]>([]);
+ const [goals,setGoals]=useState<Goal[]>([]),[contributions,setContributions]=useState<Contribution[]>([]),[recurring,setRecurring]=useState<Recurring[]>([]),[occurrences,setOccurrences]=useState<RecurringOccurrence[]>([]);
  const [accounts,setAccounts]=useState<Account[]>([]),[accountTxs,setAccountTxs]=useState<{account_id:string|null;type:string;amount:number}[]>([]);
  const [members,setMembers]=useState<Member[]>([]),[splits,setSplits]=useState<Split[]>([]),[currentUser,setCurrentUser]=useState('');
  const [showTxForm,setShowTxForm]=useState(false),[showGoalForm,setShowGoalForm]=useState(false),[showAccountForm,setShowAccountForm]=useState(false);
@@ -52,7 +54,7 @@ export default function Finance({household}:{household:Household}){
    supabase.from('budget_allocations').select('id,category_id,planned_amount,month').eq('household_id',household.id).eq('month',m),
    supabase.from('savings_goals').select('id,name,target_amount,target_date,icon,active').eq('household_id',household.id).eq('active',true).order('created_at'),
    supabase.from('goal_contributions').select('id,goal_id,amount,contribution_date,created_by').eq('household_id',household.id),
-   supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,paid_by,is_shared').eq('household_id',household.id).eq('active',true).order('due_day'),
+   supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,account_id,paid_by,is_shared,created_at').eq('household_id',household.id).eq('active',true).order('due_day'),
    supabase.from('finance_accounts').select('id,name,account_type,opening_balance,owner_user_id,is_shared,active').eq('household_id',household.id).eq('active',true).order('created_at'),
    supabase.from('transactions').select('account_id,type,amount').eq('household_id',household.id).not('account_id','is',null),
    supabase.from('household_members').select('user_id,role').eq('household_id',household.id),
@@ -89,13 +91,19 @@ export default function Finance({household}:{household:Household}){
   const txData=(txR.data||[]) as unknown as Tx[];
   const txIds=txData.map(t=>t.id);
   const splitR=txIds.length?await supabase.from('transaction_splits').select('transaction_id,user_id,share_amount').in('transaction_id',txIds):{data:[]};
+  const recurringRows=(recR.data||[]) as unknown as Recurring[];
+  const occurrenceSeeds=recurringRows
+   .filter(r=>m>=monthDate(new Date(r.created_at)))
+   .map(r=>({recurring_transaction_id:r.id,household_id:household.id,period_month:m,due_date:dueDateForMonth(month,Number(r.due_day)),status:'pending'}));
+  if(occurrenceSeeds.length)await supabase.from('recurring_transaction_occurrences').upsert(occurrenceSeeds,{onConflict:'recurring_transaction_id,period_month',ignoreDuplicates:true});
+  const occurrenceR=await supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,period_month,due_date,status,paid_at,transaction_id').eq('household_id',household.id).eq('period_month',m).order('due_date');
   setCategories((catR.data||[]) as Category[]);setTxs(txData);setAllocations((allocR.data||[]) as unknown as Allocation[]);
-  setGoals((goalR.data||[]) as unknown as Goal[]);setContributions((contR.data||[]) as unknown as Contribution[]);setRecurring((recR.data||[]) as unknown as Recurring[]);
+  setGoals((goalR.data||[]) as unknown as Goal[]);setContributions((contR.data||[]) as unknown as Contribution[]);setRecurring((recR.data||[]) as unknown as Recurring[]);setOccurrences((occurrenceR.data||[]) as unknown as RecurringOccurrence[]);
   setAccounts((accR.data||[]) as unknown as Account[]);setAccountTxs((accTxR.data||[]) as unknown as any[]);setMembers(memberData);setSplits((splitR.data||[]) as unknown as Split[]);
   setSplitMethod(((financeSettingsR.data as any)?.split_method||'equal') as SplitMethod);setMemberFinance(financeDraft);setCategoryRules(categoryRuleDraft);setCategoryCustom(categoryCustomDraft);
   setCurrentUser(userR.data.user?.id||'');
   const draft:Record<string,string>={};for(const c of (catR.data||[]) as Category[]){const a=((allocR.data||[]) as any[]).find(x=>x.category_id===c.id);draft[c.id]=a?String(Number(a.planned_amount)):'0'}setBudgetDraft(draft);
-  const errors=[catR.error,txR.error,allocR.error,goalR.error,contR.error,recR.error,accR.error,memberR.error,financeSettingsR.error,memberFinanceR.error,categorySettingsR.error,categoryMemberR.error].filter(Boolean);
+  const errors=[catR.error,txR.error,allocR.error,goalR.error,contR.error,recR.error,accR.error,memberR.error,financeSettingsR.error,memberFinanceR.error,categorySettingsR.error,categoryMemberR.error,occurrenceR.error].filter(Boolean);
   if(errors.length)setMessage('No se pudo cargar toda la información financiera.');
   setLoading(false);
  }
@@ -113,15 +121,6 @@ export default function Finance({household}:{household:Household}){
  const categoryName=(id:string|null)=>categories.find(c=>c.id===id)?.name||'Sin categoría';
  const memberName=(id:string|null)=>members.find(m=>m.user_id===id)?.full_name||(id===currentUser?'Yo':'Miembro');
  const accountName=(id:string|null)=>accounts.find(a=>a.id===id)?.name||'Sin cuenta';
-
- const balances=useMemo(()=>{
-  const map=new Map<string,number>();for(const m of members)map.set(m.user_id,0);
-  for(const t of txs.filter(x=>x.type==='expense')){
-   if(t.paid_by)map.set(t.paid_by,(map.get(t.paid_by)||0)+Number(t.amount));
-  }
-  for(const s of splits)map.set(s.user_id,(map.get(s.user_id)||0)-Number(s.share_amount));
-  return members.map(m=>({...m,net:map.get(m.user_id)||0}));
- },[txs,splits,members]);
 
  const accountBalances=useMemo(()=>accounts.map(a=>{let balance=Number(a.opening_balance);for(const t of accountTxs.filter(x=>x.account_id===a.id))balance+=t.type==='income'?Number(t.amount):-Number(t.amount);return{...a,balance}}),[accounts,accountTxs]);
 
@@ -161,6 +160,11 @@ export default function Finance({household}:{household:Household}){
   const ratios=ratiosForCategory(categoryId),cents=Math.round(amount*100);let used=0;
   return ratios.map((r,i)=>{const share=i===ratios.length-1?cents-used:Math.floor(cents*r.ratio);used+=share;return{transaction_id:transactionId,household_id:household.id,user_id:r.user_id,share_amount:share/100}});
  }
+
+
+ const recurringById=(id:string)=>recurring.find(r=>r.id===id);
+ const occurrenceStatus=(o:RecurringOccurrence)=>o.status==='pending'&&o.due_date<isoDate()?'overdue':o.status;
+ const recurringStats=useMemo(()=>occurrences.reduce((acc,o)=>{const s=occurrenceStatus(o);if(s==='paid')acc.paid++;else if(s==='skipped')acc.skipped++;else if(s==='overdue')acc.overdue++;else acc.pending++;return acc},{pending:0,paid:0,overdue:0,skipped:0}),[occurrences]);
 
  const contributionOverview=useMemo(()=>members.map(m=>{
   const ratio=contributionRatios.find(r=>r.user_id===m.user_id)?.ratio||0;
@@ -226,6 +230,30 @@ export default function Finance({household}:{household:Household}){
   setBusy(false);setMessage('Reglas por categoría guardadas y gastos compartidos del mes recalculados.');await load();
  }
 
+ async function payRecurringOccurrence(occurrence:RecurringOccurrence){
+  const recurringItem=recurringById(occurrence.recurring_transaction_id);
+  if(!recurringItem||occurrence.status==='paid')return;
+  setBusy(true);setMessage('');
+  const paymentDate=isoDate();
+  const payload={household_id:household.id,description:recurringItem.description,amount:Number(recurringItem.amount),type:recurringItem.type,transaction_date:paymentDate,category_id:recurringItem.category_id,account_id:recurringItem.account_id,paid_by:recurringItem.paid_by||currentUser||null,is_shared:recurringItem.is_shared,notes:`Pago recurrente · ${monthLabel(month)}`,recurring_transaction_id:recurringItem.id};
+  const {data,error}=await supabase.from('transactions').insert(payload).select('id').single();
+  if(error||!data){setBusy(false);setMessage(error?.message||'No se pudo registrar el pago.');return}
+  if(recurringItem.type==='expense'){
+   const rows=makeSplitRows(data.id,Number(recurringItem.amount),recurringItem.paid_by||currentUser||'',recurringItem.is_shared,recurringItem.category_id);
+   if(rows.length){const {error:splitError}=await supabase.from('transaction_splits').insert(rows);if(splitError){setBusy(false);setMessage(splitError.message);return}}
+  }
+  const {error:updateError}=await supabase.from('recurring_transaction_occurrences').update({status:'paid',paid_at:new Date().toISOString(),transaction_id:data.id,updated_at:new Date().toISOString()}).eq('id',occurrence.id);
+  setBusy(false);
+  if(updateError){setMessage(updateError.message);return}
+  setMessage('Pago recurrente registrado y movimiento creado.');await load();
+ }
+
+ async function skipRecurringOccurrence(occurrence:RecurringOccurrence){
+  if(occurrence.status==='paid')return;
+  setBusy(true);const {error}=await supabase.from('recurring_transaction_occurrences').update({status:'skipped',updated_at:new Date().toISOString()}).eq('id',occurrence.id);setBusy(false);
+  setMessage(error?error.message:'Pago omitido para este mes.');if(!error)await load();
+ }
+
  async function addTransaction(e:FormEvent<HTMLFormElement>){
   e.preventDefault();setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const type=String(f.get('type')) as 'income'|'expense',amount=Number(f.get('amount')),paidBy=String(f.get('paid_by')||currentUser),shareMode=String(f.get('share_mode')||'shared');
@@ -236,7 +264,15 @@ export default function Finance({household}:{household:Household}){
    const rows=makeSplitRows(data.id,amount,paidBy,shareMode==='shared',payload.category_id);
    if(rows.length)await supabase.from('transaction_splits').insert(rows);
   }
-  if(f.get('recurring')==='on')await supabase.from('recurring_transactions').insert({household_id:household.id,category_id:payload.category_id,account_id:payload.account_id,type,description:payload.description,amount,due_day:Number(f.get('due_day')||new Date(payload.transaction_date+'T12:00').getDate()),paid_by:paidBy||null,is_shared:shareMode==='shared'});
+  if(f.get('recurring')==='on'){
+   const dueDay=Number(f.get('due_day')||new Date(payload.transaction_date+'T12:00').getDate());
+   const {data:recurringCreated,error:recurringError}=await supabase.from('recurring_transactions').insert({household_id:household.id,category_id:payload.category_id,account_id:payload.account_id,type,description:payload.description,amount,due_day:dueDay,paid_by:paidBy||null,is_shared:shareMode==='shared'}).select('id').single();
+   if(recurringCreated&&!recurringError){
+    await supabase.from('transactions').update({recurring_transaction_id:recurringCreated.id}).eq('id',data.id);
+    const paidMonth=new Date(payload.transaction_date+'T12:00');
+    await supabase.from('recurring_transaction_occurrences').upsert({recurring_transaction_id:recurringCreated.id,household_id:household.id,period_month:monthDate(paidMonth),due_date:dueDateForMonth(paidMonth,dueDay),status:'paid',paid_at:new Date().toISOString(),transaction_id:data.id,updated_at:new Date().toISOString()},{onConflict:'recurring_transaction_id,period_month'});
+   }
+  }
   setShowTxForm(false);setBusy(false);setMessage('Movimiento guardado.');await load();
  }
 
@@ -276,6 +312,7 @@ export default function Finance({household}:{household:Household}){
    <button className={tab==='summary'?'active':''} onClick={()=>setTab('summary')}>Resumen</button>
    <button className={tab==='budget'?'active':''} onClick={()=>setTab('budget')}>Presupuesto</button>
    <button className={tab==='transactions'?'active':''} onClick={()=>setTab('transactions')}>Movimientos</button>
+   <button className={tab==='recurring'?'active':''} onClick={()=>setTab('recurring')}>Recurrentes</button>
    <button className={tab==='contributions'?'active':''} onClick={()=>setTab('contributions')}>Aportes</button>
    <button className={tab==='goals'?'active':''} onClick={()=>setTab('goals')}>Metas</button>
    <button className={tab==='accounts'?'active':''} onClick={()=>setTab('accounts')}>Cuentas</button>
@@ -303,8 +340,8 @@ export default function Finance({household}:{household:Household}){
      {categories.slice(0,6).map(c=><div className="budget-mini" key={c.id}><span>{c.name}</span><b>{currency(allocationByCategory.get(c.id)||0)}</b><b>{currency(actualByCategory.get(c.id)||0)}</b></div>)}
     </div>
     <div className="finance-panel">
-     <div className="panel-title"><h3>Próximos pagos</h3><CalendarClock size={19}/></div>
-     {recurring.length?recurring.slice(0,5).map(r=><div className="due-row" key={r.id}><span className="due-day">{r.due_day}</span><div><strong>{r.description}</strong><small>{categoryName(r.category_id)}</small></div><b>{currency(Number(r.amount))}</b></div>):<EmptyFinance text="Aún no hay pagos recurrentes. Márcalos al registrar un movimiento."/>}
+     <div className="panel-title"><div><h3>Próximos pagos</h3><small>{recurringStats.overdue?recurringStats.overdue+' vencido(s)':'Control mensual de recurrentes'}</small></div><button onClick={()=>setTab('recurring')}>Ver todos <ChevronRight size={16}/></button></div>
+     {occurrences.filter(o=>recurringById(o.recurring_transaction_id)?.type==='expense').length?occurrences.filter(o=>recurringById(o.recurring_transaction_id)?.type==='expense').slice(0,5).map(o=>{const r=recurringById(o.recurring_transaction_id)!;const status=occurrenceStatus(o);return <div className="due-row recurring-summary-row" key={o.id}><span className="due-day">{new Date(o.due_date+'T12:00').getDate()}</span><div><strong>{r.description}</strong><small>{categoryName(r.category_id)} · <span className={'status-text '+status}>{statusLabel(status)}</span></small></div><div className="due-actions"><b>{currency(Number(r.amount))}</b>{(status==='pending'||status==='overdue')&&<button disabled={busy} onClick={()=>payRecurringOccurrence(o)}>Pagar</button>}</div></div>}):<EmptyFinance text="Aún no hay pagos recurrentes. Márcalos al registrar un movimiento."/>}
     </div>
    </div>
 
@@ -338,6 +375,26 @@ export default function Finance({household}:{household:Household}){
     <div className="panel-title"><div><h3>Metas de ahorro</h3><small>Casa, viajes, fondo de emergencia o cualquier proyecto.</small></div><button className="mini-add" onClick={()=>setShowGoalForm(true)}><Plus size={16}/> Nueva</button></div>
     <div className="goal-grid">{goals.map(g=>{const saved=contributions.filter(c=>c.goal_id===g.id).reduce((s,c)=>s+Number(c.amount),0);return <GoalCard key={g.id} goal={g} saved={saved} busy={busy} onContribute={contribute}/>})}</div>
     {!goals.length&&<EmptyFinance text="Crea la primera meta de ahorro del hogar."/>}
+   </div>
+  </>}
+
+  {tab==='recurring'&&<>
+   <div className="recurring-kpis">
+    <div><small>Pendientes</small><strong>{recurringStats.pending}</strong></div>
+    <div><small>Pagados</small><strong>{recurringStats.paid}</strong></div>
+    <div><small>Vencidos</small><strong>{recurringStats.overdue}</strong></div>
+   </div>
+   <div className="finance-panel recurring-panel">
+    <div className="panel-title"><div><h3>Pagos recurrentes</h3><small>Marca cada compromiso como pagado y el movimiento se crea automáticamente.</small></div><CalendarClock size={20}/></div>
+    <div className="recurring-list">
+     {occurrences.map(o=>{const r=recurringById(o.recurring_transaction_id);if(!r)return null;const status=occurrenceStatus(o);return <div className="recurring-row" key={o.id}>
+      <div className={'recurring-date '+status}><span>{new Date(o.due_date+'T12:00').toLocaleDateString('es-GT',{day:'2-digit'})}</span><small>{new Date(o.due_date+'T12:00').toLocaleDateString('es-GT',{month:'short'})}</small></div>
+      <div className="recurring-main"><div><strong>{r.description}</strong><small>{categoryName(r.category_id)} · {r.is_shared?'Compartido':'Personal'} · {accountName(r.account_id)}</small></div><span className={'status-pill '+status}>{statusLabel(status)}</span></div>
+      <div className="recurring-amount"><strong>{r.type==='income'?'+':'−'}{currency(Number(r.amount))}</strong><small>{r.type==='income'?'Ingreso':'Gasto'}</small></div>
+      <div className="recurring-actions">{(status==='pending'||status==='overdue')&&<><button className="pay" disabled={busy} onClick={()=>payRecurringOccurrence(o)}><Check size={15}/> Pagado</button><button className="skip" disabled={busy} onClick={()=>skipRecurringOccurrence(o)}>Omitir</button></>}{status==='paid'&&<span className="paid-note"><Check size={15}/> Registrado</span>}{status==='skipped'&&<span className="skipped-note">Omitido</span>}</div>
+     </div>})}
+    </div>
+    {!occurrences.length&&<EmptyFinance text="Todavía no hay compromisos recurrentes para este mes."/>}
    </div>
   </>}
 
@@ -426,6 +483,7 @@ function GoalCard({goal,saved,busy,onContribute}:{goal:Goal;saved:number;busy:bo
 }
 
 function Modal({title,close,children}:{title:string;close:()=>void;children:any}){return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}><div className="finance-modal"><div className="modal-head"><h3>{title}</h3><button onClick={close}><X/></button></div>{children}</div></div>}
+function statusLabel(status:string){return status==='paid'?'Pagado':status==='overdue'?'Vencido':status==='skipped'?'Omitido':'Pendiente'}
 function splitMethodLabel(method:SplitMethod){return method==='income'?'Proporcional a ingresos':method==='custom'?'Porcentaje personalizado':'Partes iguales'}
 function categoryRuleLabel(method:CategoryRuleMethod,globalMethod:SplitMethod){return method==='inherit'?`General · ${splitMethodLabel(globalMethod)}`:method==='equal'?'Partes iguales':method==='income'?'Según ingresos':method==='custom'?'Porcentaje personalizado':'Una persona cubre 100%'}
 function accountTypeName(type:string){return({cash:'Efectivo',checking:'Banco',savings:'Ahorro',credit:'Tarjeta',other:'Otra'} as Record<string,string>)[type]||'Cuenta'}
