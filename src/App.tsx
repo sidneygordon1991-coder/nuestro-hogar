@@ -1,4 +1,18 @@
-import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Eye,Home,LogOut,Menu,Plus,ReceiptText,ShieldOff,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import HomeDashboard from './HomeDashboard';import ListsCenter from './ListsCenter';import CalendarCenter from './CalendarCenter';import FamilyCenter from './FamilyCenter';import DocumentVault from './DocumentVault';import MealsCenter from './MealsCenter';import MaintenanceCenter from './MaintenanceCenter';import GlobalCommandCenter from './GlobalCommandCenter';import HouseholdHealthCenter from './HouseholdHealthCenter';import AutomationCenter from './AutomationCenter';import MonthlyCloseCenter from './MonthlyCloseCenter';import PlanningCenter from './PlanningCenter';import BackupCenter from './BackupCenter';import DiagnosticCenter from './DiagnosticCenter';import {AppErrorBoundary,ClientErrorReporter} from './AppDiagnostics';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';
+import {FormEvent,lazy,Suspense,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Eye,Home,LogOut,Plus,ReceiptText,ShieldOff,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import HomeDashboard from './HomeDashboard';import GlobalCommandCenter from './GlobalCommandCenter';import {AppErrorBoundary,ClientErrorReporter} from './AppDiagnostics';import AppMenu from './AppMenu';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import PwaUpdatePrompt from './PwaUpdatePrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';
+
+const Finance=lazy(()=>import('./Finance'));
+const ListsCenter=lazy(()=>import('./ListsCenter'));
+const CalendarCenter=lazy(()=>import('./CalendarCenter'));
+const FamilyCenter=lazy(()=>import('./FamilyCenter'));
+const DocumentVault=lazy(()=>import('./DocumentVault'));
+const MealsCenter=lazy(()=>import('./MealsCenter'));
+const MaintenanceCenter=lazy(()=>import('./MaintenanceCenter'));
+const HouseholdHealthCenter=lazy(()=>import('./HouseholdHealthCenter'));
+const AutomationCenter=lazy(()=>import('./AutomationCenter'));
+const MonthlyCloseCenter=lazy(()=>import('./MonthlyCloseCenter'));
+const PlanningCenter=lazy(()=>import('./PlanningCenter'));
+const BackupCenter=lazy(()=>import('./BackupCenter'));
+const DiagnosticCenter=lazy(()=>import('./DiagnosticCenter'));
 
 type Household={id:string;name:string;invite_code:string};
 type ListRow={id:string;title:string};
@@ -17,11 +31,21 @@ const authRedirectUrl=()=>`${window.location.origin}${import.meta.env.BASE_URL}`
 export default function App(){
  const [session,setSession]=useState<Session|null>(null),[loading,setLoading]=useState(true),[recovery,setRecovery]=useState(()=>new URLSearchParams(window.location.hash.replace(/^#/,'')).get('type')==='recovery');
  const [households,setHouseholds]=useState<Household[]>([]),[household,setHousehold]=useState<Household|null>(null);
- const [tab,setTab]=useState(()=>new URLSearchParams(window.location.search).get('tab')||'inicio'),[lists,setLists]=useState<ListRow[]>([]),[events,setEvents]=useState<EventRow[]>([]),[txs,setTxs]=useState<Tx[]>([]);
+ const [tab,setTabState]=useState(()=>normalizeTab(new URLSearchParams(window.location.search).get('tab'))),[lists,setLists]=useState<ListRow[]>([]),[events,setEvents]=useState<EventRow[]>([]),[txs,setTxs]=useState<Tx[]>([]);
  const [financeHome,setFinanceHome]=useState<FinanceHome>({income:0,expense:0,saving:0,available:0,pending:0,projected:0,overdue:0,nextPayment:null,nextPaymentAmount:0,nextPaymentDate:null,goalName:null,goalProgress:0});
  const [access,setAccess]=useState<HouseholdAccess|null>(null);
  useEffect(()=>{supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data}=supabase.auth.onAuthStateChange((event,s)=>{setSession(s);if(event==='PASSWORD_RECOVERY')setRecovery(true);if(event==='SIGNED_OUT')setRecovery(false)});return()=>data.subscription.unsubscribe()},[]);
  useEffect(()=>{if(session)loadHouseholds();else{setHouseholds([]);setHousehold(null);setAccess(null)}},[session]);
+ useEffect(()=>{const pop=()=>setTabState(normalizeTab(new URLSearchParams(window.location.search).get('tab')));window.addEventListener('popstate',pop);return()=>window.removeEventListener('popstate',pop)},[]);
+ function setTab(next:string){
+  const normalized=normalizeTab(next);if(normalized===tab)return;
+  setTabState(normalized);
+  const url=new URL(window.location.href);
+  if(normalized==='inicio')url.searchParams.delete('tab');else url.searchParams.set('tab',normalized);
+  url.searchParams.delete('quick');
+  window.history.pushState({},'',url);
+  window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+ }
  useEffect(()=>{if(household){setAccess(null);loadAccess(household.id);loadData(household.id)}},[household]);
  useEffect(()=>{if(household)loadData(household.id)},[tab]);
  async function loadHouseholds(){const {data,error}=await supabase.from('household_members').select('household_id, households(id,name,invite_code)');if(error)return;const rows=(data||[]).map((r:any)=>r.households).filter(Boolean);setHouseholds(rows);if(rows[0])setHousehold(rows[0])}
@@ -124,21 +148,25 @@ function Onboarding({onDone}:{onDone:()=>void}){
 
 function Shell(p:any){
  const module=tabModule(p.tab),level=module?p.access?.modules?.[module]:null,denied=level==='none';
- return <div className="app"><header><div><div className="home-select-wrap"><select className="home-select" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><div className="header-actions"><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar/></div></header>
- <main className="content">
+ useEffect(()=>{const url=new URL(window.location.href);if(url.searchParams.get('quick')!=='1')return;const timer=window.setTimeout(()=>window.dispatchEvent(new CustomEvent('nh:quick-add')),180);url.searchParams.delete('quick');window.history.replaceState({},'',url);return()=>window.clearTimeout(timer)},[p.household.id]);
+ return <div className="app"><a className="skip-link" href="#main-content">Saltar al contenido</a><header><div><div className="home-select-wrap"><select className="home-select" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><div className="header-actions"><AppMenu currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar/></div></header>
+ <main className="content" id="main-content" tabIndex={-1}>
  {level==='view'&&<div className="module-readonly-banner"><Eye/><div><strong>Modo solo lectura</strong><span>Puedes consultar esta sección, pero los cambios están bloqueados por los permisos de tu rol.</span></div></div>}
- {denied?<AccessDenied role={p.access.role} onHome={()=>p.setTab('inicio')}/>:<>
+ {denied?<AccessDenied role={p.access.role} onHome={()=>p.setTab('inicio')}/>:<Suspense fallback={<ModuleFallback/>}>
  {p.tab==='inicio'&&<HomeDashboard household={p.household} finance={p.financeHome} listCount={p.lists.length} access={p.access.modules} onNavigate={p.setTab}/>}
  {p.tab==='listas'&&<ListsCenter household={p.household} readOnly={level==='view'} onChanged={p.onRefresh}/>} 
  {p.tab==='calendario'&&<CalendarCenter household={p.household} readOnly={level==='view'} onChanged={p.onRefresh} onNavigate={p.setTab}/>} 
  {p.tab==='presupuesto'&&<Finance household={p.household} readOnly={level==='view'}/>} 
  {p.tab==='familia'&&<FamilyCenter household={p.household} onChanged={()=>{p.onRefresh();p.onAccessChanged?.()}}/>} {p.tab==='documentos'&&<DocumentVault household={p.household} readOnly={level==='view'}/>}  {p.tab==='comidas'&&<MealsCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='mantenimiento'&&<MaintenanceCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='salud'&&<HouseholdHealthCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='automatizaciones'&&<AutomationCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='cierre'&&<MonthlyCloseCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='planeacion'&&<PlanningCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>} {p.tab==='respaldos'&&<BackupCenter household={p.household}/>} {p.tab==='diagnostico'&&<DiagnosticCenter household={p.household} onNavigate={p.setTab}/>} 
- </>}
- </main><PwaInstallPrompt/><nav><button className={p.tab==='inicio'?'active':''} onClick={()=>p.setTab('inicio')}><Home/><span>Inicio</span></button><button disabled={p.access.modules.calendar==='none'} className={p.tab==='calendario'?'active':''} onClick={()=>p.setTab('calendario')}><CalendarDays/><span>Calendario</span></button><button className="fab" onClick={()=>window.dispatchEvent(new CustomEvent('nh:quick-add'))} aria-label="Agregar rápido"><Plus/></button><button disabled={p.access.modules.finance==='none'} className={p.tab==='presupuesto'?'active':''} onClick={()=>p.setTab('presupuesto')}><WalletCards/><span>Finanzas</span></button><button className={p.tab==='familia'?'active':''} onClick={()=>p.setTab('familia')}><Users/><span>Familia</span></button></nav></div>
+ </Suspense>}
+ </main><PwaInstallPrompt/><PwaUpdatePrompt/><nav><button className={p.tab==='inicio'?'active':''} onClick={()=>p.setTab('inicio')}><Home/><span>Inicio</span></button><button disabled={p.access.modules.calendar==='none'} className={p.tab==='calendario'?'active':''} onClick={()=>p.setTab('calendario')}><CalendarDays/><span>Calendario</span></button><button className="fab" onClick={()=>window.dispatchEvent(new CustomEvent('nh:quick-add'))} aria-label="Agregar rápido"><Plus/></button><button disabled={p.access.modules.finance==='none'} className={p.tab==='presupuesto'?'active':''} onClick={()=>p.setTab('presupuesto')}><WalletCards/><span>Finanzas</span></button><button className={p.tab==='familia'?'active':''} onClick={()=>p.setTab('familia')}><Users/><span>Familia</span></button></nav></div>
 }
 
 function AccessDenied({role,onHome}:{role:string;onHome:()=>void}){return <section className="access-denied"><span><ShieldOff/></span><h2>Módulo restringido</h2><p>Tu rol de {role==='teen'?'Adolescente':role==='guest'?'Invitado':role==='admin'?'Administrador':role==='owner'?'Propietario':'Adulto'} no tiene acceso a esta sección. Un administrador del hogar puede cambiar el permiso desde Familia.</p><button onClick={onHome}>Volver a Inicio</button></section>}
 function tabModule(tab:string){return({listas:'lists',calendario:'calendar',presupuesto:'finance',documentos:'documents',comidas:'meals',mantenimiento:'maintenance',planeacion:'planning',salud:'health',cierre:'monthly_close',automatizaciones:'automations',respaldos:'backups',diagnostico:'diagnostics'} as Record<string,string>)[tab]||null}
+const VALID_TABS=new Set(['inicio','listas','calendario','presupuesto','familia','documentos','comidas','mantenimiento','salud','automatizaciones','cierre','planeacion','respaldos','diagnostico']);
+function normalizeTab(tab:string|null){return tab&&VALID_TABS.has(tab)?tab:'inicio'}
+function ModuleFallback(){return <div className="module-loading" role="status" aria-live="polite"><div className="loader"/><span>Cargando módulo…</span></div>}
 
 function Icon({kind}:{kind:string}){const map:any={list:<CheckCircle2/>,calendar:<CalendarDays/>,budget:<WalletCards/>,family:<Users/>,docs:<ReceiptText/>,birthday:<CalendarDays/>,meal:<ShoppingCart/>,recipe:<ReceiptText/>};return <span className={'ico '+kind}>{map[kind]}</span>}
 
