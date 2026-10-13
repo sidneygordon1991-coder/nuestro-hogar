@@ -1,4 +1,4 @@
-import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import HomeDashboard from './HomeDashboard';import ListsCenter from './ListsCenter';import type {Session} from '@supabase/supabase-js';
+import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import HomeDashboard from './HomeDashboard';import ListsCenter from './ListsCenter';import CalendarCenter from './CalendarCenter';import FamilyCenter from './FamilyCenter';import ProfileAvatar from './ProfileAvatar';import type {Session} from '@supabase/supabase-js';
 
 type Household={id:string;name:string;invite_code:string};
 type ListRow={id:string;title:string};
@@ -124,13 +124,13 @@ function Onboarding({onDone}:{onDone:()=>void}){
 }
 
 function Shell(p:any){
- return <div className="app"><header><div><div className="home-select-wrap"><select className="home-select" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><button className="avatar">S</button></header>
+ return <div className="app"><header><div><div className="home-select-wrap"><select className="home-select" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><ProfileAvatar/></header>
  <main className="content">
  {p.tab==='inicio'&&<HomeDashboard finance={p.financeHome} events={p.events} listCount={p.lists.length} onNavigate={p.setTab}/>}
  {p.tab==='listas'&&<ListsCenter household={p.household} onChanged={p.onRefresh}/>}
- {p.tab==='calendario'&&<Events household={p.household} events={p.events} refresh={p.onRefresh}/>}
+ {p.tab==='calendario'&&<CalendarCenter household={p.household} onChanged={p.onRefresh} onNavigate={p.setTab}/>}
  {p.tab==='presupuesto'&&<Finance household={p.household}/>}
- {p.tab==='familia'&&<Family household={p.household}/>}
+ {p.tab==='familia'&&<FamilyCenter household={p.household} onChanged={p.onRefresh}/>}
  </main><nav><button className={p.tab==='inicio'?'active':''} onClick={()=>p.setTab('inicio')}><Home/><span>Inicio</span></button><button className={p.tab==='calendario'?'active':''} onClick={()=>p.setTab('calendario')}><CalendarDays/><span>Calendario</span></button><button className="fab" onClick={()=>p.setTab('listas')}><Plus/></button><button className={p.tab==='presupuesto'?'active':''} onClick={()=>p.setTab('presupuesto')}><WalletCards/><span>Finanzas</span></button><button className={p.tab==='familia'?'active':''} onClick={()=>p.setTab('familia')}><Users/><span>Familia</span></button></nav></div>
 }
 function Icon({kind}:{kind:string}){const map:any={list:<CheckCircle2/>,calendar:<CalendarDays/>,budget:<WalletCards/>,family:<Users/>,docs:<ReceiptText/>,birthday:<CalendarDays/>,meal:<ShoppingCart/>,recipe:<ReceiptText/>};return <span className={'ico '+kind}>{map[kind]}</span>}
