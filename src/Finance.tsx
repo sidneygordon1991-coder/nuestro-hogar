@@ -174,6 +174,40 @@ export default function Finance({household}:{household:Household}){
  const occurrenceStatus=(o:RecurringOccurrence)=>o.status==='pending'&&o.due_date<isoDate()?'overdue':o.status;
  const recurringStats=useMemo(()=>occurrences.reduce((acc,o)=>{const s=occurrenceStatus(o);if(s==='paid')acc.paid++;else if(s==='skipped')acc.skipped++;else if(s==='overdue')acc.overdue++;else acc.pending++;return acc},{pending:0,paid:0,overdue:0,skipped:0}),[occurrences]);
 
+ const smartBudget=useMemo(()=>{
+  const configuredIncome=members.reduce((sum,m)=>sum+Number(memberFinance[m.user_id]?.monthly_income||0),0);
+  const plannedIncome=configuredIncome>0?configuredIncome:totals.income;
+  const expectedIncomeRemaining=Math.max(plannedIncome-totals.income,0);
+  const groupFor=(id:string|null):BudgetGroup=>id?(categoryGroupDraft[id]||categories.find(cat=>cat.id===id)?.budget_group||'variable'):'variable';
+  let plannedFixed=0,spentFixed=0,plannedVariable=0,spentVariable=0,plannedSaving=0;
+  const fixedRemainingByCategory=new Map<string,number>();
+  for(const cat of categories){
+   const group=groupFor(cat.id),planned=allocationByCategory.get(cat.id)||0,actual=actualByCategory.get(cat.id)||0;
+   if(group==='fixed'){plannedFixed+=planned;spentFixed+=actual;fixedRemainingByCategory.set(cat.id,Math.max(planned-actual,0))}
+   else if(group==='saving')plannedSaving+=planned;
+   else{plannedVariable+=planned;spentVariable+=actual}
+  }
+  const pendingByCategory=new Map<string,number>();let pendingRecurringAmount=0,pendingOutsideFixed=0;
+  for(const o of occurrences){
+   const status=occurrenceStatus(o),r=recurringById(o.recurring_transaction_id);
+   if(!r||r.type!=='expense'||(status!=='pending'&&status!=='overdue'))continue;
+   const amount=Number(r.amount);pendingRecurringAmount+=amount;
+   if(r.category_id)pendingByCategory.set(r.category_id,(pendingByCategory.get(r.category_id)||0)+amount);
+   if(groupFor(r.category_id)!=='fixed')pendingOutsideFixed+=amount;
+  }
+  let fixedCommitments=0;
+  for(const cat of categories.filter(cat=>groupFor(cat.id)==='fixed')){
+   fixedCommitments+=Math.max(fixedRemainingByCategory.get(cat.id)||0,pendingByCategory.get(cat.id)||0);
+  }
+  fixedCommitments+=pendingOutsideFixed;
+  const variableRemaining=categories.filter(cat=>groupFor(cat.id)==='variable').reduce((sum,cat)=>sum+Math.max((allocationByCategory.get(cat.id)||0)-(actualByCategory.get(cat.id)||0),0),0);
+  const savingsRemaining=Math.max(plannedSaving-totals.saving,0);
+  const availableAfterCommitments=totals.available-fixedCommitments-savingsRemaining;
+  const projectedClose=totals.available+expectedIncomeRemaining-fixedCommitments-savingsRemaining-variableRemaining;
+  const health=projectedClose<0?'risk':projectedClose<Math.max(plannedIncome*.08,500)?'watch':'good';
+  return{plannedIncome,expectedIncomeRemaining,plannedFixed,spentFixed,plannedVariable,spentVariable,plannedSaving,actualSaving:totals.saving,pendingRecurringAmount,fixedCommitments,variableRemaining,savingsRemaining,availableAfterCommitments,projectedClose,health};
+ },[members,memberFinance,totals,categories,categoryGroupDraft,allocations,txs,occurrences,recurring]);
+
  const contributionOverview=useMemo(()=>members.map(m=>{
   const ratio=contributionRatios.find(r=>r.user_id===m.user_id)?.ratio||0;
   const planned=categories.reduce((sum,cat)=>{
@@ -285,9 +319,25 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function saveBudget(){
-  setBusy(true);setMessage('');const rows=categories.map(c=>({household_id:household.id,category_id:c.id,month:monthDate(month),planned_amount:Number(budgetDraft[c.id]||0)}));
+  setBusy(true);setMessage('');
+  const rows=categories.map(cat=>({household_id:household.id,category_id:cat.id,month:monthDate(month),planned_amount:Number(budgetDraft[cat.id]||0)}));
   const {error}=await supabase.from('budget_allocations').upsert(rows,{onConflict:'household_id,category_id,month'});
-  setBusy(false);setMessage(error?error.message:'Presupuesto mensual actualizado.');if(!error)await load();
+  const groupResults=await Promise.all(categories.map(cat=>supabase.from('budget_categories').update({budget_group:categoryGroupDraft[cat.id]||cat.budget_group||'variable'}).eq('id',cat.id).eq('household_id',household.id)));
+  const groupError=groupResults.find(result=>result.error)?.error;
+  setBusy(false);
+  setMessage(error||groupError?(error?.message||groupError?.message||'No se pudo guardar el presupuesto.'):'Presupuesto mensual actualizado.');
+  if(!error&&!groupError)await load();
+ }
+
+ async function copyPreviousBudget(){
+  setBusy(true);setMessage('');
+  const previous=new Date(month.getFullYear(),month.getMonth()-1,1);
+  const {data,error}=await supabase.from('budget_allocations').select('category_id,planned_amount').eq('household_id',household.id).eq('month',monthDate(previous));
+  if(error){setBusy(false);setMessage(error.message);return}
+  if(!data?.length){setBusy(false);setMessage('El mes anterior no tiene un presupuesto guardado para copiar.');return}
+  const rows=data.map(a=>({household_id:household.id,category_id:a.category_id,month:monthDate(month),planned_amount:Number(a.planned_amount)}));
+  const {error:upsertError}=await supabase.from('budget_allocations').upsert(rows,{onConflict:'household_id,category_id,month'});
+  setBusy(false);setMessage(upsertError?upsertError.message:'Presupuesto del mes anterior copiado.');if(!upsertError)await load();
  }
 
  async function addGoal(e:FormEvent<HTMLFormElement>){
