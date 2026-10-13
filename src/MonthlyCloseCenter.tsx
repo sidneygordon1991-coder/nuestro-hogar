@@ -26,7 +26,7 @@ const monthLabel=(value:string|Date)=>{
 const shortDate=(value:string)=>new Date(value+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'}).replace('.','');
 const currentMonth=()=>new Date(new Date().getFullYear(),new Date().getMonth(),1);
 
-export default function MonthlyCloseCenter({household,onNavigate}:{household:Household;onNavigate:(tab:string)=>void}){
+export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}:{household:Household;onNavigate:(tab:string)=>void;readOnly?:boolean}){
  const [month,setMonth]=useState(()=>currentMonth());
  const [snapshot,setSnapshot]=useState<CloseSnapshot|null>(null),[closure,setClosure]=useState<CloseRow|null>(null),[history,setHistory]=useState<HistoryRow[]>([]);
  const [reflection,setReflection]=useState(''),[focus,setFocus]=useState<string[]>([]);
@@ -70,6 +70,7 @@ export default function MonthlyCloseCenter({household,onNavigate}:{household:Hou
  function removeFocus(index:number){setFocus(current=>current.filter((_,i)=>i!==index))}
 
  async function finalize(){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(isCurrent||isFuture)return;
   setBusy(true);setMessage('');
   const clean=focus.map(x=>x.trim()).filter(Boolean);
@@ -83,6 +84,7 @@ export default function MonthlyCloseCenter({household,onNavigate}:{household:Hou
  }
 
  async function saveReflection(){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!closure)return;
   setBusy(true);setMessage('');
   const clean=focus.map(x=>x.trim()).filter(Boolean);
@@ -179,12 +181,12 @@ export default function MonthlyCloseCenter({household,onNavigate}:{household:Hou
   <section className="monthly-close-reflection">
    <div className="monthly-close-panel-head"><div><p className="eyebrow">APRENDIZAJE</p><h3>Reflexión y enfoque del próximo mes</h3><p>El cierre conserva los números; esta parte conserva las decisiones.</p></div><Target/></div>
    <div className="monthly-reflection-grid">
-    <label><span>¿Qué aprendimos este mes?</span><textarea rows={6} value={reflection} onChange={e=>setReflection(e.target.value)} placeholder="Ej. Gastamos más en salidas, pero logramos cubrir todos los pagos y avanzar en la meta de ahorro."/></label>
-    <div className="monthly-focus-editor"><span>Objetivos del próximo mes</span>{focus.map((item,index)=><div key={index}><input value={item} onChange={e=>setFocusValue(index,e.target.value)} placeholder={'Objetivo '+(index+1)}/><button onClick={()=>removeFocus(index)} title="Quitar"><Minus/></button></div>)}{focus.length<5&&<button className="monthly-add-focus" onClick={addFocus}><Plus/> Agregar objetivo</button>}</div>
+    <label><span>¿Qué aprendimos este mes?</span><textarea rows={6} value={reflection} disabled={readOnly} onChange={e=>setReflection(e.target.value)} placeholder="Ej. Gastamos más en salidas, pero logramos cubrir todos los pagos y avanzar en la meta de ahorro."/></label>
+    <div className="monthly-focus-editor"><span>Objetivos del próximo mes</span>{focus.map((item,index)=><div key={index}><input value={item} disabled={readOnly} onChange={e=>setFocusValue(index,e.target.value)} placeholder={'Objetivo '+(index+1)}/>{!readOnly&&<button onClick={()=>removeFocus(index)} title="Quitar"><Minus/></button>}</div>)}{!readOnly&&focus.length<5&&<button className="monthly-add-focus" onClick={addFocus}><Plus/> Agregar objetivo</button>}</div>
    </div>
    <div className="monthly-close-footer">
     {isCurrent&&!closure?<div className="monthly-close-notice"><CalendarCheck2/><span><strong>Mes en curso</strong><small>Puedes revisar la vista previa ahora. El cierre definitivo estará disponible cuando termine {monthLabel(month).split(' ')[0]}.</small></span></div>:closure?<div className="monthly-close-notice closed"><CheckCircle2/><span><strong>Cierre protegido</strong><small>Los números quedaron congelados; solo puedes actualizar la reflexión y los objetivos.</small></span></div>:<div className="monthly-close-notice ready"><ClipboardCheck/><span><strong>Listo para cerrar</strong><small>Al cerrar, guardaremos esta fotografía para futuras comparaciones.</small></span></div>}
-    <button className="monthly-close-primary" disabled={busy||isCurrent} onClick={closure?saveReflection:finalize}>{busy?'Guardando...':closure?'Guardar reflexión':'Cerrar mes'}</button>
+    {!readOnly&&<button className="monthly-close-primary" disabled={busy||isCurrent} onClick={closure?saveReflection:finalize}>{busy?'Guardando...':closure?'Guardar reflexión':'Cerrar mes'}</button>}
    </div>
   </section>
  </section>
