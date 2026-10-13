@@ -111,6 +111,7 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
     <Preference label="Presupuesto" checked={prefs.budget} onChange={v=>updatePrefs({budget:v})}/>
     <Preference label="Metas" checked={prefs.goals} onChange={v=>updatePrefs({goals:v})}/>
     <Preference label="Documentos y vencimientos" checked={prefs.documents} onChange={v=>updatePrefs({documents:v})}/>
+    <Preference label="Mantenimiento y garantías" checked={prefs.maintenance} onChange={v=>updatePrefs({maintenance:v})}/>
     <p className="notification-note">El centro de alertas se actualiza desde el servidor. Con el permiso activado, este dispositivo puede recibir avisos push incluso cuando Nuestro Hogar está cerrado. En iPhone/iPad, instala primero la app en la pantalla de inicio.</p>
    </div>:<>
     <div className="notification-toolbar"><span>{unread?unread+' sin leer':'Todo al día'}</span><div><button disabled={!unread} onClick={markAll}><CheckCheck/> Marcar todo</button><button onClick={clearRead}><Trash2/> Limpiar leídas</button></div></div>
