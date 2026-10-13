@@ -1,4 +1,4 @@
-const CACHE='nuestro-hogar-v1';
+const CACHE='nuestro-hogar-v2';
 const BASE='/nuestro-hogar/';
 const SHELL=[BASE,BASE+'manifest.webmanifest',BASE+'icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()))});
@@ -12,9 +12,24 @@ self.addEventListener('fetch',event=>{
 
 self.addEventListener('notificationclick',event=>{
  event.notification.close();
- const target=event.notification?.data?.url||BASE;
+ const target=new URL(event.notification?.data?.url||BASE,self.location.origin).href;
  event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(windows=>{
   for(const client of windows){if('focus' in client){client.navigate(target);return client.focus()}}
   return clients.openWindow?clients.openWindow(target):undefined;
  }));
+});
+
+self.addEventListener('push',event=>{
+ let data={};
+ try{data=event.data?event.data.json():{}}catch{data={title:'Nuestro Hogar',body:event.data?event.data.text():''}}
+ const title=data.title||'Nuestro Hogar';
+ const options={
+  body:data.body||'',
+  icon:data.icon||BASE+'icon.svg',
+  badge:data.badge||BASE+'icon.svg',
+  tag:data.tag||'nuestro-hogar',
+  data:data.data||{url:BASE},
+  renotify:true
+ };
+ event.waitUntil(self.registration.showNotification(title,options));
 });
