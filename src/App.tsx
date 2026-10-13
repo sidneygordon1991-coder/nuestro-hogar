@@ -46,14 +46,7 @@ export default function App(){
   const plannedByCategory=new Map(allocations.map((row:any)=>[row.category_id,Number(row.planned_amount)]));
   const spentByCategory=new Map<string,number>();
   for(const row of txData as any[]){if(row.type==='expense'&&row.category_id)spentByCategory.set(row.category_id,(spentByCategory.get(row.category_id)||0)+Number(row.amount))}
-  let occurrences=(occR.data||[]) as any[];
-  const missing=recurring.filter((r:any)=>localIso(new Date(r.created_at))<=period.end&&!occurrences.some((o:any)=>o.recurring_transaction_id===r.id));
-  if(missing.length){
-   const seeds=missing.map((r:any)=>{const last=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();const day=Math.min(Number(r.due_day),last);return{recurring_transaction_id:r.id,household_id:id,period_month:period.month,due_date:localIso(new Date(new Date().getFullYear(),new Date().getMonth(),day)),status:'pending'}});
-   await supabase.from('recurring_transaction_occurrences').upsert(seeds,{onConflict:'recurring_transaction_id,period_month',ignoreDuplicates:true});
-   const refreshed=await supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status').eq('household_id',id).eq('period_month',period.month);
-   occurrences=(refreshed.data||[]) as any[];
-  }
+  const occurrences=(occR.data||[]) as any[];
   const recMap=new Map(recurring.map((r:any)=>[r.id,r]));
   const openOccurrences=occurrences.filter((o:any)=>o.status==='pending');
   const overdue=openOccurrences.filter((o:any)=>o.due_date<today()).length;
