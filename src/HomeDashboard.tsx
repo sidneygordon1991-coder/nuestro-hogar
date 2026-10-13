@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,Clock3,FileText,Home,ListChecks,PiggyBank,ReceiptText,Target,TrendingUp,Users,Utensils,WalletCards,Wrench} from 'lucide-react';
+import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,Clock3,FileText,Gauge,Home,ListChecks,PiggyBank,ReceiptText,Target,TrendingUp,Users,Utensils,WalletCards,Wrench} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -125,6 +125,7 @@ export default function HomeDashboard({household,finance,listCount,onNavigate}:{
     <button onClick={()=>onNavigate('documentos')}><span className="documents"><FileText/></span><div><strong>Documentos</strong><small>Bóveda, vencimientos y garantías</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('comidas')}><span className="meals"><Utensils/></span><div><strong>Comidas</strong><small>Plan semanal, recetas, despensa y compras</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('mantenimiento')}><span className="maintenance"><Wrench/></span><div><strong>Mantenimiento</strong><small>Casa, vehículos, servicios y garantías</small></div><ChevronRight/></button>
+    <button onClick={()=>onNavigate('salud')}><span className="health"><Gauge/></span><div><strong>Estado del hogar</strong><small>Índice, cobertura y recomendaciones</small></div><ChevronRight/></button>
    </div>
   </section>
 
