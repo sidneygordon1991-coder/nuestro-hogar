@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,Clock3,FileText,Gauge,Home,ListChecks,PiggyBank,ReceiptText,Target,TrendingUp,Users,Utensils,WalletCards,Wrench} from 'lucide-react';
+import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,Clock3,FileText,Gauge,HeartPulse,Home,ListChecks,PiggyBank,ReceiptText,Target,TrendingUp,Users,Utensils,WalletCards,Wrench} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
