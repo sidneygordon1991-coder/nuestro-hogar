@@ -118,6 +118,7 @@ export default function HomeDashboard({household,finance,listCount,onNavigate}:{
   <section className="control-section quick-access-section">
    <div className="control-section-head"><div><p className="eyebrow">TU HOGAR</p><h3>Accesos rápidos</h3></div></div>
    <div className="control-module-grid">
+    <button onClick={()=>onNavigate('salud')}><span className="health"><HeartPulse/></span><div><strong>Salud del hogar</strong><small>Diagnóstico y recomendaciones automáticas</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('presupuesto')}><span className="finance"><WalletCards/></span><div><strong>Finanzas</strong><small>Presupuesto, movimientos y comparación</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('calendario')}><span className="calendar"><CalendarDays/></span><div><strong>Agenda</strong><small>Eventos, pagos y cumpleaños</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('listas')}><span className="lists"><ListChecks/></span><div><strong>Listas</strong><small>{listCount} lista{listCount===1?'':'s'} compartida{listCount===1?'':'s'}</small></div><ChevronRight/></button>
