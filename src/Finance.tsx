@@ -386,6 +386,18 @@ export default function Finance({household}:{household:Household}){
     <Kpi label="Disponible" value={currency(totals.available)} icon={<WalletCards/>} tone={totals.available>=0?'good':'bad'}/>
    </div>
 
+   <div className={'finance-panel projection-panel '+smartBudget.health}>
+    <div className="projection-head"><div><p className="eyebrow">PROYECCIÓN DEL MES</p><h3>Dinero realmente disponible</h3><small>Considera pagos fijos pendientes, ahorro planificado y el presupuesto que aún falta por usar.</small></div><span className={'projection-health '+smartBudget.health}>{smartBudget.health==='good'?<TrendingUp/>:<AlertTriangle/>}{smartBudget.health==='good'?'Saludable':smartBudget.health==='watch'?'Ajustado':'En riesgo'}</span></div>
+    <div className="projection-grid">
+     <div><small>Disponible hoy</small><strong>{currency(totals.available)}</strong></div>
+     <div><small>Compromisos por cubrir</small><strong>{currency(smartBudget.fixedCommitments)}</strong></div>
+     <div><small>Ahorro pendiente</small><strong>{currency(smartBudget.savingsRemaining)}</strong></div>
+     <div className="projection-highlight"><small>Libre después de compromisos</small><strong>{currency(smartBudget.availableAfterCommitments)}</strong></div>
+    </div>
+    <div className="projection-footer"><span>Ingreso aún esperado <b>+{currency(smartBudget.expectedIncomeRemaining)}</b></span><span>Variables por usar <b>−{currency(smartBudget.variableRemaining)}</b></span><span>Cierre estimado <b className={smartBudget.projectedClose>=0?'positive':'negative'}>{currency(smartBudget.projectedClose)}</b></span></div>
+    <div className="projection-insight">{smartBudget.health==='risk'?'El plan actual terminaría aproximadamente '+currency(Math.abs(smartBudget.projectedClose))+' por encima de lo disponible.':smartBudget.health==='watch'?'El mes está equilibrado, pero queda poco margen libre si se usa todo el presupuesto previsto.':'Si mantienen este plan, el mes cerraría con aproximadamente '+currency(smartBudget.projectedClose)+' disponibles.'}</div>
+   </div>
+
    <div className="finance-panel">
     <div className="panel-heading"><div><span>Presupuesto utilizado</span><strong>{pct(totals.expense,totals.planned)}%</strong></div><small>{totals.planned?currency(totals.expense)+' de '+currency(totals.planned):'Define el presupuesto del mes'}</small></div>
     <Progress value={pct(totals.expense,totals.planned)}/>
@@ -414,14 +426,20 @@ export default function Finance({household}:{household:Household}){
    </div>
   </>}
 
-  {tab==='budget'&&<div className="finance-panel">
-   <div className="panel-title"><div><h3>Plan mensual</h3><small>Define cuánto quieren gastar en cada categoría.</small></div><b>{currency(categories.reduce((s,c)=>s+Number(budgetDraft[c.id]||0),0))}</b></div>
-   <div className="budget-editor">
-    {categories.map(c=>{const actual=actualByCategory.get(c.id)||0,planned=Number(budgetDraft[c.id]||0);return <div className="budget-edit-row" key={c.id}><div className="budget-cat"><span className="budget-dot"/><div><strong>{c.name}</strong><small>{currency(actual)} gastados · {pct(actual,planned)}%</small></div></div><input type="number" min="0" step="50" value={budgetDraft[c.id]??'0'} onChange={e=>setBudgetDraft({...budgetDraft,[c.id]:e.target.value})}/><Progress value={pct(actual,planned)}/></div>})}
+  {tab==='budget'&&<>
+   <div className="budget-group-summary">
+    <div className="fixed"><small>Gastos fijos</small><strong>{currency(smartBudget.plannedFixed)}</strong><span>{currency(smartBudget.spentFixed)} usados</span></div>
+    <div className="variable"><small>Gastos variables</small><strong>{currency(smartBudget.plannedVariable)}</strong><span>{currency(smartBudget.spentVariable)} usados</span></div>
+    <div className="saving"><small>Ahorro</small><strong>{currency(smartBudget.plannedSaving)}</strong><span>{currency(smartBudget.actualSaving)} aportados</span></div>
    </div>
-   <button className="finance-primary" disabled={busy} onClick={saveBudget}><Check size={17}/>{busy?'Guardando...':'Guardar presupuesto'}</button>
-  </div>}
-
+   <div className="finance-panel">
+    <div className="panel-title budget-plan-head"><div><h3>Plan mensual</h3><small>Clasifica cada categoría para mejorar la proyección del mes.</small></div><div className="budget-head-actions"><button className="secondary-action" disabled={busy} onClick={copyPreviousBudget}><Copy size={15}/> Copiar mes anterior</button><b>{currency(categories.reduce((sum,cat)=>sum+Number(budgetDraft[cat.id]||0),0))}</b></div></div>
+    <div className="budget-editor">
+     {categories.map(cat=>{const actual=actualByCategory.get(cat.id)||0,planned=Number(budgetDraft[cat.id]||0),group=categoryGroupDraft[cat.id]||cat.budget_group||'variable',progressValue=group==='saving'?totals.saving:actual;return <div className={'budget-edit-row smart '+group} key={cat.id}><div className="budget-cat"><span className="budget-dot"/><div><strong>{cat.name}</strong><small>{group==='saving'?currency(totals.saving)+' aportados':currency(actual)+' gastados'} · {pct(progressValue,planned)}%</small></div></div><div className="budget-controls"><select value={group} onChange={e=>setCategoryGroupDraft({...categoryGroupDraft,[cat.id]:e.target.value as BudgetGroup})}><option value="fixed">Fijo</option><option value="variable">Variable</option><option value="saving">Ahorro</option></select><input type="number" min="0" step="50" value={budgetDraft[cat.id]??'0'} onChange={e=>setBudgetDraft({...budgetDraft,[cat.id]:e.target.value})}/></div><Progress value={pct(progressValue,planned)}/></div>})}
+    </div>
+    <button className="finance-primary" disabled={busy} onClick={saveBudget}><Check size={17}/>{busy?'Guardando...':'Guardar presupuesto'}</button>
+   </div>
+  </>}
   {tab==='transactions'&&<div className="finance-panel">
    <div className="panel-title"><div><h3>Movimientos del mes</h3><small>{txs.length} registros</small></div><button className="mini-add" onClick={()=>setShowTxForm(true)}><Plus size={16}/> Agregar</button></div>
    <TransactionRows txs={txs} categoryName={categoryName} memberName={memberName}/>
