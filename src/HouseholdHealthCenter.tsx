@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useState,type CSSProperties} from 'react';
 import {AlertTriangle,CalendarDays,CheckCircle2,ChevronRight,FileText,Gauge,ListChecks,Package,RefreshCw,Sparkles,TrendingUp,Utensils,WalletCards,Wrench} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
@@ -54,7 +54,7 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
   {message&&<div className="finance-message">{message}</div>}
 
   <section className={'health-hero '+snapshot.status}>
-   <div className="health-score-ring" style={{'--score':snapshot.overall_score} as React.CSSProperties}><div><strong>{snapshot.overall_score}</strong><span>/ 100</span></div></div>
+   <div className="health-score-ring" style={{'--score':snapshot.overall_score} as CSSProperties}><div><strong>{snapshot.overall_score}</strong><span>/ 100</span></div></div>
    <div className="health-hero-copy"><p className="eyebrow">ÍNDICE OPERATIVO</p><h3>{snapshot.status_label}</h3><p>{heroText}</p><div className="health-hero-tags"><span><Gauge/> Cobertura {snapshot.coverage_score}%</span><span className={snapshot.urgent_count?'urgent':''}><AlertTriangle/> {snapshot.urgent_count} urgentes</span><span><Sparkles/> {snapshot.recommendations.length} recomendación{snapshot.recommendations.length===1?'':'es'}</span></div></div>
    <button className="health-primary-action" onClick={()=>onNavigate(snapshot.recommendations[0]?.tab||'inicio')}><small>PRIMERA ACCIÓN</small><strong>{snapshot.recommendations[0]?.title||'Todo al día'}</strong><span>Revisar ahora <ChevronRight/></span></button>
   </section>
