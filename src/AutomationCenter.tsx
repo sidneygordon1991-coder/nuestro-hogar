@@ -20,7 +20,7 @@ const definitions:Record<RuleKey,{group:string;title:string;description:string;k
  pantry_low_to_shopping:{group:'Comidas',title:'Reposición automática',description:'Cuando un producto llega a su mínimo, lo agrega automáticamente a la lista de compras sin duplicarlo.',kind:'action',field:'list_title',unit:'lista destino',defaultValue:'Supermercado',icon:<ShoppingCart/>}
 };
 
-export default function AutomationCenter({household,onNavigate}:{household:Household;onNavigate:(tab:string)=>void}){
+export default function AutomationCenter({household,onNavigate,readOnly=false}:{household:Household;onNavigate:(tab:string)=>void;readOnly?:boolean}){
  const [rules,setRules]=useState<Rule[]>([]),[runs,setRuns]=useState<RuleRun[]>([]),[drafts,setDrafts]=useState<Record<string,string>>({});
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState<string|null>(null),[running,setRunning]=useState(false),[message,setMessage]=useState('');
 
@@ -48,6 +48,7 @@ export default function AutomationCenter({household,onNavigate}:{household:House
  }
 
  async function saveRule(rule:Rule,enabled=rule.enabled){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   const def=definitions[rule.rule_key],config={...rule.config};
   if(def.field){
    if(typeof def.defaultValue==='number'){
@@ -69,6 +70,7 @@ export default function AutomationCenter({household,onNavigate}:{household:House
  }
 
  async function runNow(){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   setRunning(true);setMessage('');
   const {data,error}=await supabase.rpc('run_my_household_automation_rules',{p_household_id:household.id});
   setRunning(false);
@@ -87,7 +89,7 @@ export default function AutomationCenter({household,onNavigate}:{household:House
  if(loading)return <div className="finance-loading"><div className="loader"/></div>;
 
  return <section className="automation-center">
-  <div className="automation-top"><div><p className="eyebrow">AUTOMATIZACIONES</p><h2 className="page-title">Reglas del hogar</h2><p className="muted">Decide qué debe vigilar Nuestro Hogar y qué acciones puede ejecutar automáticamente.</p></div><button className="automation-run" onClick={runNow} disabled={running}><Play/>{running?'Evaluando...':'Ejecutar ahora'}</button></div>
+  <div className="automation-top"><div><p className="eyebrow">AUTOMATIZACIONES</p><h2 className="page-title">Reglas del hogar</h2><p className="muted">Decide qué debe vigilar Nuestro Hogar y qué acciones puede ejecutar automáticamente.</p></div>{!readOnly&&<button className="automation-run" onClick={runNow} disabled={running}><Play/>{running?'Evaluando...':'Ejecutar ahora'}</button>}</div>
 
   {message&&<div className="finance-message">{message}</div>}
 
@@ -99,7 +101,7 @@ export default function AutomationCenter({household,onNavigate}:{household:House
 
   <div className="automation-groups">{groups.map(({group,rules:groupRules})=><section className="automation-group" key={group}>
    <div className="automation-group-head"><div><p className="eyebrow">{group.toUpperCase()}</p><h3>{group}</h3></div><span>{groupRules.filter(r=>r.enabled).length}/{groupRules.length} activas</span></div>
-   <div className="automation-rule-grid">{groupRules.map(rule=><RuleCard key={rule.rule_key} rule={rule} draft={drafts[rule.rule_key]??''} setDraft={value=>setDrafts(current=>({...current,[rule.rule_key]:value}))} busy={busy===rule.rule_key} onToggle={enabled=>saveRule(rule,enabled)} onSave={()=>saveRule(rule)}/>)}</div>
+   <div className="automation-rule-grid">{groupRules.map(rule=><RuleCard key={rule.rule_key} rule={rule} draft={drafts[rule.rule_key]??''} setDraft={value=>setDrafts(current=>({...current,[rule.rule_key]:value}))} busy={busy===rule.rule_key} readOnly={readOnly} onToggle={enabled=>saveRule(rule,enabled)} onSave={()=>saveRule(rule)}/>)}</div>
   </section>)}</div>
 
   <div className="automation-bottom-grid">
@@ -119,11 +121,11 @@ export default function AutomationCenter({household,onNavigate}:{household:House
  </section>
 }
 
-function RuleCard({rule,draft,setDraft,busy,onToggle,onSave}:{rule:Rule;draft:string;setDraft:(v:string)=>void;busy:boolean;onToggle:(v:boolean)=>void;onSave:()=>void}){
+function RuleCard({rule,draft,setDraft,busy,onToggle,onSave,readOnly=false}:{rule:Rule;draft:string;setDraft:(v:string)=>void;busy:boolean;onToggle:(v:boolean)=>void;onSave:()=>void;readOnly?:boolean}){
  const def=definitions[rule.rule_key],numeric=typeof def.defaultValue==='number';
  return <article className={'automation-rule-card '+def.kind+' '+(rule.enabled?'enabled':'disabled')}>
-  <div className="automation-rule-main"><span>{def.icon}</span><div><small>{def.kind==='action'?'ACCIÓN AUTOMÁTICA':'ALERTA INTELIGENTE'}</small><strong>{def.title}</strong><p>{def.description}</p></div><label className="switch"><input type="checkbox" checked={rule.enabled} disabled={busy} onChange={e=>onToggle(e.target.checked)}/><span/></label></div>
-  <div className="automation-rule-config"><label>{def.unit}<div>{numeric?<input type="number" min={def.min} max={def.max} step={def.step} value={draft} disabled={!rule.enabled||busy} onChange={e=>setDraft(e.target.value)}/>:<input value={draft} maxLength={80} disabled={!rule.enabled||busy} onChange={e=>setDraft(e.target.value)}/>}</div></label><button disabled={!rule.enabled||busy} onClick={onSave}><Check/>{busy?'Guardando...':'Guardar'}</button></div>
+  <div className="automation-rule-main"><span>{def.icon}</span><div><small>{def.kind==='action'?'ACCIÓN AUTOMÁTICA':'ALERTA INTELIGENTE'}</small><strong>{def.title}</strong><p>{def.description}</p></div><label className="switch"><input type="checkbox" checked={rule.enabled} disabled={busy||readOnly} onChange={e=>onToggle(e.target.checked)}/><span/></label></div>
+  <div className="automation-rule-config"><label>{def.unit}<div>{numeric?<input type="number" min={def.min} max={def.max} step={def.step} value={draft} disabled={!rule.enabled||busy||readOnly} onChange={e=>setDraft(e.target.value)}/>:<input value={draft} maxLength={80} disabled={!rule.enabled||busy} onChange={e=>setDraft(e.target.value)}/>}</div></label><button disabled={!rule.enabled||busy||readOnly} onClick={onSave}><Check/>{busy?'Guardando...':'Guardar'}</button></div>
  </article>
 }
 function relativeTime(value:string){const diff=Math.max(0,Date.now()-new Date(value).getTime()),minutes=Math.floor(diff/60000);if(minutes<1)return'Ahora';if(minutes<60)return minutes+' min';const hours=Math.floor(minutes/60);if(hours<24)return hours+' h';const days=Math.floor(hours/24);return days+' d'}
