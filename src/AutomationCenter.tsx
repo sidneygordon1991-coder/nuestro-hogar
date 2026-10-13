@@ -55,7 +55,7 @@ export default function AutomationCenter({household,onNavigate}:{household:House
     if(!Number.isFinite(value)){setMessage('Ingresa un valor válido para '+def.title+'.');return}
     config[def.field]=Math.max(def.min??value,Math.min(def.max??value,value));
    }else{
-    config[def.field]=String(drafts[rule.rule_key]??config[def.field]??def.defaultValue||'').trim()||String(def.defaultValue||'Supermercado');
+    config[def.field]=String((drafts[rule.rule_key]??config[def.field]??def.defaultValue) || '').trim()||String(def.defaultValue||'Supermercado');
    }
   }
   setBusy(rule.rule_key);setMessage('');
