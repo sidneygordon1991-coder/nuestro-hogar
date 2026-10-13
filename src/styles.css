@@ -166,3 +166,17 @@ html[data-theme="light"]{color-scheme:light;background:#f4f7fa;color:#18222b}htm
 html[data-theme="light"] .home-hero,html[data-theme="light"] .home-summary-card,html[data-theme="light"] .home-kpi,html[data-theme="light"] .home-priority,html[data-theme="light"] .home-panel{background:#fff;color:#20303a;border-color:#d8e4eb}
 html[data-theme="light"] .home-hero h1,html[data-theme="light"] .home-hero h2,html[data-theme="light"] .home-summary-card strong,html[data-theme="light"] .home-kpi strong{color:#20303a}
 html[data-theme="light"] .app-menu-theme strong{color:#26343d}
+
+/* Accessible native household selector with a wrapping, readable visual label. */
+.home-select-wrap{position:relative;min-height:34px;align-items:center;width:100%}
+.home-select-label{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;min-width:0;max-width:100%;padding-right:26px;color:#f4f7fb;font-size:clamp(18px,2.7vw,28px);font-weight:800;line-height:1.14}
+.home-select-wrap .home-select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1}
+.home-select-wrap svg{z-index:0;right:2px;top:50%;transform:translateY(-50%)}
+.home-select-wrap:focus-within{outline:2px solid #61c4ee;outline-offset:3px;border-radius:5px}
+html[data-theme="light"] .home-select-label{color:#17232c}
+@media(max-width:620px){
+ .home-select-wrap{min-height:42px}
+ .home-select-label{font-size:clamp(16px,4.3vw,23px);line-height:1.18}
+ .app header>div:first-child{min-width:0}
+}
+@media(max-width:390px){.home-select-label{font-size:16px;padding-right:20px}}
