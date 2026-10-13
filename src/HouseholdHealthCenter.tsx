@@ -11,11 +11,12 @@ type Snapshot={
  generated_at:string;overall_score:number;coverage_score:number;status:'excellent'|'good'|'watch'|'risk';status_label:string;urgent_count:number;
  domains:Domain[];recommendations:Recommendation[];metrics:Record<string,number>;
 };
+type HealthHistory={snapshot_date:string;overall_score:number;finance_score:number;organization_score:number;documents_score:number;maintenance_score:number;pantry_score:number};
 
 const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
 
 export default function HouseholdHealthCenter({household,onNavigate}:{household:Household;onNavigate:(tab:string)=>void}){
- const [snapshot,setSnapshot]=useState<Snapshot|null>(null),[loading,setLoading]=useState(true),[message,setMessage]=useState('');
+ const [snapshot,setSnapshot]=useState<Snapshot|null>(null),[history,setHistory]=useState<HealthHistory[]>([]),[loading,setLoading]=useState(true),[message,setMessage]=useState('');
 
  useEffect(()=>{let channel:any;let active=true;(async()=>{await load();if(!active)return;
   channel=supabase.channel('household-health-'+household.id)
@@ -33,8 +34,11 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
 
  async function load(showLoader=true){
   if(showLoader)setLoading(true);setMessage('');
-  const {data,error}=await supabase.rpc('household_health_snapshot',{p_household_id:household.id});
-  if(error){setMessage(error.message);setSnapshot(null)}else setSnapshot(data as Snapshot);
+  const {data,error}=await supabase.rpc('get_household_health_dashboard',{p_household_id:household.id});
+  if(error){setMessage(error.message);setSnapshot(null);if(showLoader)setLoading(false);return}
+  setSnapshot(data as Snapshot);
+  const historyR=await supabase.from('household_health_snapshots').select('snapshot_date,overall_score,finance_score,organization_score,documents_score,maintenance_score,pantry_score').eq('household_id',household.id).order('snapshot_date').limit(60);
+  if(historyR.error)setMessage(historyR.error.message);else setHistory((historyR.data||[]) as HealthHistory[]);
   if(showLoader)setLoading(false);
  }
 
@@ -90,6 +94,11 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
    </section>
   </div>
 
+  <section className="health-panel health-history-panel">
+   <div className="health-panel-head"><div><p className="eyebrow">EVOLUCIÓN</p><h3>Historial de salud del hogar</h3></div><TrendingUp/></div>
+   <HealthTrend rows={history}/>
+  </section>
+
   <section className="health-coverage-panel">
    <div><span><CheckCircle2/></span><div><p className="eyebrow">COBERTURA DEL CONTROL</p><h3>{snapshot.coverage_score}% del hogar conectado</h3><p>{coverageMessage(snapshot.coverage_score)}</p></div></div>
    <div className="health-coverage-track"><span style={{width:snapshot.coverage_score+'%'}}/></div>
@@ -101,5 +110,11 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
 function Metric({icon,label,value,detail,tone}:{icon:React.ReactNode;label:string;value:string;detail:string;tone:string}){return <div className={'health-metric '+tone}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong><em>{detail}</em></div></div>}
 function domainIcon(key:DomainKey){if(key==='finance')return <WalletCards/>;if(key==='organization')return <ListChecks/>;if(key==='documents')return <FileText/>;if(key==='maintenance')return <Wrench/>;return <Utensils/>}
 function recommendationIcon(severity:Recommendation['severity']){if(severity==='danger')return <AlertTriangle/>;if(severity==='warning')return <Gauge/>;if(severity==='success')return <CheckCircle2/>;return <Sparkles/>}
+function HealthTrend({rows}:{rows:HealthHistory[]}){
+ if(!rows.length)return <div className="control-empty small"><TrendingUp/><span>El histórico comenzará a construirse desde hoy.</span></div>;
+ const recent=rows.slice(-30),min=Math.min(...recent.map(r=>r.overall_score),40),range=Math.max(1,100-min);
+ return <div className="health-trend"><div className="health-trend-chart">{recent.map((row,index)=>{const height=Math.max(8,(row.overall_score-min)/range*100);return <div className="health-trend-col" key={row.snapshot_date} title={formatHealthDate(row.snapshot_date)+' · '+row.overall_score+'/100'}><span style={{height:height+'%'}}/><small>{index===0||index===recent.length-1||index%Math.max(1,Math.floor(recent.length/4))===0?new Date(row.snapshot_date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'}).replace('.',''):''}</small></div>})}</div><div className="health-trend-foot"><span>Inicio <b>{recent[0].overall_score}</b></span><span>Actual <b>{recent[recent.length-1].overall_score}</b></span></div></div>
+}
+function formatHealthDate(value:string){return new Date(value+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'}).replace('.','')}
 function scoreTone(score:number){return score>=90?'excellent':score>=75?'good':score>=55?'watch':'risk'}
 function coverageMessage(score:number){if(score>=100)return'Todos los módulos principales aportan información al diagnóstico.';if(score>=80)return'El control está casi completo; falta muy poco para una vista integral.';if(score>=60)return'Ya tienes una base sólida. Completar los módulos pendientes hará las recomendaciones más precisas.';return'Configura los módulos pendientes para que el índice represente mejor la operación real del hogar.'}
