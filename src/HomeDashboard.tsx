@@ -6,7 +6,7 @@ type Household={id:string;name:string;invite_code:string};
 type FinanceHome={income:number;expense:number;saving:number;available:number;pending:number;projected:number;overdue:number;nextPayment:string|null;nextPaymentAmount:number;nextPaymentDate:string|null;goalName:string|null;goalProgress:number};
 type Attention={id:string;type:string;severity:'info'|'warning'|'danger'|'success';title:string;body:string|null;action_tab:string|null;created_at:string};
 type AgendaItem={id:string;kind:'event'|'task'|'payment'|'birthday';title:string;date:string;time:string|null;subtitle:string;tab:string};
-type EventSource={id:string;title:string;event_date:string;start_time:string|null;location:string|null;recurrence:'none'|'weekly'|'monthly'|'yearly';recurrence_until:string|null};
+type EventSource={id:string;title:string;event_date:string;start_time:string|null;location:string|null;event_type:string|null;recurrence:'none'|'weekly'|'monthly'|'yearly';recurrence_until:string|null};
 
 const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
 const iso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
@@ -39,7 +39,7 @@ export default function HomeDashboard({household,finance,listCount,onNavigate}:{
   const [notificationR,taskR,eventR,occR,recR,memberR,profileR]=await Promise.all([
    supabase.from('notifications').select('id,type,severity,title,body,action_tab,created_at').eq('household_id',household.id).eq('user_id',user.id).is('read_at',null).neq('type','system').order('created_at',{ascending:false}).limit(20),
    supabase.from('list_items').select('id,text,due_date,assigned_to,completed').eq('household_id',household.id).eq('completed',false).gte('due_date',today).lte('due_date',weekEnd),
-   supabase.from('events').select('id,title,event_date,start_time,location,recurrence,recurrence_until').eq('household_id',household.id).lte('event_date',weekEnd),
+   supabase.from('events').select('id,title,event_date,start_time,location,event_type,recurrence,recurrence_until').eq('household_id',household.id).lte('event_date',weekEnd),
    supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status').eq('household_id',household.id).eq('status','pending').gte('due_date',today).lte('due_date',weekEnd),
    supabase.from('recurring_transactions').select('id,description,amount,type').eq('household_id',household.id).eq('active',true),
    supabase.from('household_members').select('user_id').eq('household_id',household.id),
@@ -59,7 +59,7 @@ export default function HomeDashboard({household,finance,listCount,onNavigate}:{
   for(const occ of (occR.data||[]) as any[]){const recurring:any=recurringMap.get(occ.recurring_transaction_id);if(!recurring||recurring.type!=='expense')continue;items.push({id:'pay-'+occ.id,kind:'payment',title:recurring.description,date:occ.due_date,time:null,subtitle:money(Number(recurring.amount)),tab:'presupuesto'})}
 
   for(const event of (eventR.data||[]) as EventSource[]){
-   for(let d=startOfDay();d<=endOfWeek();d=addDays(d,1)){const date=iso(d);if(eventOccursOn(event,date))items.push({id:'event-'+event.id+'-'+date,kind:'event',title:event.title,date,time:event.start_time?.slice(0,5)||null,subtitle:event.location||'Evento familiar',tab:'calendario'})}
+   for(let d=startOfDay();d<=endOfWeek();d=addDays(d,1)){const date=iso(d);if(eventOccursOn(event,date))items.push({id:'event-'+event.id+'-'+date,kind:'event',title:event.title,date,time:event.start_time?.slice(0,5)||null,subtitle:event.location||(event.event_type==='maintenance'?'Mantenimiento':'Evento familiar'),tab:event.event_type==='maintenance'?'mantenimiento':'calendario'})}
   }
 
   for(const member of (birthdaysR.data||[]) as any[]){if(!member.birth_date)continue;const [,mm,dd]=String(member.birth_date).split('-');for(let d=startOfDay();d<=endOfWeek();d=addDays(d,1)){const date=iso(d);if(date.slice(5)===mm+'-'+dd)items.push({id:'birthday-'+member.id+'-'+date,kind:'birthday',title:'Cumpleaños de '+(member.full_name||'Miembro'),date,time:null,subtitle:'Familia',tab:'familia'})}}
