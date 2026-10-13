@@ -407,3 +407,14 @@ html[data-theme="light"] .app :is(.calendar-panel,.calendar-cell,.list-card-v2,.
 html[data-theme="light"] .app :is(.calendar-month-head,.calendar-weekdays,.document-toolbar,.document-category-strip,.family-access-panel,.family-role-guide,.notification-settings,.notification-device,.notification-pref){background:#f5f9fb!important;color:#253e4c!important;border-color:#d4e1e9!important}
 html[data-theme="light"] .app :is(.calendar-month-head,.document-toolbar,.family-access-panel,.notification-settings) :is(strong,h2,h3,button){color:#203a49!important}
 html[data-theme="light"] .app :is(.calendar-cell,.list-item-v2,.document-card,.diagnostic-check,.family-member-card) svg{opacity:1}
+
+/* Charts: shared semantic chart surfaces for light mode */
+html[data-theme="light"] .app :is(.balance-track,.saving-rate-track){background:#edf4f8!important;border:1px solid #d3e2ea!important}
+html[data-theme="light"] .app .balance-track>i{background:#adc6d2!important}
+html[data-theme="light"] .app .saving-rate-track>b{color:#304b5d!important;font-weight:800!important}
+html[data-theme="light"] .app :is(.balance-column,.savings-rate-chart>div) >small{color:#506a79!important}
+html[data-theme="light"] .app .category-comparison-legend{color:#526c7a!important}
+html[data-theme="light"] .app .month-bar-group small{color:#506a79!important}
+html[data-theme="light"] .app .balance-track>span.positive{background:#36a879!important}
+html[data-theme="light"] .app .balance-track>span.negative{background:#d76c70!important}
+html[data-theme="light"] .app .saving-rate-track>span{background:#9569dd!important}
