@@ -29,14 +29,15 @@ const responsibilityDefs:{key:string;label:string}[]=[
 const initials=(name:string)=>name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]?.toUpperCase()).join('')||'?';
 const emptyAccess:AccessInfo={role:'adult',can_manage_members:false,can_view_audit:false,modules:{finance:'none',calendar:'none',lists:'none',documents:'none',meals:'none',maintenance:'none',planning:'none',health:'none',monthly_close:'none',automations:'none'}};
 
-export default function FamilyCenter({household,onChanged}:{household:Household;onChanged?:()=>void}){
+export default function FamilyCenter({household,onChanged,onHouseholdRenamed}:{household:Household;onChanged?:()=>void;onHouseholdRenamed?:(name:string)=>void}){
+ const [renamingHousehold,setRenamingHousehold]=useState(false),[householdName,setHouseholdName]=useState(household.name);
  const [members,setMembers]=useState<MemberRow[]>([]),[currentUser,setCurrentUser]=useState(''),[myAccess,setMyAccess]=useState<AccessInfo>(emptyAccess);
  const [editing,setEditing]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[copied,setCopied]=useState(false),[inviteCode,setInviteCode]=useState(household.invite_code);
  const [managing,setManaging]=useState<MemberRow|null>(null),[memberAccess,setMemberAccess]=useState<MemberAccess|null>(null),[roleDraft,setRoleDraft]=useState('adult');
  const [overrides,setOverrides]=useState<Partial<Record<ModuleKey,AccessLevel>>>({}),[responsibilities,setResponsibilities]=useState<string[]>([]);
  const [audit,setAudit]=useState<AuditRow[]>([]),[auditNames,setAuditNames]=useState<Map<string,string>>(new Map());
 
- useEffect(()=>{setInviteCode(household.invite_code);load()},[household.id]);
+ useEffect(()=>{setInviteCode(household.invite_code);setHouseholdName(household.name);load()},[household.id]);
 
  async function load(){
   setBusy(true);setMessage('');
@@ -70,6 +71,13 @@ export default function FamilyCenter({household,onChanged}:{household:Household;
  const me=members.find(m=>m.user_id===currentUser);
  const admins=members.filter(m=>m.role==='owner'||m.role==='admin').length;
  const adults=members.filter(m=>m.role==='adult').length;
+
+ async function saveHouseholdName(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();const name=householdName.trim();if(!name||name.length>80){setMessage('El nombre debe tener entre 1 y 80 caracteres.');return}
+  setBusy(true);setMessage('');const {data,error}=await supabase.from('households').update({name}).eq('id',household.id).select('id,name').single();setBusy(false);
+  if(error){setMessage('No se pudo cambiar el nombre. Verifica que tengas permisos de administración: '+error.message);return}
+  onHouseholdRenamed?.(data.name);setRenamingHousehold(false);setMessage('Nombre de la familia actualizado.');
+ }
 
  async function saveProfile(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(!currentUser)return;setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
@@ -125,6 +133,7 @@ export default function FamilyCenter({household,onChanged}:{household:Household;
   <div className="finance-top"><div><p className="eyebrow">MODO FAMILIA</p><h2 className="page-title">Mi familia</h2><p className="muted">Roles, responsabilidades, permisos y trazabilidad de lo que cambia en el hogar.</p></div>{me&&<button className="finance-new" onClick={()=>setEditing(true)}><UserRound/> Mi perfil</button>}</div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
+  <section className="family-access-panel"><div className="family-section-head"><div><p className="eyebrow">CONFIGURACIÓN</p><h3>Nombre de la familia</h3><p>{household.name}</p></div>{myAccess.can_manage_members&&<button className="member-edit" onClick={()=>setRenamingHousehold(true)}>Editar nombre</button>}</div></section>
   <div className="family-summary family-access-summary">
    <div><span><Users/></span><div><small>Integrantes</small><strong>{members.length}</strong></div></div>
    <div><span><ShieldCheck/></span><div><small>Administración</small><strong>{admins}</strong><em>propietario / admin</em></div></div>
@@ -169,6 +178,7 @@ export default function FamilyCenter({household,onChanged}:{household:Household;
   {me?.role!=='owner'&&<button className="family-leave" onClick={leaveHousehold}><LogOut/> Salir de este hogar</button>}
   <button className="logout family-logout" onClick={()=>supabase.auth.signOut()}><LogOut size={17}/> Cerrar sesión</button>
 
+  {renamingHousehold&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setRenamingHousehold(false)}}><div className="finance-modal"><div className="modal-head"><h3>Editar nombre de la familia</h3><button onClick={()=>setRenamingHousehold(false)} aria-label="Cerrar"><X/></button></div><form className="finance-form" onSubmit={saveHouseholdName}><label>Nombre de la familia<input value={householdName} maxLength={80} onChange={e=>setHouseholdName(e.target.value)} required autoFocus/></label><button className="finance-primary" disabled={busy||!householdName.trim()}><Save/>{busy?'Guardando...':'Guardar nombre'}</button></form></div></div>}
   {editing&&me&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setEditing(false)}}><div className="finance-modal"><div className="modal-head"><h3>Mi perfil</h3><button onClick={()=>setEditing(false)}><X/></button></div><form className="finance-form" onSubmit={saveProfile}>
    <label>Nombre completo<input name="full_name" defaultValue={me.full_name} required/></label>
    <div className="two"><label>Relación / rol en casa<input name="relationship" defaultValue={me.relationship||''} placeholder="Ej. Pareja"/></label><label>Fecha de cumpleaños<input name="birth_date" type="date" defaultValue={me.birth_date||''}/></label></div>
