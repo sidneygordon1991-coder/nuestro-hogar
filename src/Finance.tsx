@@ -1,5 +1,5 @@
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowUpRight,CalendarClock,Check,ChevronRight,Copy,CreditCard,Landmark,PiggyBank,Plus,ReceiptText,Target,Trash2,TrendingUp,Users,WalletCards,X} from 'lucide-react';
+import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowUpRight,CalendarClock,Car,Check,ChevronRight,Copy,CreditCard,GraduationCap,HeartPulse,Home,Landmark,Pencil,Plane,PiggyBank,Plus,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingUp,Users,WalletCards,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -35,7 +35,7 @@ export default function Finance({household}:{household:Household}){
  const [goals,setGoals]=useState<Goal[]>([]),[contributions,setContributions]=useState<Contribution[]>([]),[recurring,setRecurring]=useState<Recurring[]>([]),[occurrences,setOccurrences]=useState<RecurringOccurrence[]>([]);
  const [accounts,setAccounts]=useState<Account[]>([]),[accountTxs,setAccountTxs]=useState<{account_id:string|null;type:string;amount:number}[]>([]);
  const [members,setMembers]=useState<Member[]>([]),[splits,setSplits]=useState<Split[]>([]),[currentUser,setCurrentUser]=useState('');
- const [showTxForm,setShowTxForm]=useState(false),[showGoalForm,setShowGoalForm]=useState(false),[showAccountForm,setShowAccountForm]=useState(false),[showCategoryForm,setShowCategoryForm]=useState(false);
+ const [showTxForm,setShowTxForm]=useState(false),[editingTx,setEditingTx]=useState<Tx|null>(null),[showGoalForm,setShowGoalForm]=useState(false),[showAccountForm,setShowAccountForm]=useState(false),[showCategoryForm,setShowCategoryForm]=useState(false);
  const [budgetDraft,setBudgetDraft]=useState<Record<string,string>>({});
  const [categoryGroupDraft,setCategoryGroupDraft]=useState<Record<string,BudgetGroup>>({});
  const [splitMethod,setSplitMethod]=useState<SplitMethod>('equal');
@@ -347,6 +347,26 @@ export default function Finance({household}:{household:Household}){
   setBusy(false);setMessage(error?error.message:'Categoría creada.');if(!error){setShowCategoryForm(false);await load()}
  }
 
+ async function editTransaction(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();if(!editingTx)return;setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
+  const type=String(f.get('type')) as 'income'|'expense',amount=Number(f.get('amount')),paidBy=String(f.get('paid_by')||currentUser),shareMode=String(f.get('share_mode')||'shared');
+  const payload={description:String(f.get('description')).trim(),amount,type,transaction_date:String(f.get('date')),category_id:String(f.get('category_id')||'')||null,account_id:String(f.get('account_id')||'')||null,paid_by:paidBy||null,is_shared:shareMode==='shared',notes:String(f.get('notes')||'')||null};
+  const {error}=await supabase.from('transactions').update(payload).eq('id',editingTx.id).eq('household_id',household.id);
+  if(error){setBusy(false);setMessage(error.message);return}
+  await supabase.from('transaction_splits').delete().eq('transaction_id',editingTx.id);
+  if(type==='expense'){
+   const rows=makeSplitRows(editingTx.id,amount,paidBy,shareMode==='shared',payload.category_id);
+   if(rows.length){const {error:splitError}=await supabase.from('transaction_splits').insert(rows);if(splitError){setBusy(false);setMessage(splitError.message);return}}
+  }
+  if(editingTx.recurring_transaction_id&&f.get('update_recurring')==='on'){
+   const linked=recurringById(editingTx.recurring_transaction_id);
+   const dueDay=Number(f.get('due_day')||linked?.due_day||new Date(payload.transaction_date+'T12:00').getDate());
+   const {error:recurringError}=await supabase.from('recurring_transactions').update({category_id:payload.category_id,account_id:payload.account_id,type,description:payload.description,amount,due_day:dueDay,paid_by:paidBy||null,is_shared:shareMode==='shared'}).eq('id',editingTx.recurring_transaction_id).eq('household_id',household.id);
+   if(recurringError){setBusy(false);setMessage(recurringError.message);return}
+  }
+  setBusy(false);setEditingTx(null);setMessage(editingTx.recurring_transaction_id&&f.get('update_recurring')==='on'?'Movimiento y recurrencia actualizados.':'Movimiento actualizado.');await load();
+ }
+
  async function deleteTransaction(tx:Tx){
   if(!window.confirm('¿Eliminar este movimiento? Esta acción actualizará los saldos y el presupuesto.'))return;
   setBusy(true);setMessage('');
@@ -439,7 +459,7 @@ export default function Finance({household}:{household:Household}){
 
    <div className="finance-panel">
     <div className="panel-title"><h3>Movimientos recientes</h3><button onClick={()=>setTab('transactions')}>Ver todos <ChevronRight size={16}/></button></div>
-    <TransactionRows txs={txs.slice(0,6)} categoryName={categoryName} memberName={memberName} onDelete={deleteTransaction}/>
+    <TransactionRows txs={txs.slice(0,6)} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction}/>
    </div>
   </>}
 
@@ -459,7 +479,7 @@ export default function Finance({household}:{household:Household}){
   </>}
   {tab==='transactions'&&<div className="finance-panel">
    <div className="panel-title"><div><h3>Movimientos del mes</h3><small>{txs.length} registros</small></div><button className="mini-add" onClick={()=>setShowTxForm(true)}><Plus size={16}/> Agregar</button></div>
-   <TransactionRows txs={txs} categoryName={categoryName} memberName={memberName} onDelete={deleteTransaction}/>
+   <TransactionRows txs={txs} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction}/>
    {!txs.length&&<EmptyFinance text="Todavía no hay movimientos en este mes."/>}
   </div>}
 
@@ -556,6 +576,17 @@ export default function Finance({household}:{household:Household}){
    <button className="finance-primary" disabled={busy}>{busy?'Guardando...':'Guardar movimiento'}</button>
   </form></Modal>}
 
+  {editingTx&&<Modal title="Editar movimiento" close={()=>setEditingTx(null)}><form className="finance-form" onSubmit={editTransaction}>
+   <div className="two"><label>Tipo<select name="type" defaultValue={editingTx.type}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label><label>Monto<input name="amount" type="number" min=".01" step=".01" defaultValue={Number(editingTx.amount)} required/></label></div>
+   <label>Descripción<input name="description" defaultValue={editingTx.description} required/></label>
+   <div className="two"><label>Categoría<select name="category_id" defaultValue={editingTx.category_id||''}><option value="">Sin categoría</option>{categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select></label><label>Fecha<input name="date" type="date" defaultValue={editingTx.transaction_date} required/></label></div>
+   <div className="two"><label>Pagado por<select name="paid_by" defaultValue={editingTx.paid_by||currentUser}>{members.map(member=><option key={member.user_id} value={member.user_id}>{member.full_name}</option>)}</select></label><label>Cuenta<select name="account_id" defaultValue={editingTx.account_id||''}><option value="">Sin cuenta</option>{accounts.map(account=><option key={account.id} value={account.id}>{account.name}</option>)}</select></label></div>
+   <label>¿De quién es?<select name="share_mode" defaultValue={editingTx.is_shared?'shared':'personal'}><option value="shared">Compartido · {splitMethodLabel(splitMethod)}</option><option value="personal">Personal de quien pagó</option></select></label>
+   <label>Notas<input name="notes" defaultValue={editingTx.notes||''} placeholder="Opcional"/></label>
+   {editingTx.recurring_transaction_id&&<div className="linked-recurring-edit"><label className="check-line"><input type="checkbox" name="update_recurring" defaultChecked/> Actualizar también los próximos pagos recurrentes</label><label>Día de vencimiento<input name="due_day" type="number" min="1" max="31" defaultValue={recurringById(editingTx.recurring_transaction_id)?.due_day||new Date(editingTx.transaction_date+'T12:00').getDate()}/></label></div>}
+   <button className="finance-primary" disabled={busy}><Check size={17}/>{busy?'Guardando...':'Guardar cambios'}</button>
+  </form></Modal>}
+
   {showCategoryForm&&<Modal title="Nueva categoría" close={()=>setShowCategoryForm(false)}><form className="finance-form" onSubmit={addCategory}><label>Nombre<input name="name" placeholder="Ej. Mascotas" required/></label><label>Tipo<select name="budget_group" defaultValue="variable"><option value="fixed">Gasto fijo</option><option value="variable">Gasto variable</option><option value="saving">Ahorro</option></select></label><button className="finance-primary" disabled={busy}>{busy?'Guardando...':'Crear categoría'}</button></form></Modal>}
 
   {showGoalForm&&<Modal title="Nueva meta" close={()=>setShowGoalForm(false)}><form className="finance-form" onSubmit={addGoal}><label>Nombre<input name="name" placeholder="Ej. Fondo de emergencia" required/></label><label>Meta<input name="target_amount" type="number" min="1" step=".01" placeholder="50000" required/></label><label>Fecha objetivo<input name="target_date" type="date"/></label><button className="finance-primary" disabled={busy}>Crear meta</button></form></Modal>}
@@ -568,8 +599,8 @@ function Kpi({label,value,icon,tone}:{label:string;value:string;icon:any;tone:st
 function Progress({value}:{value:number}){return <div className="progress"><span style={{width:`${Math.max(0,Math.min(100,value))}%`}}/></div>}
 function EmptyFinance({text}:{text:string}){return <div className="finance-empty">{text}</div>}
 
-function TransactionRows({txs,categoryName,memberName,onDelete}:{txs:Tx[];categoryName:(x:string|null)=>string;memberName:(x:string|null)=>string;onDelete:(tx:Tx)=>void}){
- return <div className="transaction-list">{txs.map(t=><div className="transaction-row" key={t.id}><span className={'transaction-icon '+t.type}>{t.type==='income'?<ArrowDownLeft/>:<ReceiptText/>}</span><div className="transaction-main"><strong>{t.description}</strong><small>{categoryName(t.category_id)} · {memberName(t.paid_by)}{t.is_shared?' · Compartido':''}</small></div><div className="transaction-value"><b className={t.type}>{t.type==='income'?'+':'−'}{currency(Number(t.amount))}</b><small>{new Date(t.transaction_date+'T12:00').toLocaleDateString('es-GT',{day:'2-digit',month:'short'})}</small></div><button className="transaction-delete" title="Eliminar movimiento" onClick={()=>onDelete(t)}><Trash2/></button></div>)}</div>
+function TransactionRows({txs,categoryName,memberName,onEdit,onDelete}:{txs:Tx[];categoryName:(x:string|null)=>string;memberName:(x:string|null)=>string;onEdit:(tx:Tx)=>void;onDelete:(tx:Tx)=>void}){
+ return <div className="transaction-list">{txs.map(t=>{const category=categoryName(t.category_id);return <div className="transaction-row polished" key={t.id}><span className={'transaction-icon '+t.type}>{transactionIcon(t.type,category)}</span><div className="transaction-main"><strong>{t.description}</strong><small>{category} · {memberName(t.paid_by)}{t.is_shared?' · Compartido':''}{t.recurring_transaction_id?' · Recurrente':''}</small></div><div className="transaction-value"><b className={t.type}>{t.type==='income'?'+':'−'}{currency(Number(t.amount))}</b><small>{new Date(t.transaction_date+'T12:00').toLocaleDateString('es-GT',{day:'2-digit',month:'short'})}</small></div><div className="transaction-actions"><button className="transaction-action edit" title="Editar movimiento" aria-label="Editar movimiento" onClick={()=>onEdit(t)}><Pencil/></button><button className="transaction-action delete" title="Eliminar movimiento" aria-label="Eliminar movimiento" onClick={()=>onDelete(t)}><Trash2/></button></div></div>})}</div>
 }
 
 function GoalCard({goal,saved,busy,onContribute}:{goal:Goal;saved:number;busy:boolean;onContribute:(id:string,amount:number)=>void}){
@@ -578,6 +609,20 @@ function GoalCard({goal,saved,busy,onContribute}:{goal:Goal;saved:number;busy:bo
 }
 
 function Modal({title,close,children}:{title:string;close:()=>void;children:any}){return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}><div className="finance-modal"><div className="modal-head"><h3>{title}</h3><button onClick={close}><X/></button></div>{children}</div></div>}
+function transactionIcon(type:'income'|'expense',category:string){
+ if(type==='income')return <ArrowDownLeft/>;
+ const key=category.toLocaleLowerCase('es-GT');
+ if(key.includes('vivienda'))return <Home/>;
+ if(key.includes('aliment'))return <ShoppingCart/>;
+ if(key.includes('transport'))return <Car/>;
+ if(key.includes('servicio'))return <ReceiptText/>;
+ if(key.includes('salud'))return <HeartPulse/>;
+ if(key.includes('educa'))return <GraduationCap/>;
+ if(key.includes('ahorro'))return <PiggyBank/>;
+ if(key.includes('viaje'))return <Plane/>;
+ if(key.includes('entreten'))return <Sparkles/>;
+ return <WalletCards/>;
+}
 function statusLabel(status:string){return status==='paid'?'Pagado':status==='overdue'?'Vencido':status==='skipped'?'Omitido':'Pendiente'}
 function splitMethodLabel(method:SplitMethod){return method==='income'?'Proporcional a ingresos':method==='custom'?'Porcentaje personalizado':'Partes iguales'}
 function categoryRuleLabel(method:CategoryRuleMethod,globalMethod:SplitMethod){return method==='inherit'?`General · ${splitMethodLabel(globalMethod)}`:method==='equal'?'Partes iguales':method==='income'?'Según ingresos':method==='custom'?'Porcentaje personalizado':'Una persona cubre 100%'}
