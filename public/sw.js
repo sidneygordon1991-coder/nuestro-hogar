@@ -9,3 +9,12 @@ self.addEventListener('fetch',event=>{
  if(request.mode==='navigate'){event.respondWith(fetch(request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(BASE,copy));return response}).catch(()=>caches.match(BASE)));return}
  event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>{if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(request,copy))}return response})));
 });
+
+self.addEventListener('notificationclick',event=>{
+ event.notification.close();
+ const target=event.notification?.data?.url||BASE;
+ event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(windows=>{
+  for(const client of windows){if('focus' in client){client.navigate(target);return client.focus()}}
+  return clients.openWindow?clients.openWindow(target):undefined;
+ }));
+});
