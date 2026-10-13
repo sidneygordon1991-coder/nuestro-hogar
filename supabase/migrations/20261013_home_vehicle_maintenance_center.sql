@@ -94,6 +94,11 @@ begin
   if not found then raise exception 'Maintenance schedule not found'; end if;
   if not public.is_household_member(s.household_id) then raise exception 'Not a household member'; end if;
 
+  delete from public.notifications
+  where household_id=s.household_id
+    and entity_type='maintenance_schedule'
+    and entity_id=s.id;
+
   if s.asset_id is not null then select * into a from public.finance_assets where id=s.asset_id; end if;
 
   if s.next_due_date is null or s.active=false then
@@ -274,3 +279,29 @@ begin
   if not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='maintenance_schedules') then alter publication supabase_realtime add table public.maintenance_schedules; end if;
   if not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='maintenance_records') then alter publication supabase_realtime add table public.maintenance_records; end if;
 end $$;
+
+
+create or replace function public.clear_asset_warranty_notifications()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $$
+begin
+  if old.warranty_expires_on is distinct from new.warranty_expires_on
+     or old.active is distinct from new.active then
+    delete from public.notifications
+    where household_id=new.household_id
+      and entity_type='finance_asset'
+      and entity_id=new.id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_clear_asset_warranty_notifications on public.finance_assets;
+create trigger trg_clear_asset_warranty_notifications
+after update of warranty_expires_on,active on public.finance_assets
+for each row execute function public.clear_asset_warranty_notifications();
+
+revoke execute on function public.clear_asset_warranty_notifications() from public,anon,authenticated;
