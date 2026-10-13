@@ -14,6 +14,11 @@ Deno.serve(async(req:Request)=>{
   if(!supabaseUrl||!serviceRole)return json({error:"Missing server configuration"},500);
   const admin=createClient(supabaseUrl,serviceRole,{auth:{persistSession:false,autoRefreshToken:false}});
 
+  const {data:dispatchSecret,error:dispatchError}=await admin.rpc("get_web_push_dispatch_secret");
+  if(dispatchError||!dispatchSecret)return json({error:"Dispatch authorization unavailable"},500);
+  const providedSecret=req.headers.get("x-nh-dispatch-secret")||"";
+  if(providedSecret!==dispatchSecret)return json({error:"Unauthorized"},401);
+
   const {error:autoError}=await admin.rpc("run_household_automation");
   if(autoError)console.error("automation",autoError.message);
 
