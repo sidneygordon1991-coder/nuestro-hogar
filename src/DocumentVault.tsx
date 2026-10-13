@@ -20,7 +20,7 @@ const iso=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffse
 const formatDate=(value:string|null)=>value?new Date(value+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'}):'Sin fecha';
 const formatSize=(bytes:number|null)=>!bytes?'':bytes<1024*1024?Math.max(1,Math.round(bytes/1024))+' KB':(bytes/1024/1024).toFixed(1)+' MB';
 
-export default function DocumentVault({household}:{household:Household}){
+export default function DocumentVault({household,readOnly=false}:{household:Household;readOnly?:boolean}){
  const [documents,setDocuments]=useState<DocumentRow[]>([]),[members,setMembers]=useState<Member[]>([]),[userId,setUserId]=useState('');
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [query,setQuery]=useState(''),[category,setCategory]=useState<'all'|DocCategory>('all'),[showForm,setShowForm]=useState(false),[editing,setEditing]=useState<DocumentRow|null>(null);
@@ -61,11 +61,12 @@ export default function DocumentVault({household}:{household:Household}){
   });
  },[documents,query,category]);
 
- function startNew(){setEditing(null);setScopeDraft('household');setShowForm(true)}
- function startEdit(doc:DocumentRow){setEditing(doc);setScopeDraft(doc.access_scope);setShowForm(true)}
+ function startNew(){if(readOnly)return;setEditing(null);setScopeDraft('household');setShowForm(true)}
+ function startEdit(doc:DocumentRow){if(readOnly)return;setEditing(doc);setScopeDraft(doc.access_scope);setShowForm(true)}
  function closeForm(){setShowForm(false);setEditing(null);setScopeDraft('household')}
 
  async function saveDocument(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();if(!userId)return;setBusy(true);setMessage('');
   const form=e.currentTarget,data=new FormData(form),file=(data.get('file') as File|null);
   if(file&&file.size>15*1024*1024){setBusy(false);setMessage('El archivo supera el límite de 15 MB.');return}
@@ -113,6 +114,7 @@ export default function DocumentVault({household}:{household:Household}){
  }
 
  async function deleteDocument(doc:DocumentRow){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!window.confirm('¿Eliminar este documento de la bóveda?'))return;setBusy(true);setMessage('');
   const {error}=await supabase.from('household_documents').delete().eq('id',doc.id).eq('household_id',household.id);
   if(!error&&doc.file_path)await supabase.storage.from('household-documents').remove([doc.file_path]);
@@ -124,7 +126,7 @@ export default function DocumentVault({household}:{household:Household}){
  return <section className="document-vault">
   <div className="document-top">
    <div><p className="eyebrow">BÓVEDA DEL HOGAR</p><h2 className="page-title">Documentos</h2><p className="muted">Archivos importantes, vencimientos y garantías en un solo lugar privado.</p></div>
-   <button className="finance-new" onClick={startNew}><Plus/> Documento</button>
+   {!readOnly&&<button className="finance-new" onClick={startNew}><Plus/> Documento</button>}
   </div>
 
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
@@ -156,12 +158,12 @@ export default function DocumentVault({household}:{household:Household}){
     </div>
     {doc.tags?.length>0&&<div className="document-tags">{doc.tags.slice(0,5).map(tag=><span key={tag}>#{tag}</span>)}</div>}
     <div className="document-file">{doc.file_path?<><Paperclip/><div><strong>{doc.original_filename||'Archivo adjunto'}</strong><small>{formatSize(doc.file_size)}{doc.mime_type?' · '+fileTypeLabel(doc.mime_type):''}</small></div><button onClick={()=>openFile(doc)}><ExternalLink/> Abrir</button></>:<><FileText/><div><strong>Solo registro</strong><small>Sin archivo adjunto</small></div></>}</div>
-    <div className="document-actions"><button onClick={()=>startEdit(doc)}><Pencil/> Editar</button><button className="danger" onClick={()=>deleteDocument(doc)} disabled={busy}><Trash2/> Eliminar</button></div>
+    {!readOnly&&<div className="document-actions"><button onClick={()=>startEdit(doc)}><Pencil/> Editar</button><button className="danger" onClick={()=>deleteDocument(doc)} disabled={busy}><Trash2/> Eliminar</button></div>}
    </article>})}
   </div>
-  {!filtered.length&&<div className="document-empty"><FolderArchive/><strong>{documents.length?'No encontramos documentos':'Tu bóveda está vacía'}</strong><span>{documents.length?'Prueba con otra búsqueda o categoría.':'Guarda aquí DPI, pasaportes, contratos, seguros, facturas y garantías.'}</span>{!documents.length&&<button onClick={startNew}><Plus/> Agregar primer documento</button>}</div>}
+  {!filtered.length&&<div className="document-empty"><FolderArchive/><strong>{documents.length?'No encontramos documentos':'Tu bóveda está vacía'}</strong><span>{documents.length?'Prueba con otra búsqueda o categoría.':'Guarda aquí DPI, pasaportes, contratos, seguros, facturas y garantías.'}</span>{!documents.length&&!readOnly&&<button onClick={startNew}><Plus/> Agregar primer documento</button>}</div>}
 
-  {showForm&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeForm()}}><div className="finance-modal document-modal">
+  {showForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeForm()}}><div className="finance-modal document-modal">
    <div className="modal-head"><div><p className="eyebrow">BÓVEDA SEGURA</p><h3>{editing?'Editar documento':'Nuevo documento'}</h3></div><button onClick={closeForm}><X/></button></div>
    <form className="finance-form" onSubmit={saveDocument}>
     <label>Nombre del documento<input name="title" defaultValue={editing?.title||''} placeholder="Ej. Pasaporte Sidney" required/></label>
