@@ -387,3 +387,15 @@ html[data-theme="light"] .app .notification-toolbar button:not(:disabled){color:
 html[data-theme="light"] .app .finance-tabs button.active{background:#e5f3fb!important;color:#0b7196!important;border-color:#a5d4e6!important}
 html[data-theme="light"] .app :is(.recurring-date,.net-worth-icon,.maintenance-kpis>div>span,.notification-type-icon) svg{opacity:1}
 @media(max-width:560px){.app .finance-tabs{scroll-padding-inline:12px}.app .recurring-row{grid-template-columns:48px minmax(0,1fr);gap:9px}.app .recurring-main{min-width:0}}
+
+/* Meals: fully coordinated light surfaces and legible typography */
+html[data-theme="light"] .app :is(.meals-tabs button,.meal-week-head,.meal-week-head>button,.meal-overview-kpis>div,.meal-day,.meal-slot,.meal-smart-card,.recipe-card,.pantry-card,.pantry-alerts,.meal-search-row,.meal-smart-row,.recipe-stock){background:#fff!important;color:#223642!important;border-color:#d2e1e9!important}
+html[data-theme="light"] .app :is(.meal-week-head,.meal-overview-kpis>div,.meal-day,.meal-slot,.meal-smart-card,.recipe-card,.pantry-card,.pantry-alerts) :is(strong,b,h2,h3,h4){color:#1e3542!important;opacity:1!important}
+html[data-theme="light"] .app :is(.meal-week-head,.meal-overview-kpis>div,.meal-day,.meal-slot,.meal-smart-card,.recipe-card,.pantry-card,.pantry-alerts) :is(small,p,time,em){color:#526d7a!important;opacity:1!important}
+html[data-theme="light"] .app .meals-tabs button.active{background:#e8f5fb!important;color:#147da1!important;border-color:#9dcbdc!important}
+html[data-theme="light"] .app .meal-week-head>button{background:#f1f7fa!important;color:#315d70!important}
+html[data-theme="light"] .app .meal-overview-kpis>div>span{background:#e8f4fa!important;color:#187eaa!important}
+html[data-theme="light"] .app .meal-overview-kpis>div:nth-child(2)>span{background:#e7f7ee!important;color:#187b57!important}
+html[data-theme="light"] .app .meal-overview-kpis>div:nth-child(3)>span{background:#fff3e5!important;color:#a46a24!important}
+html[data-theme="light"] .app .meal-overview-kpis>div:nth-child(4)>span{background:#f1eafa!important;color:#7951a3!important}
+html[data-theme="light"] .app :is(.meal-add-slot,.pantry-buy,.recipe-actions button,.meal-slot-actions button){color:#25617a}
