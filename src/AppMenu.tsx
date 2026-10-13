@@ -43,6 +43,12 @@ export default function AppMenu({currentTab,access,onNavigate}:{currentTab:strin
  },[open]);
 
  useEffect(()=>{
+  const sync=()=>setTheme((localStorage.getItem('nh-theme') as Theme)||'system');
+  window.addEventListener('nh:theme-change',sync);
+  return()=>window.removeEventListener('nh:theme-change',sync);
+ },[]);
+
+ useEffect(()=>{
   applyTheme(theme);
   const media=window.matchMedia('(prefers-color-scheme: light)');
   const update=()=>{if(theme==='system')applyTheme('system')};
@@ -50,7 +56,7 @@ export default function AppMenu({currentTab,access,onNavigate}:{currentTab:strin
   return()=>media.removeEventListener?.('change',update)
  },[theme]);
 
- function chooseTheme(next:Theme){setTheme(next);localStorage.setItem('nh-theme',next);applyTheme(next)}
+ function chooseTheme(next:Theme){setTheme(next);localStorage.setItem('nh-theme',next);applyTheme(next);window.dispatchEvent(new CustomEvent('nh:theme-change',{detail:next}))}
  function go(tab:string){setOpen(false);onNavigate(tab)}
 
  return <>
@@ -64,6 +70,14 @@ export default function AppMenu({currentTab,access,onNavigate}:{currentTab:strin
    </aside>
   </>}
  </>;
+}
+
+export function toggleTheme(){
+ const current=document.documentElement.dataset.theme==='light'?'light':'dark';
+ const next:Theme=current==='light'?'dark':'light';
+ localStorage.setItem('nh-theme',next);
+ applyTheme(next);
+ window.dispatchEvent(new CustomEvent('nh:theme-change',{detail:next}));
 }
 
 export function initializeTheme(){
