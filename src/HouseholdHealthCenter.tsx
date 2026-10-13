@@ -1,6 +1,7 @@
 import {useEffect,useState,type CSSProperties} from 'react';
 import {AlertTriangle,CalendarDays,CheckCircle2,ChevronRight,FileText,Gauge,ListChecks,Package,RefreshCw,Sparkles,TrendingUp,Utensils,WalletCards,Wrench} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import './HouseholdHealthCenter.css';
 
 type Household={id:string;name:string;invite_code:string};
 type DomainKey='finance'|'organization'|'documents'|'maintenance'|'food';
