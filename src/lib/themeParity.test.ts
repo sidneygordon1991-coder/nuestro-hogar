@@ -2,8 +2,9 @@ import {describe,expect,it} from 'vitest';
 import mainRaw from '../main.tsx?raw';
 import menuRaw from '../AppMenu.tsx?raw';
 import appRaw from '../App.tsx?raw';
-import baseCss from '../styles.css?inline';
-import parityCss from '../theme-light.css?inline';
+import {readFileSync} from 'node:fs';
+const baseCss=readFileSync(new URL('../styles.css',import.meta.url),'utf8');
+const parityCss=readFileSync(new URL('../theme-light.css',import.meta.url),'utf8');
 
 /** Static contract: all routes share the same DOM theme attribute and CSS. */
 describe('day/night theme across every household module',()=>{
