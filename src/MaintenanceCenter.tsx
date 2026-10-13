@@ -16,7 +16,7 @@ const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency
 const fmtDate=(value:string|null)=>value?new Date(value+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'}):'Sin fecha';
 const fmtKm=(n:number|null)=>n==null?'—':new Intl.NumberFormat('es-GT',{maximumFractionDigits:0}).format(n)+' km';
 
-export default function MaintenanceCenter({household,onNavigate}:{household:Household;onNavigate?:(tab:string)=>void}){
+export default function MaintenanceCenter({household,onNavigate,readOnly=false}:{household:Household;onNavigate?:(tab:string)=>void;readOnly?:boolean}){
  const [tab,setTab]=useState<'summary'|'assets'|'plans'|'history'>('summary');
  const [assets,setAssets]=useState<Asset[]>([]),[schedules,setSchedules]=useState<Schedule[]>([]),[records,setRecords]=useState<RecordRow[]>([]),[members,setMembers]=useState<Member[]>([]),[documents,setDocuments]=useState<Doc[]>([]);
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
@@ -63,12 +63,13 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
  const assetName=(id:string|null)=>id?assetMap.get(id)?.name||'Activo':'Hogar';
  const memberName=(id:string|null)=>id?members.find(m=>m.user_id===id)?.full_name||'Miembro':'Todos';
 
- function startAsset(asset:Asset|null=null){setEditingAsset(asset);setShowAsset(true)}
+ function startAsset(asset:Asset|null=null){if(readOnly)return;setEditingAsset(asset);setShowAsset(true)}
  function closeAsset(){setEditingAsset(null);setShowAsset(false)}
- function startSchedule(schedule:Schedule|null=null){setEditingSchedule(schedule);setShowSchedule(true)}
+ function startSchedule(schedule:Schedule|null=null){if(readOnly)return;setEditingSchedule(schedule);setShowSchedule(true)}
  function closeSchedule(){setEditingSchedule(null);setShowSchedule(false)}
 
  async function saveAsset(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const payload={household_id:household.id,name:String(f.get('name')||'').trim(),asset_type:String(f.get('asset_type')||'other'),estimated_value:Number(f.get('estimated_value')||0),brand:String(f.get('brand')||'').trim()||null,model:String(f.get('model')||'').trim()||null,asset_year:String(f.get('asset_year')||'')?Number(f.get('asset_year')):null,serial_number:String(f.get('serial_number')||'').trim()||null,license_plate:String(f.get('license_plate')||'').trim()||null,current_mileage:String(f.get('current_mileage')||'')?Number(f.get('current_mileage')):null,purchase_date:String(f.get('purchase_date')||'')||null,warranty_expires_on:String(f.get('warranty_expires_on')||'')||null,notes:String(f.get('notes')||'').trim()||null,updated_at:new Date().toISOString()};
   const result=editingAsset?await supabase.from('finance_assets').update(payload).eq('id',editingAsset.id).eq('household_id',household.id):await supabase.from('finance_assets').insert({...payload,is_shared:true});
@@ -77,6 +78,7 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
  }
 
  async function saveSchedule(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const nextDate=String(f.get('next_due_date')||'')||null,nextKm=String(f.get('next_due_mileage')||'')?Number(f.get('next_due_mileage')):null,intervalMonths=String(f.get('interval_months')||'')?Number(f.get('interval_months')):null,intervalKm=String(f.get('interval_km')||'')?Number(f.get('interval_km')):null;
   if(!nextDate&&nextKm==null&&intervalMonths==null&&intervalKm==null){setBusy(false);setMessage('Indica una próxima fecha, kilometraje o recurrencia.');return}
@@ -95,6 +97,7 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
  }
 
  async function archiveSchedule(schedule:Schedule){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!window.confirm('¿Archivar este plan de mantenimiento?'))return;
   setBusy(true);const {error}=await supabase.from('maintenance_schedules').update({active:false,updated_at:new Date().toISOString()}).eq('id',schedule.id).eq('household_id',household.id);
   if(!error)await supabase.rpc('sync_maintenance_event',{p_schedule_id:schedule.id});
@@ -102,6 +105,7 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
  }
 
  async function completeSchedule(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();if(!completing)return;setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const {error}=await supabase.rpc('complete_maintenance',{p_schedule_id:completing.id,p_completed_date:String(f.get('completed_date')||today),p_mileage:String(f.get('mileage')||'')?Number(f.get('mileage')):null,p_cost:String(f.get('cost')||'')?Number(f.get('cost')):null,p_provider:String(f.get('provider')||'')||null,p_document_id:String(f.get('document_id')||'')||null,p_notes:String(f.get('notes')||'')||null});
   setBusy(false);setMessage(error?error.message:'Mantenimiento completado. El próximo servicio y calendario fueron actualizados.');
@@ -109,6 +113,7 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
  }
 
  async function updateMileage(asset:Asset){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   const raw=window.prompt('Kilometraje actual de '+asset.name,String(asset.current_mileage||0));if(raw==null)return;
   const value=Number(raw);if(!Number.isFinite(value)||value<0){setMessage('Ingresa un kilometraje válido.');return}
   const {error}=await supabase.from('finance_assets').update({current_mileage:value,updated_at:new Date().toISOString()}).eq('id',asset.id).eq('household_id',household.id);
@@ -118,7 +123,7 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
  if(loading)return <div className="finance-loading"><div className="loader"/></div>;
 
  return <section className="maintenance-center">
-  <div className="finance-top"><div><p className="eyebrow">CASA Y VEHÍCULOS</p><h2 className="page-title">Mantenimiento</h2><p className="muted">Servicios, reparaciones, seguros, garantías y kilometraje conectados con Agenda, Documentos y Alertas.</p></div><button className="finance-new" onClick={()=>startSchedule()}><Plus/> Plan</button></div>
+  <div className="finance-top"><div><p className="eyebrow">CASA Y VEHÍCULOS</p><h2 className="page-title">Mantenimiento</h2><p className="muted">Servicios, reparaciones, seguros, garantías y kilometraje conectados con Agenda, Documentos y Alertas.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>startSchedule()}><Plus/> Plan</button>}</div>
 
   <div className="maintenance-tabs"><button className={tab==='summary'?'active':''} onClick={()=>setTab('summary')}><Home/> Resumen</button><button className={tab==='assets'?'active':''} onClick={()=>setTab('assets')}><Car/> Activos</button><button className={tab==='plans'?'active':''} onClick={()=>setTab('plans')}><Wrench/> Planes</button><button className={tab==='history'?'active':''} onClick={()=>setTab('history')}><History/> Historial</button></div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
@@ -134,7 +139,7 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
    <div className="maintenance-columns">
     <div className="finance-panel">
      <div className="panel-title"><div><h3>Necesita atención</h3><small>Ordenado por urgencia, fecha y kilometraje.</small></div><button onClick={()=>setTab('plans')}>Ver planes <ChevronRight/></button></div>
-     <div className="maintenance-alert-list">{[...overdue,...upcoming].slice(0,6).map(s=><ScheduleRow key={s.id} schedule={s} asset={assetMap.get(s.asset_id||'')} onComplete={()=>setCompleting(s)} onEdit={()=>startSchedule(s)}/>)}</div>
+     <div className="maintenance-alert-list">{[...overdue,...upcoming].slice(0,6).map(s=><ScheduleRow key={s.id} schedule={s} asset={assetMap.get(s.asset_id||'')} readOnly={readOnly} onComplete={()=>setCompleting(s)} onEdit={()=>startSchedule(s)}/>)}</div>
      {!overdue.length&&!upcoming.length&&<div className="control-clear"><CheckCircle2/><div><strong>Todo al día</strong><span>No hay mantenimientos próximos ni vencidos.</span></div></div>}
     </div>
     <div className="finance-panel">
@@ -147,20 +152,20 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
    <div className="finance-panel">
     <div className="panel-title"><div><h3>Activos del hogar</h3><small>Estado rápido de casa, vehículos y equipos.</small></div><button onClick={()=>setTab('assets')}>Administrar <ChevronRight/></button></div>
     <div className="maintenance-asset-strip">{assets.slice(0,6).map(a=><AssetMini key={a.id} asset={a} schedules={schedules.filter(s=>s.asset_id===a.id)}/>)}</div>
-    {!assets.length&&<div className="document-empty"><Car/><strong>Aún no hay activos</strong><span>Agrega casa, vehículo u otro equipo para empezar a controlar mantenimiento.</span><button onClick={()=>startAsset()}><Plus/> Agregar activo</button></div>}
+    {!assets.length&&<div className="document-empty"><Car/><strong>Aún no hay activos</strong><span>{readOnly?'No hay activos registrados.':'Agrega casa, vehículo u otro equipo para empezar a controlar mantenimiento.'}</span>{!readOnly&&<button onClick={()=>startAsset()}><Plus/> Agregar activo</button>}</div>}
    </div>
   </>}
 
   {tab==='assets'&&<>
-   <div className="maintenance-section-head"><div><p className="eyebrow">ACTIVOS</p><h3>Casa, vehículos y equipos</h3><p>Estos mismos activos también forman parte del patrimonio financiero.</p></div><button className="finance-new" onClick={()=>startAsset()}><Plus/> Activo</button></div>
-   <div className="maintenance-assets-grid">{assets.map(asset=><article className="maintenance-asset-card" key={asset.id}><div className="maintenance-asset-head"><span>{assetIcon(asset.asset_type)}</span><div><small>{assetTypeName(asset.asset_type)}</small><strong>{asset.name}</strong><p>{[asset.brand,asset.model,asset.asset_year].filter(Boolean).join(' · ')||'Sin detalles técnicos'}</p></div><button onClick={()=>startAsset(asset)}><Wrench/></button></div><div className="maintenance-asset-data">{asset.license_plate&&<div><span>Placa</span><b>{asset.license_plate}</b></div>}{asset.current_mileage!=null&&<div><span>Kilometraje</span><b>{fmtKm(asset.current_mileage)}</b></div>}{asset.warranty_expires_on&&<div><span>Garantía</span><b>{fmtDate(asset.warranty_expires_on)}</b></div>}<div><span>Planes</span><b>{schedules.filter(s=>s.asset_id===asset.id).length}</b></div></div>{asset.asset_type==='vehicle'&&<button className="maintenance-mileage-button" onClick={()=>updateMileage(asset)}><Gauge/> Actualizar kilometraje</button>}</article>)}</div>
-   {!assets.length&&<div className="document-empty"><Building2/><strong>Sin activos registrados</strong><span>Agrega primero tu vivienda, vehículo o equipo principal.</span><button onClick={()=>startAsset()}><Plus/> Agregar activo</button></div>}
+   <div className="maintenance-section-head"><div><p className="eyebrow">ACTIVOS</p><h3>Casa, vehículos y equipos</h3><p>Estos mismos activos también forman parte del patrimonio financiero.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>startAsset()}><Plus/> Activo</button>}</div>
+   <div className="maintenance-assets-grid">{assets.map(asset=><article className="maintenance-asset-card" key={asset.id}><div className="maintenance-asset-head"><span>{assetIcon(asset.asset_type)}</span><div><small>{assetTypeName(asset.asset_type)}</small><strong>{asset.name}</strong><p>{[asset.brand,asset.model,asset.asset_year].filter(Boolean).join(' · ')||'Sin detalles técnicos'}</p></div>{!readOnly&&<button onClick={()=>startAsset(asset)}><Wrench/></button>}</div><div className="maintenance-asset-data">{asset.license_plate&&<div><span>Placa</span><b>{asset.license_plate}</b></div>}{asset.current_mileage!=null&&<div><span>Kilometraje</span><b>{fmtKm(asset.current_mileage)}</b></div>}{asset.warranty_expires_on&&<div><span>Garantía</span><b>{fmtDate(asset.warranty_expires_on)}</b></div>}<div><span>Planes</span><b>{schedules.filter(s=>s.asset_id===asset.id).length}</b></div></div>{!readOnly&&asset.asset_type==='vehicle'&&<button className="maintenance-mileage-button" onClick={()=>updateMileage(asset)}><Gauge/> Actualizar kilometraje</button>}</article>)}</div>
+   {!assets.length&&<div className="document-empty"><Building2/><strong>Sin activos registrados</strong><span>{readOnly?'No hay activos disponibles para consultar.':'Agrega primero tu vivienda, vehículo o equipo principal.'}</span>{!readOnly&&<button onClick={()=>startAsset()}><Plus/> Agregar activo</button>}</div>}
   </>}
 
   {tab==='plans'&&<>
-   <div className="maintenance-section-head"><div><p className="eyebrow">PLANIFICACIÓN</p><h3>Planes de mantenimiento</h3><p>Pueden vencer por fecha, kilometraje o ambos. Los planes con fecha aparecen automáticamente en Agenda.</p></div><button className="finance-new" onClick={()=>startSchedule()}><Plus/> Plan</button></div>
-   <div className="maintenance-plans-grid">{schedules.map(schedule=>{const asset=assetMap.get(schedule.asset_id||''),m=mileageState(schedule,asset);return <article className={'maintenance-plan-card '+scheduleStatus(schedule,asset).tone} key={schedule.id}><div className="maintenance-plan-head"><span>{maintenanceIcon(schedule.maintenance_type)}</span><div><small>{maintenanceTypeName(schedule.maintenance_type)}</small><strong>{schedule.title}</strong><p>{asset?.name||'Mantenimiento general del hogar'}</p></div><b>{scheduleStatus(schedule,asset).label}</b></div><div className="maintenance-plan-details">{schedule.next_due_date&&<div><CalendarClock/><span>Próxima fecha<b>{fmtDate(schedule.next_due_date)}</b></span></div>}{schedule.next_due_mileage!=null&&<div><Gauge/><span>Próximo km<b>{fmtKm(schedule.next_due_mileage)}</b></span></div>}{schedule.provider&&<div><Wrench/><span>Proveedor<b>{schedule.provider}</b></span></div>}{schedule.estimated_cost!=null&&<div><ReceiptText/><span>Estimado<b>{money(Number(schedule.estimated_cost))}</b></span></div>}</div>{schedule.next_due_mileage!=null&&asset?.current_mileage!=null&&<div className="maintenance-km-progress"><div><span>{fmtKm(asset.current_mileage)} actual</span><strong>{Math.max(0,Number(schedule.next_due_mileage)-Number(asset.current_mileage)).toLocaleString('es-GT')} km restantes</strong></div><div className="progress"><span style={{width:Math.min(100,Math.max(4,m.progress))+'%'}}/></div></div>}{schedule.document_id&&<button className="maintenance-doc-link" onClick={()=>onNavigate?.('documentos')}><FileText/> {docMap.get(schedule.document_id)?.title||'Documento vinculado'} <ChevronRight/></button>}<div className="maintenance-plan-actions"><button onClick={()=>setCompleting(schedule)}><Check/> Completar</button><button onClick={()=>startSchedule(schedule)}><Wrench/> Editar</button><button className="danger" onClick={()=>archiveSchedule(schedule)}><Trash2/> Archivar</button></div></article>})}</div>
-   {!schedules.length&&<div className="document-empty"><Wrench/><strong>No hay planes de mantenimiento</strong><span>Programa aceite, seguro, fumigación, filtros, reparaciones o renovaciones.</span><button onClick={()=>startSchedule()}><Plus/> Crear primer plan</button></div>}
+   <div className="maintenance-section-head"><div><p className="eyebrow">PLANIFICACIÓN</p><h3>Planes de mantenimiento</h3><p>Pueden vencer por fecha, kilometraje o ambos. Los planes con fecha aparecen automáticamente en Agenda.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>startSchedule()}><Plus/> Plan</button>}</div>
+   <div className="maintenance-plans-grid">{schedules.map(schedule=>{const asset=assetMap.get(schedule.asset_id||''),m=mileageState(schedule,asset);return <article className={'maintenance-plan-card '+scheduleStatus(schedule,asset).tone} key={schedule.id}><div className="maintenance-plan-head"><span>{maintenanceIcon(schedule.maintenance_type)}</span><div><small>{maintenanceTypeName(schedule.maintenance_type)}</small><strong>{schedule.title}</strong><p>{asset?.name||'Mantenimiento general del hogar'}</p></div><b>{scheduleStatus(schedule,asset).label}</b></div><div className="maintenance-plan-details">{schedule.next_due_date&&<div><CalendarClock/><span>Próxima fecha<b>{fmtDate(schedule.next_due_date)}</b></span></div>}{schedule.next_due_mileage!=null&&<div><Gauge/><span>Próximo km<b>{fmtKm(schedule.next_due_mileage)}</b></span></div>}{schedule.provider&&<div><Wrench/><span>Proveedor<b>{schedule.provider}</b></span></div>}{schedule.estimated_cost!=null&&<div><ReceiptText/><span>Estimado<b>{money(Number(schedule.estimated_cost))}</b></span></div>}</div>{schedule.next_due_mileage!=null&&asset?.current_mileage!=null&&<div className="maintenance-km-progress"><div><span>{fmtKm(asset.current_mileage)} actual</span><strong>{Math.max(0,Number(schedule.next_due_mileage)-Number(asset.current_mileage)).toLocaleString('es-GT')} km restantes</strong></div><div className="progress"><span style={{width:Math.min(100,Math.max(4,m.progress))+'%'}}/></div></div>}{schedule.document_id&&<button className="maintenance-doc-link" onClick={()=>onNavigate?.('documentos')}><FileText/> {docMap.get(schedule.document_id)?.title||'Documento vinculado'} <ChevronRight/></button>}{!readOnly&&<div className="maintenance-plan-actions"><button onClick={()=>setCompleting(schedule)}><Check/> Completar</button><button onClick={()=>startSchedule(schedule)}><Wrench/> Editar</button><button className="danger" onClick={()=>archiveSchedule(schedule)}><Trash2/> Archivar</button></div>}</article>})}</div>
+   {!schedules.length&&<div className="document-empty"><Wrench/><strong>No hay planes de mantenimiento</strong><span>{readOnly?'No hay planes registrados.':'Programa aceite, seguro, fumigación, filtros, reparaciones o renovaciones.'}</span>{!readOnly&&<button onClick={()=>startSchedule()}><Plus/> Crear primer plan</button>}</div>}
   </>}
 
   {tab==='history'&&<>
@@ -169,7 +174,7 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
    {!records.length&&<div className="document-empty"><History/><strong>Aún no hay historial</strong><span>Los mantenimientos completados aparecerán aquí automáticamente.</span></div>}
   </>}
 
-  {showAsset&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeAsset()}}><div className="finance-modal"><div className="modal-head"><h3>{editingAsset?'Editar activo':'Nuevo activo'}</h3><button onClick={closeAsset}><X/></button></div><form className="finance-form" onSubmit={saveAsset}>
+  {showAsset&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeAsset()}}><div className="finance-modal"><div className="modal-head"><h3>{editingAsset?'Editar activo':'Nuevo activo'}</h3><button onClick={closeAsset}><X/></button></div><form className="finance-form" onSubmit={saveAsset}>
    <label>Nombre<input name="name" defaultValue={editingAsset?.name||''} placeholder="Ej. Mazda CX-5 o Casa" required/></label>
    <div className="two"><label>Tipo<select name="asset_type" defaultValue={editingAsset?.asset_type||'vehicle'}><option value="vehicle">Vehículo</option><option value="property">Propiedad / casa</option><option value="other">Equipo / otro</option></select></label><label>Valor estimado<input name="estimated_value" type="number" min="0" step=".01" defaultValue={editingAsset?Number(editingAsset.estimated_value):0}/></label></div>
    <div className="three"><label>Marca<input name="brand" defaultValue={editingAsset?.brand||''}/></label><label>Modelo<input name="model" defaultValue={editingAsset?.model||''}/></label><label>Año<input name="asset_year" type="number" min="1900" max="2200" defaultValue={editingAsset?.asset_year||''}/></label></div>
@@ -179,7 +184,7 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
    <button className="finance-primary" disabled={busy}><Check/>{busy?'Guardando...':editingAsset?'Guardar cambios':'Agregar activo'}</button>
   </form></div></div>}
 
-  {showSchedule&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeSchedule()}}><div className="finance-modal maintenance-modal"><div className="modal-head"><div><p className="eyebrow">PLAN DE MANTENIMIENTO</p><h3>{editingSchedule?'Editar plan':'Nuevo plan'}</h3></div><button onClick={closeSchedule}><X/></button></div><form className="finance-form" onSubmit={saveSchedule}>
+  {showSchedule&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeSchedule()}}><div className="finance-modal maintenance-modal"><div className="modal-head"><div><p className="eyebrow">PLAN DE MANTENIMIENTO</p><h3>{editingSchedule?'Editar plan':'Nuevo plan'}</h3></div><button onClick={closeSchedule}><X/></button></div><form className="finance-form" onSubmit={saveSchedule}>
    <label>Actividad<input name="title" defaultValue={editingSchedule?.title||''} placeholder="Ej. Cambio de aceite" required/></label>
    <div className="two"><label>Activo<select name="asset_id" defaultValue={editingSchedule?.asset_id||''}><option value="">General del hogar</option>{assets.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label>Tipo<select name="maintenance_type" defaultValue={editingSchedule?.maintenance_type||'service'}><option value="service">Servicio</option><option value="repair">Reparación</option><option value="inspection">Inspección</option><option value="insurance">Seguro</option><option value="registration">Renovación / circulación</option><option value="warranty">Garantía</option><option value="cleaning">Limpieza</option><option value="other">Otro</option></select></label></div>
    <div className="two"><label>Próxima fecha<input name="next_due_date" type="date" defaultValue={editingSchedule?.next_due_date||''}/></label><label>Próximo kilometraje<input name="next_due_mileage" type="number" min="0" step="1" defaultValue={editingSchedule?.next_due_mileage??''} placeholder="Vehículos"/></label></div>
@@ -191,7 +196,7 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
    <button className="finance-primary" disabled={busy}><Check/>{busy?'Guardando...':editingSchedule?'Guardar cambios':'Crear plan'}</button>
   </form></div></div>}
 
-  {completing&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setCompleting(null)}}><div className="finance-modal"><div className="modal-head"><div><p className="eyebrow">{assetName(completing.asset_id)}</p><h3>Completar {completing.title}</h3></div><button onClick={()=>setCompleting(null)}><X/></button></div><form className="finance-form" onSubmit={completeSchedule}>
+  {completing&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setCompleting(null)}}><div className="finance-modal"><div className="modal-head"><div><p className="eyebrow">{assetName(completing.asset_id)}</p><h3>Completar {completing.title}</h3></div><button onClick={()=>setCompleting(null)}><X/></button></div><form className="finance-form" onSubmit={completeSchedule}>
    <div className="two"><label>Fecha realizada<input name="completed_date" type="date" defaultValue={today} required/></label><label>Kilometraje<input name="mileage" type="number" min="0" step="1" defaultValue={completing.asset_id?assetMap.get(completing.asset_id)?.current_mileage??'':''}/></label></div>
    <div className="two"><label>Costo real<input name="cost" type="number" min="0" step=".01" placeholder="0.00"/></label><label>Proveedor<input name="provider" defaultValue={completing.provider||''}/></label></div>
    <label>Documento / factura<select name="document_id" defaultValue={completing.document_id||''}><option value="">Ninguno</option>{documents.map(d=><option key={d.id} value={d.id}>{d.title}</option>)}</select></label>
@@ -202,9 +207,9 @@ export default function MaintenanceCenter({household,onNavigate}:{household:Hous
  </section>
 }
 
-function ScheduleRow({schedule,asset,onComplete,onEdit}:{schedule:Schedule;asset?:Asset;onComplete:()=>void;onEdit:()=>void}){
+function ScheduleRow({schedule,asset,onComplete,onEdit,readOnly=false}:{schedule:Schedule;asset?:Asset;onComplete:()=>void;onEdit:()=>void;readOnly?:boolean}){
  const status=scheduleStatus(schedule,asset);
- return <div className={'maintenance-alert-row '+status.tone}><span>{maintenanceIcon(schedule.maintenance_type)}</span><div><strong>{schedule.title}</strong><small>{asset?.name||'Hogar'} · {schedule.next_due_date?fmtDate(schedule.next_due_date):schedule.next_due_mileage!=null?fmtKm(schedule.next_due_mileage):'Sin fecha'}</small></div><b>{status.label}</b><div><button onClick={onComplete}><Check/></button><button onClick={onEdit}><Wrench/></button></div></div>
+ return <div className={'maintenance-alert-row '+status.tone}><span>{maintenanceIcon(schedule.maintenance_type)}</span><div><strong>{schedule.title}</strong><small>{asset?.name||'Hogar'} · {schedule.next_due_date?fmtDate(schedule.next_due_date):schedule.next_due_mileage!=null?fmtKm(schedule.next_due_mileage):'Sin fecha'}</small></div><b>{status.label}</b>{!readOnly&&<div><button onClick={onComplete}><Check/></button><button onClick={onEdit}><Wrench/></button></div>}</div>
 }
 function AssetMini({asset,schedules}:{asset:Asset;schedules:Schedule[]}){const next=schedules.slice().sort((a,b)=>(a.next_due_date||'9999').localeCompare(b.next_due_date||'9999'))[0];return <div className="maintenance-asset-mini"><span>{assetIcon(asset.asset_type)}</span><div><strong>{asset.name}</strong><small>{asset.asset_type==='vehicle'&&asset.current_mileage!=null?fmtKm(asset.current_mileage):assetTypeName(asset.asset_type)}</small></div><em>{next?next.title:'Sin plan'}</em></div>}
 function mileageState(schedule:Schedule,asset?:Asset){if(schedule.next_due_mileage==null||asset?.current_mileage==null)return{due:false,near:false,progress:0};const target=Number(schedule.next_due_mileage),current=Number(asset.current_mileage),remaining=target-current;const base=Number(schedule.last_completed_mileage??Math.max(0,target-Number(schedule.interval_km||target||1))),span=Math.max(1,target-base);return{due:remaining<=0,near:remaining>0&&remaining<=500,progress:(current-base)/span*100}}
