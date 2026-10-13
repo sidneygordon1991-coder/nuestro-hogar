@@ -298,3 +298,26 @@ html[data-theme="light"] .app .modal-backdrop{background:#102a4080}
 .app .home-select-wrap{min-width:0;max-width:min(100%,70vw)}
 .app .home-select-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%}
 @media(max-width:560px){.app header{min-width:0}.app header>div:first-child{min-width:0;flex:1}.app .family-section-head{gap:12px;flex-wrap:wrap}.app .family-member-card{min-width:0}}
+
+/* 2026-10 mobile contrast and overlay correction */
+html[data-theme="light"] .app :is(.maintenance-kpis>*,.maintenance-tabs button,.maintenance-asset-card,.maintenance-plans-grid>*,.recurring-kpis>*,.comparison-kpis>*,.comparison-kpi,.net-worth-kpis>*,.notification-panel,.notification-settings,.notification-device,.notification-pref){background:#fff!important;color:#243744!important;border-color:#d4e1e9!important}
+html[data-theme="light"] .app :is(.maintenance-kpis>*,.maintenance-tabs button,.maintenance-asset-card,.recurring-kpis>*,.comparison-kpis>*,.comparison-kpi,.net-worth-kpis>*,.notification-panel,.notification-settings,.notification-device,.notification-pref) :is(strong,b,h2,h3){color:#203440!important;opacity:1!important}
+html[data-theme="light"] .app :is(.maintenance-kpis>*,.maintenance-asset-card,.recurring-kpis>*,.comparison-kpi,.net-worth-kpis>*,.notification-panel) :is(small,em,p,span:not(.badge)){color:#536b7b}
+html[data-theme="light"] .app .maintenance-tabs button.active{background:#e4f3fb!important;color:#087ba5!important;border-color:#8ac9e4!important}
+html[data-theme="light"] .app .notification-panel :is(button,input,select){color:#203440}
+html[data-theme="light"] .app .notification-panel .notification-device button{background:#57bfe8;color:#0b2534}
+html[data-theme="light"] .app .notification-panel .notification-head button{background:#edf4f8;color:#365264}
+html[data-theme="light"] .app .maintenance-kpis svg{opacity:1}
+.app header{position:relative;z-index:12}
+.app .content{position:relative;z-index:1;padding-top:22px}
+.app .notification-center:has(.notification-panel){z-index:100}
+.app .notification-scrim{position:fixed;inset:0;z-index:90}
+.app .notification-panel{position:fixed;z-index:101;max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(26px + env(safe-area-inset-bottom))}
+.app:has(.notification-panel) nav{z-index:0;pointer-events:none}
+@media(max-width:620px){
+ .app header{margin-bottom:12px}
+ .app .content{padding-top:22px}
+ .app .notification-panel{top:16px;bottom:16px;max-height:none}
+ .app .maintenance-tabs{overflow-x:auto;max-width:100%;scrollbar-width:thin}
+ .app .maintenance-tabs button{flex-shrink:0}
+}
