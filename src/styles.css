@@ -321,3 +321,34 @@ html[data-theme="light"] .app .maintenance-kpis svg{opacity:1}
  .app .maintenance-tabs{overflow-x:auto;max-width:100%;scrollbar-width:thin}
  .app .maintenance-tabs button{flex-shrink:0}
 }
+
+/* Targeted accessible light surfaces: projections, diagnostics, audit, alerts */
+html[data-theme="light"] .projection-grid>div,
+html[data-theme="light"] .projection-footer span,
+html[data-theme="light"] .family-audit-list>div,
+html[data-theme="light"] .notification-item,
+html[data-theme="light"] .notification-item.unread,
+html[data-theme="light"] .diagnostic-panel :is(.diagnostic-stat,.diagnostic-check,.diagnostic-card){
+ background:#f4f9fc!important;border-color:#d2e2eb!important;color:#203541!important;
+}
+html[data-theme="light"] .projection-grid>div :is(strong,b){color:#193543!important}
+html[data-theme="light"] .projection-grid>div small,
+html[data-theme="light"] .projection-footer span,
+html[data-theme="light"] .family-audit-list :is(small,time),
+html[data-theme="light"] .notification-item :is(p,small){color:#506b7a!important}
+html[data-theme="light"] .projection-footer b,
+html[data-theme="light"] .family-audit-list strong,
+html[data-theme="light"] .notification-item strong{color:#1b3442!important}
+html[data-theme="light"] .projection-grid .projection-highlight{background:#e5f4fa!important;border-color:#a9d6e8!important}
+html[data-theme="light"] .projection-grid .projection-highlight strong{color:#086f99!important}
+html[data-theme="light"] .notification-item.unread{border-left:3px solid #43a8d1!important}
+html[data-theme="light"] .notification-item .notification-type-icon{background:#e1f0f7!important;color:#1685ae!important}
+html[data-theme="light"] .family-audit-list>div{min-height:56px;padding:10px}
+html[data-theme="light"] .family-audit-list strong{font-size:11px}
+html[data-theme="light"] .family-audit-list small{font-size:10px}
+html[data-theme="light"] .family-audit-list time{font-size:9px}
+html[data-theme="light"] .notification-item strong{font-size:12px}
+html[data-theme="light"] .notification-item p{font-size:11px}
+html[data-theme="light"] .notification-item small{font-size:10px}
+html[data-theme="light"] .projection-footer span{line-height:1.5}
+@media(max-width:560px){.projection-footer{grid-template-columns:1fr}.projection-footer span{text-align:left}.projection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
