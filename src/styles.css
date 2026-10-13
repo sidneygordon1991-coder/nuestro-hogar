@@ -142,3 +142,27 @@ html[data-theme="light"]{color-scheme:light;background:#f4f7fa;color:#18222b}htm
 
 @media(max-width:620px){.home-setup-list{grid-template-columns:1fr}.pwa-update{right:16px;bottom:98px;grid-template-columns:34px minmax(0,1fr) 28px}.pwa-update>button:not(.pwa-update-close){grid-column:2;justify-self:start}.pwa-update-close{grid-column:3;grid-row:1}.app-menu-drawer{padding:15px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
+
+/* Mobile header: reserve space for actions without truncating the household name. */
+.app header>div:first-child{min-width:0;flex:1 1 auto}
+.app header .header-actions{flex:0 0 auto}
+.home-select-wrap{display:flex;min-width:0;max-width:100%}
+.home-select-wrap .home-select{min-width:0;max-width:100%;width:100%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+@media(max-width:620px){
+ .app header{gap:8px;padding-left:16px;padding-right:16px;align-items:center}
+ .app header .header-actions{gap:5px}
+ .home-select-wrap .home-select{font-size:clamp(17px,4.4vw,25px);padding-right:24px}
+ .home-select-wrap svg{right:2px;width:16px}
+ .app header>div:first-child>p{font-size:11px;margin-left:0}
+}
+@media(max-width:390px){
+ .app header{padding-left:12px;padding-right:12px;gap:5px}
+ .app header .header-actions{gap:3px}
+ .app header .avatar{width:38px;height:38px;font-size:14px}
+ .app header .app-menu-trigger,.app header .notification-bell,.app header .global-search-trigger{width:34px;height:38px}
+ .home-select-wrap .home-select{font-size:17px}
+}
+/* Day theme: extend light surfaces to the home dashboard and summary cards. */
+html[data-theme="light"] .home-hero,html[data-theme="light"] .home-summary-card,html[data-theme="light"] .home-kpi,html[data-theme="light"] .home-priority,html[data-theme="light"] .home-panel{background:#fff;color:#20303a;border-color:#d8e4eb}
+html[data-theme="light"] .home-hero h1,html[data-theme="light"] .home-hero h2,html[data-theme="light"] .home-summary-card strong,html[data-theme="light"] .home-kpi strong{color:#20303a}
+html[data-theme="light"] .app-menu-theme strong{color:#26343d}
