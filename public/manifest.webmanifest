@@ -32,12 +32,38 @@
     {
       "name": "Finanzas",
       "short_name": "Finanzas",
-      "url": "/nuestro-hogar/"
+      "url": "/nuestro-hogar/?tab=presupuesto",
+      "icons": [
+        {
+          "src": "/nuestro-hogar/icon.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
     },
     {
       "name": "Calendario",
       "short_name": "Calendario",
-      "url": "/nuestro-hogar/"
+      "url": "/nuestro-hogar/?tab=calendario",
+      "icons": [
+        {
+          "src": "/nuestro-hogar/icon.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Agregar rápido",
+      "short_name": "Agregar",
+      "url": "/nuestro-hogar/?quick=1",
+      "icons": [
+        {
+          "src": "/nuestro-hogar/icon.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
     }
   ]
 }
