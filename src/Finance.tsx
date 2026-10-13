@@ -1,5 +1,5 @@
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowUpRight,CalendarClock,Car,Check,ChevronRight,Copy,CreditCard,GraduationCap,HeartPulse,Home,Landmark,Pencil,Plane,PiggyBank,Plus,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingUp,Users,WalletCards,X} from 'lucide-react';
+import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowUpRight,BarChart3,CalendarClock,Car,Check,ChevronRight,Copy,CreditCard,GraduationCap,HeartPulse,Home,Landmark,Pencil,Plane,PiggyBank,Plus,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingDown,TrendingUp,Users,WalletCards,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -18,6 +18,10 @@ type SplitMethod='equal'|'income'|'custom';
 type MemberFinanceDraft={monthly_income:string;custom_share_percent:string};
 type CategoryRuleMethod='inherit'|'equal'|'income'|'custom'|'personal';
 type CategoryRuleDraft={split_method:CategoryRuleMethod;responsible_user_id:string};
+type HistoryTx={amount:number;type:'income'|'expense';transaction_date:string;category_id:string|null};
+type HistoryContribution={amount:number;contribution_date:string};
+type HistoryAllocation={planned_amount:number;month:string;category_id:string};
+type MonthMetric={key:string;label:string;income:number;expense:number;saving:number;budget:number;balance:number;savingRate:number};
 
 const currency=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n||0);
 const isoDate=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
@@ -28,7 +32,7 @@ const pct=(a:number,b:number)=>b>0?Math.min(100,Math.round((a/b)*100)):0;
 const dueDateForMonth=(d:Date,dueDay:number)=>{const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return isoDate(new Date(d.getFullYear(),d.getMonth(),Math.min(Math.max(1,dueDay),last)))};
 
 export default function Finance({household}:{household:Household}){
- const [tab,setTab]=useState<'summary'|'budget'|'transactions'|'recurring'|'contributions'|'goals'|'accounts'>('summary');
+ const [tab,setTab]=useState<'summary'|'budget'|'transactions'|'recurring'|'comparison'|'contributions'|'goals'|'accounts'>('summary');
  const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [categories,setCategories]=useState<Category[]>([]),[txs,setTxs]=useState<Tx[]>([]),[allocations,setAllocations]=useState<Allocation[]>([]);
@@ -42,6 +46,7 @@ export default function Finance({household}:{household:Household}){
  const [memberFinance,setMemberFinance]=useState<Record<string,MemberFinanceDraft>>({});
  const [categoryRules,setCategoryRules]=useState<Record<string,CategoryRuleDraft>>({});
  const [categoryCustom,setCategoryCustom]=useState<Record<string,Record<string,string>>>({});
+ const [historyTxs,setHistoryTxs]=useState<HistoryTx[]>([]),[historyContributions,setHistoryContributions]=useState<HistoryContribution[]>([]),[historyAllocations,setHistoryAllocations]=useState<HistoryAllocation[]>([]),[comparisonRange,setComparisonRange]=useState<3|6|12>(6);
 
  useEffect(()=>{load()},[household.id,month.getFullYear(),month.getMonth()]);
 
@@ -49,8 +54,9 @@ export default function Finance({household}:{household:Household}){
   setLoading(true);setMessage('');
   await supabase.rpc('seed_finance_categories',{p_household_id:household.id});
   const bounds=monthBounds(month),m=monthDate(month);
+  const historyStartDate=new Date(month.getFullYear(),month.getMonth()-11,1),historyStart=isoDate(historyStartDate),historyStartMonth=monthDate(historyStartDate);
   const userPromise=supabase.auth.getUser();
-  const [catR,txR,allocR,goalR,contR,recR,accR,accTxR,memberR,financeSettingsR,memberFinanceR,categorySettingsR,categoryMemberR,userR]=await Promise.all([
+  const [catR,txR,allocR,goalR,contR,recR,accR,accTxR,memberR,financeSettingsR,memberFinanceR,categorySettingsR,categoryMemberR,historyTxR,historyContR,historyAllocR,userR]=await Promise.all([
    supabase.from('budget_categories').select('id,name,icon,budget_group').eq('household_id',household.id).order('created_at'),
    supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,account_id,is_shared,notes,recurring_transaction_id').eq('household_id',household.id).gte('transaction_date',bounds.start).lte('transaction_date',bounds.end).order('transaction_date',{ascending:false}).order('created_at',{ascending:false}),
    supabase.from('budget_allocations').select('id,category_id,planned_amount,month').eq('household_id',household.id).eq('month',m),
@@ -64,6 +70,9 @@ export default function Finance({household}:{household:Household}){
    supabase.from('finance_member_settings').select('user_id,monthly_income,custom_share_percent').eq('household_id',household.id),
    supabase.from('finance_category_settings').select('category_id,split_method,responsible_user_id').eq('household_id',household.id),
    supabase.from('finance_category_member_settings').select('category_id,user_id,custom_share_percent').eq('household_id',household.id),
+   supabase.from('transactions').select('amount,type,transaction_date,category_id').eq('household_id',household.id).gte('transaction_date',historyStart).lte('transaction_date',bounds.end),
+   supabase.from('goal_contributions').select('amount,contribution_date').eq('household_id',household.id).gte('contribution_date',historyStart).lte('contribution_date',bounds.end),
+   supabase.from('budget_allocations').select('planned_amount,month,category_id').eq('household_id',household.id).gte('month',historyStartMonth).lte('month',m),
    userPromise
   ]);
   const memberRows=(memberR.data||[]) as {user_id:string;role:string}[];
@@ -104,6 +113,7 @@ export default function Finance({household}:{household:Household}){
   setAccounts((accR.data||[]) as unknown as Account[]);setAccountTxs((accTxR.data||[]) as unknown as any[]);setMembers(memberData);setSplits((splitR.data||[]) as unknown as Split[]);
   setSplitMethod(((financeSettingsR.data as any)?.split_method||'equal') as SplitMethod);setMemberFinance(financeDraft);setCategoryRules(categoryRuleDraft);setCategoryCustom(categoryCustomDraft);
   setCurrentUser(userR.data.user?.id||'');
+  setHistoryTxs((historyTxR.data||[]) as unknown as HistoryTx[]);setHistoryContributions((historyContR.data||[]) as unknown as HistoryContribution[]);setHistoryAllocations((historyAllocR.data||[]) as unknown as HistoryAllocation[]);
   const draft:Record<string,string>={};const groupDraft:Record<string,BudgetGroup>={};
   for(const c of (catR.data||[]) as Category[]){
    const a=((allocR.data||[]) as any[]).find(x=>x.category_id===c.id);
@@ -111,7 +121,7 @@ export default function Finance({household}:{household:Household}){
    groupDraft[c.id]=(c.budget_group||'variable') as BudgetGroup;
   }
   setBudgetDraft(draft);setCategoryGroupDraft(groupDraft);
-  const errors=[catR.error,txR.error,allocR.error,goalR.error,contR.error,recR.error,accR.error,memberR.error,financeSettingsR.error,memberFinanceR.error,categorySettingsR.error,categoryMemberR.error,occurrenceR.error].filter(Boolean);
+  const errors=[catR.error,txR.error,allocR.error,goalR.error,contR.error,recR.error,accR.error,memberR.error,financeSettingsR.error,memberFinanceR.error,categorySettingsR.error,categoryMemberR.error,historyTxR.error,historyContR.error,historyAllocR.error,occurrenceR.error].filter(Boolean);
   if(errors.length)setMessage('No se pudo cargar toda la información financiera.');
   setLoading(false);
  }
@@ -207,6 +217,32 @@ export default function Finance({household}:{household:Household}){
   const health=projectedClose<0?'risk':projectedClose<Math.max(plannedIncome*.08,500)?'watch':'good';
   return{plannedIncome,expectedIncomeRemaining,plannedFixed,spentFixed,plannedVariable,spentVariable,plannedSaving,actualSaving:totals.saving,pendingRecurringAmount,fixedCommitments,variableRemaining,savingsRemaining,availableAfterCommitments,projectedClose,health};
  },[members,memberFinance,totals,categories,categoryGroupDraft,allocations,txs,occurrences,recurring]);
+
+ const monthlyMetrics=useMemo(()=>{
+  const rows:MonthMetric[]=[];
+  for(let offset=comparisonRange-1;offset>=0;offset--){
+   const d=new Date(month.getFullYear(),month.getMonth()-offset,1),key=monthDate(d),bounds=monthBounds(d);
+   const income=historyTxs.filter(t=>t.transaction_date>=bounds.start&&t.transaction_date<=bounds.end&&t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
+   const expense=historyTxs.filter(t=>t.transaction_date>=bounds.start&&t.transaction_date<=bounds.end&&t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
+   const saving=historyContributions.filter(x=>x.contribution_date>=bounds.start&&x.contribution_date<=bounds.end).reduce((s,x)=>s+Number(x.amount),0);
+   const budget=historyAllocations.filter(x=>x.month===key).reduce((s,x)=>s+Number(x.planned_amount),0);
+   rows.push({key,label:d.toLocaleDateString('es-GT',{month:'short'}).replace('.',''),income,expense,saving,budget,balance:income-expense-saving,savingRate:income>0?saving/income*100:0});
+  }
+  return rows;
+ },[historyTxs,historyContributions,historyAllocations,month,comparisonRange]);
+
+ const currentMetric=monthlyMetrics[monthlyMetrics.length-1]||{income:0,expense:0,saving:0,budget:0,balance:0,savingRate:0} as MonthMetric;
+ const previousMetric=monthlyMetrics[monthlyMetrics.length-2]||{income:0,expense:0,saving:0,budget:0,balance:0,savingRate:0} as MonthMetric;
+ const metricDelta=(current:number,previous:number)=>previous===0?(current===0?0:100):((current-previous)/Math.abs(previous))*100;
+
+ const categoryComparison=useMemo(()=>{
+  const currentBounds=monthBounds(month),previousDate=new Date(month.getFullYear(),month.getMonth()-1,1),previousBounds=monthBounds(previousDate);
+  return categories.map(cat=>{
+   const current=historyTxs.filter(t=>t.type==='expense'&&t.category_id===cat.id&&t.transaction_date>=currentBounds.start&&t.transaction_date<=currentBounds.end).reduce((s,t)=>s+Number(t.amount),0);
+   const previous=historyTxs.filter(t=>t.type==='expense'&&t.category_id===cat.id&&t.transaction_date>=previousBounds.start&&t.transaction_date<=previousBounds.end).reduce((s,t)=>s+Number(t.amount),0);
+   return{id:cat.id,name:cat.name,current,previous,delta:metricDelta(current,previous)};
+  }).filter(x=>x.current>0||x.previous>0).sort((a,b)=>Math.max(b.current,b.previous)-Math.max(a.current,a.previous)).slice(0,8);
+ },[categories,historyTxs,month]);
 
  const contributionOverview=useMemo(()=>members.map(m=>{
   const ratio=contributionRatios.find(r=>r.user_id===m.user_id)?.ratio||0;
@@ -408,6 +444,7 @@ export default function Finance({household}:{household:Household}){
    <button className={tab==='budget'?'active':''} onClick={()=>setTab('budget')}>Presupuesto</button>
    <button className={tab==='transactions'?'active':''} onClick={()=>setTab('transactions')}>Movimientos</button>
    <button className={tab==='recurring'?'active':''} onClick={()=>setTab('recurring')}>Recurrentes</button>
+   <button className={tab==='comparison'?'active':''} onClick={()=>setTab('comparison')}>Comparación</button>
    <button className={tab==='contributions'?'active':''} onClick={()=>setTab('contributions')}>Aportes</button>
    <button className={tab==='goals'?'active':''} onClick={()=>setTab('goals')}>Metas</button>
    <button className={tab==='accounts'?'active':''} onClick={()=>setTab('accounts')}>Cuentas</button>
@@ -456,6 +493,11 @@ export default function Finance({household}:{household:Household}){
     <div className="panel-title"><div><h3>Balance entre nosotros</h3><small>{splitMethodLabel(splitMethod)} · gastos compartidos de este mes.</small></div><button onClick={()=>setTab('contributions')}>Configurar <ChevronRight size={16}/></button></div>
     <div className="couple-grid">{contributionOverview.map(b=><div className="couple-card" key={b.user_id}><span>{b.full_name}</span><strong className={b.balance>=0?'positive':'negative'}>{b.balance>=0?'+':''}{currency(b.balance)}</strong><small>{b.balance>0?'A favor':b.balance<0?'Por compensar':'En equilibrio'}</small></div>)}</div>
    </div>}
+
+   <div className="finance-panel comparison-preview">
+    <div className="panel-title"><div><h3>Tendencia financiera</h3><small>Ingresos, gastos y ahorro de los últimos {Math.min(6,monthlyMetrics.length)} meses.</small></div><button onClick={()=>setTab('comparison')}>Comparar <ChevronRight size={16}/></button></div>
+    <MonthlyBars data={monthlyMetrics.slice(-6)}/>
+   </div>
 
    <div className="finance-panel">
     <div className="panel-title"><h3>Movimientos recientes</h3><button onClick={()=>setTab('transactions')}>Ver todos <ChevronRight size={16}/></button></div>
@@ -508,6 +550,49 @@ export default function Finance({household}:{household:Household}){
      </div>})}
     </div>
     {!occurrences.length&&<EmptyFinance text="Todavía no hay compromisos recurrentes para este mes."/>}
+   </div>
+  </>}
+
+  {tab==='comparison'&&<>
+   <div className="comparison-head">
+    <div><p className="eyebrow">EVOLUCIÓN FINANCIERA</p><h3>Comparación entre meses</h3><p>Analiza ingresos, gastos, ahorro, balance y presupuesto para detectar tendencias.</p></div>
+    <div className="range-switch">{([3,6,12] as const).map(value=><button className={comparisonRange===value?'active':''} key={value} onClick={()=>setComparisonRange(value)}>{value} meses</button>)}</div>
+   </div>
+
+   <div className="comparison-kpis">
+    <ComparisonKpi label="Ingresos" value={currentMetric.income} delta={metricDelta(currentMetric.income,previousMetric.income)} goodWhenUp/>
+    <ComparisonKpi label="Gastos" value={currentMetric.expense} delta={metricDelta(currentMetric.expense,previousMetric.expense)} goodWhenUp={false}/>
+    <ComparisonKpi label="Ahorro" value={currentMetric.saving} delta={metricDelta(currentMetric.saving,previousMetric.saving)} goodWhenUp/>
+    <ComparisonKpi label="Balance" value={currentMetric.balance} delta={metricDelta(currentMetric.balance,previousMetric.balance)} goodWhenUp/>
+   </div>
+
+   <div className="finance-panel">
+    <div className="panel-title"><div><h3>Ingresos vs gastos vs ahorro</h3><small>{comparisonRange} meses terminando en {monthLabel(month)}.</small></div><BarChart3 size={19}/></div>
+    <MonthlyBars data={monthlyMetrics}/>
+   </div>
+
+   <div className="finance-columns comparison-columns">
+    <div className="finance-panel">
+     <div className="panel-title"><div><h3>Balance mensual</h3><small>Lo que queda después de gastos y ahorro.</small></div></div>
+     <BalanceChart data={monthlyMetrics}/>
+    </div>
+    <div className="finance-panel">
+     <div className="panel-title"><div><h3>Tasa de ahorro</h3><small>Porcentaje del ingreso destinado a metas.</small></div><strong>{Math.round(currentMetric.savingRate)}%</strong></div>
+     <SavingsRateChart data={monthlyMetrics}/>
+    </div>
+   </div>
+
+   <div className="finance-panel">
+    <div className="panel-title"><div><h3>Categorías: este mes vs anterior</h3><small>Top categorías con movimiento en cualquiera de los dos meses.</small></div></div>
+    <CategoryComparison rows={categoryComparison}/>
+   </div>
+
+   <div className="finance-panel comparison-table-panel">
+    <div className="panel-title"><div><h3>Detalle mensual</h3><small>Resumen completo del periodo seleccionado.</small></div></div>
+    <div className="comparison-table">
+     <div className="comparison-table-head"><span>Mes</span><span>Ingresos</span><span>Gastos</span><span>Ahorro</span><span>Balance</span><span>Presupuesto</span></div>
+     {monthlyMetrics.map(row=><div className="comparison-table-row" key={row.key}><strong>{row.label}</strong><span>{currency(row.income)}</span><span>{currency(row.expense)}</span><span>{currency(row.saving)}</span><span className={row.balance>=0?'positive':'negative'}>{currency(row.balance)}</span><span>{currency(row.budget)}</span></div>)}
+    </div>
    </div>
   </>}
 
@@ -601,6 +686,32 @@ function EmptyFinance({text}:{text:string}){return <div className="finance-empty
 
 function TransactionRows({txs,categoryName,memberName,onEdit,onDelete}:{txs:Tx[];categoryName:(x:string|null)=>string;memberName:(x:string|null)=>string;onEdit:(tx:Tx)=>void;onDelete:(tx:Tx)=>void}){
  return <div className="transaction-list">{txs.map(t=>{const category=categoryName(t.category_id);return <div className="transaction-row polished" key={t.id}><span className={'transaction-icon '+t.type}>{transactionIcon(t.type,category)}</span><div className="transaction-main"><strong>{t.description}</strong><small>{category} · {memberName(t.paid_by)}{t.is_shared?' · Compartido':''}{t.recurring_transaction_id?' · Recurrente':''}</small></div><div className="transaction-value"><b className={t.type}>{t.type==='income'?'+':'−'}{currency(Number(t.amount))}</b><small>{new Date(t.transaction_date+'T12:00').toLocaleDateString('es-GT',{day:'2-digit',month:'short'})}</small></div><div className="transaction-actions"><button className="transaction-action edit" title="Editar movimiento" aria-label="Editar movimiento" onClick={()=>onEdit(t)}><Pencil/></button><button className="transaction-action delete" title="Eliminar movimiento" aria-label="Eliminar movimiento" onClick={()=>onDelete(t)}><Trash2/></button></div></div>})}</div>
+}
+
+function ComparisonKpi({label,value,delta,goodWhenUp}:{label:string;value:number;delta:number;goodWhenUp:boolean}){
+ const up=delta>0,neutral=Math.abs(delta)<.05,good=neutral?true:(up===goodWhenUp);
+ return <div className="comparison-kpi"><div><small>{label}</small><strong>{currency(value)}</strong></div><span className={neutral?'neutral':good?'good':'bad'}>{neutral?'—':up?<TrendingUp/>:<TrendingDown/>}{neutral?'Sin cambio':Math.abs(delta).toFixed(1)+'%'}</span></div>
+}
+
+function MonthlyBars({data}:{data:MonthMetric[]}){
+ const max=Math.max(1,...data.flatMap(row=>[row.income,row.expense,row.saving]));
+ return <div className="monthly-bars"><div className="chart-legend"><span><i className="income"/>Ingresos</span><span><i className="expense"/>Gastos</span><span><i className="saving"/>Ahorro</span></div><div className="monthly-bars-grid">{data.map(row=><div className="month-bar-group" key={row.key}><div className="month-bars"><span className="income" style={{height:(row.income/max*100)+'%'}} title={'Ingresos '+currency(row.income)}/><span className="expense" style={{height:(row.expense/max*100)+'%'}} title={'Gastos '+currency(row.expense)}/><span className="saving" style={{height:(row.saving/max*100)+'%'}} title={'Ahorro '+currency(row.saving)}/></div><small>{row.label}</small></div>)}</div></div>
+}
+
+function BalanceChart({data}:{data:MonthMetric[]}){
+ const max=Math.max(1,...data.map(row=>Math.abs(row.balance)));
+ return <div className="balance-chart">{data.map(row=><div className="balance-column" key={row.key}><div className="balance-track"><span className={row.balance>=0?'positive':'negative'} style={{height:(Math.abs(row.balance)/max*48)+'%',bottom:row.balance>=0?'50%':'auto',top:row.balance<0?'50%':'auto'}} title={currency(row.balance)}/><i/></div><small>{row.label}</small></div>)}</div>
+}
+
+function SavingsRateChart({data}:{data:MonthMetric[]}){
+ const max=Math.max(10,...data.map(row=>row.savingRate));
+ return <div className="savings-rate-chart">{data.map(row=><div key={row.key}><div className="saving-rate-track"><span style={{height:Math.min(100,row.savingRate/max*100)+'%'}}/><b>{Math.round(row.savingRate)}%</b></div><small>{row.label}</small></div>)}</div>
+}
+
+function CategoryComparison({rows}:{rows:{id:string;name:string;current:number;previous:number;delta:number}[]}){
+ const max=Math.max(1,...rows.flatMap(row=>[row.current,row.previous]));
+ if(!rows.length)return <EmptyFinance text="Aún no hay suficientes movimientos para comparar categorías."/>;
+ return <div className="category-comparison"><div className="category-comparison-legend"><span><i className="previous"/>Mes anterior</span><span><i className="current"/>Mes actual</span></div>{rows.map(row=><div className="category-compare-row" key={row.id}><div><strong>{row.name}</strong><small className={row.delta>0?'negative':row.delta<0?'positive':''}>{row.previous===0&&row.current>0?'Nueva':Math.abs(row.delta)<.05?'Sin cambio':(row.delta>0?'+':'')+row.delta.toFixed(0)+'%'}</small></div><div className="category-bars"><span className="previous" style={{width:(row.previous/max*100)+'%'}}/><span className="current" style={{width:(row.current/max*100)+'%'}}/></div><div><small>{currency(row.previous)}</small><strong>{currency(row.current)}</strong></div></div>)}</div>
 }
 
 function GoalCard({goal,saved,busy,onContribute}:{goal:Goal;saved:number;busy:boolean;onContribute:(id:string,amount:number)=>void}){
