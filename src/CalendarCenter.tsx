@@ -77,10 +77,10 @@ export default function CalendarCenter({household,onChanged,onNavigate}:{househo
 
    <div className="agenda-panel">
     <div className="agenda-head"><div><p className="eyebrow">{selectedDay?'DÍA SELECCIONADO':'MES COMPLETO'}</p><h3>{selectedDay?new Date(selectedDay+'T12:00').toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'}):'Agenda'}</h3></div>{selectedDay&&<button onClick={()=>newEvent(selectedDay)}><Plus/> Agregar</button>}</div>
-    <div className="agenda-list">{visibleAgenda.map(item=><article className={'agenda-item '+item.source} key={item.id} onClick={()=>item.source==='event'&&item.event&&openEdit(item.event)}>
+    <div className="agenda-list">{visibleAgenda.map(item=><article className={'agenda-item '+item.source} key={item.id} onClick={()=>item.source==='event'&&item.event&&(item.event.event_type==='maintenance'?onNavigate?.('mantenimiento'):openEdit(item.event))}>
       <span className="agenda-date"><strong>{new Date(item.date+'T12:00').getDate()}</strong><small>{new Date(item.date+'T12:00').toLocaleDateString('es-GT',{month:'short'})}</small></span>
       <div className="agenda-copy"><div><strong>{item.title}</strong><span className={'agenda-kind '+item.source}>{item.source==='event'?categoryLabel(item.category):item.source==='task'?'Tarea':item.source==='payment'?'Pago':'Cumpleaños'}</span></div><small>{item.time&&<><Clock3/> {item.time}</>} {item.subtitle}</small></div>
-      {item.source==='event'&&<Pencil/>}{item.source==='payment'&&<button className="agenda-open" onClick={e=>{e.stopPropagation();onNavigate?.('presupuesto')}}><ReceiptText/></button>}{item.source==='task'&&item.completed&&<Check className="agenda-check"/>}
+      {item.source==='event'&&(item.event?.event_type==='maintenance'?<Wrench/>:<Pencil/>)}{item.source==='payment'&&<button className="agenda-open" onClick={e=>{e.stopPropagation();onNavigate?.('presupuesto')}}><ReceiptText/></button>}{item.source==='task'&&item.completed&&<Check className="agenda-check"/>}
     </article>)}</div>
     {!visibleAgenda.length&&<div className="calendar-empty"><CalendarDays/><strong>Sin actividades</strong><span>No hay elementos para mostrar en este periodo.</span></div>}
    </div>
