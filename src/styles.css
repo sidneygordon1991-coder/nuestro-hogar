@@ -219,3 +219,34 @@ html[data-theme="light"] .header-theme-toggle{background:#eaf5fb;color:#167ea6;b
 html[data-theme="light"] .header-theme-toggle .theme-sun{display:none}
 html[data-theme="light"] .header-theme-toggle .theme-moon{display:block}
 @media(max-width:620px){.app header>div:first-child{padding-right:37px}.header-theme-toggle{width:30px;height:32px;right:0;top:1px}.header-theme-toggle svg{width:16px;height:16px}}
+
+
+/* Home control center: actual rendered classes, day/night coherent surfaces. */
+html[data-theme="light"] .home-control{color:#1b2d39}
+html[data-theme="light"] .home-control .control-hero,
+html[data-theme="light"] .home-control .control-finance-strip>button,
+html[data-theme="light"] .home-control .control-money,
+html[data-theme="light"] .home-control .control-section,
+html[data-theme="light"] .home-control .control-module-grid>button{
+ background:#fff!important;color:#1b2d39!important;border-color:#d6e3eb!important;box-shadow:0 8px 25px #244b6210
+}
+html[data-theme="light"] .home-control .control-hero{background:linear-gradient(130deg,#fff 20%,#eaf5f9 100%)!important}
+html[data-theme="light"] .home-control :is(.control-hero-copy h2,.control-money strong,.control-finance-strip strong,.control-section h3,.control-section strong){color:#1b2d39!important;opacity:1}
+html[data-theme="light"] .home-control :is(.control-hero-copy>p:not(.eyebrow),.control-money small,.control-finance-strip small,.control-finance-strip em,.control-section small,.control-section-head button){color:#587080!important}
+html[data-theme="light"] .home-control .control-money{background:#f7fbfd!important}
+html[data-theme="light"] .home-control :is(.control-hero-tags span,.week-summary>div,.control-clear,.control-empty){background:#edf5f9!important;border-color:#d4e4ec!important;color:#415d6c!important}
+html[data-theme="light"] .home-control .control-hero .eyebrow{color:#167da3}
+html[data-theme="light"] .home-control .control-money .good{color:#158365!important}
+html[data-theme="light"] .home-control .control-money .bad{color:#c14b51!important}
+html[data-theme="light"] .home-control .control-finance-icon.available{background:#e2f2fc;color:#1684af}
+html[data-theme="light"] .home-control .control-finance-icon.saving{background:#e6f7f0;color:#168a69}
+html[data-theme="light"] .home-control .control-finance-icon.expense{background:#fff1e2;color:#b86d22}
+/* Decorative vector watermark: no network dependency, no interference with taps. */
+.home-control .control-hero{position:relative;isolation:isolate;overflow:hidden}
+.home-control .control-hero::before{
+ content:"";position:absolute;right:-14px;top:-20px;width:220px;height:220px;pointer-events:none;z-index:-1;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23699b99' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M45 118 120 55l75 63v77H45z'/%3E%3Cpath d='M103 195v-52h34v52M62 125h24v24H62zM155 125h24v24h-24z'/%3E%3Cpath d='M183 73c-8-22-6-43 8-58 11 24 10 41-8 58zm0 0c-20-16-39-20-58-10 16 20 35 24 58 10zM183 73c21-9 36-7 46 5-18 14-33 12-46-5z'/%3E%3C/g%3E%3C/svg%3E");
+ background-repeat:no-repeat;background-size:contain;opacity:.085
+}
+html[data-theme="light"] .home-control .control-hero::before{opacity:.22}
+@media(max-width:560px){.home-control .control-hero::before{width:175px;height:175px;right:-18px;top:-13px}}
