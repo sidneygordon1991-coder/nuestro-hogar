@@ -124,6 +124,7 @@ begin
     from public.recipe_ingredients ri
     where ri.recipe_id=v_entry.recipe_id
       and ri.pantry_item_id=p.id
+      and ri.optional=false
       and p.household_id=v_entry.household_id;
   end if;
 
