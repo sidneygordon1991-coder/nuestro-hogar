@@ -14,7 +14,7 @@ function report(householdId:string,source:string,message:string,stack?:string|nu
   p_app_version:APP_VERSION,
   p_url:window.location.href,
   p_user_agent:navigator.userAgent
- }).then(()=>{}).catch(()=>{});
+ }).then(()=>{},()=>{});
 }
 
 export function ClientErrorReporter({householdId}:{householdId:string}){
