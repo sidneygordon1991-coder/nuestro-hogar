@@ -1,5 +1,5 @@
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowUpRight,BarChart3,CalendarClock,Car,Check,ChevronRight,Copy,CreditCard,GraduationCap,HeartPulse,Home,Landmark,Pencil,Plane,PiggyBank,Plus,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingDown,TrendingUp,Users,WalletCards,X} from 'lucide-react';
+import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowRightLeft,ArrowUpRight,BarChart3,Building2,CalendarClock,Car,Check,ChevronRight,CircleDollarSign,Copy,CreditCard,Gauge,Gem,GraduationCap,HeartPulse,Home,Landmark,Pencil,Plane,PiggyBank,Plus,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingDown,TrendingUp,Users,WalletCards,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -11,7 +11,11 @@ type Goal={id:string;name:string;target_amount:number;target_date:string|null;ic
 type Contribution={id:string;goal_id:string;amount:number;contribution_date:string;created_by:string|null};
 type Recurring={id:string;description:string;amount:number;type:'income'|'expense';due_day:number;category_id:string|null;account_id:string|null;paid_by:string|null;is_shared:boolean;created_at:string};
 type RecurringOccurrence={id:string;recurring_transaction_id:string;period_month:string;due_date:string;status:'pending'|'paid'|'skipped';paid_at:string|null;transaction_id:string|null};
-type Account={id:string;name:string;account_type:string;opening_balance:number;owner_user_id:string|null;is_shared:boolean;active:boolean};
+type AccountClass='asset'|'liability';
+type Account={id:string;name:string;account_type:string;account_class:AccountClass;opening_balance:number;owner_user_id:string|null;is_shared:boolean;active:boolean;institution:string|null;credit_limit:number|null;statement_day:number|null;payment_due_day:number|null;apr:number|null;minimum_payment:number|null;notes:string|null};
+type Transfer={id:string;from_account_id:string;to_account_id:string;amount:number;transfer_date:string;description:string|null};
+type FinanceAsset={id:string;name:string;asset_type:'property'|'vehicle'|'investment'|'valuable'|'other';estimated_value:number;purchase_value:number|null;owner_user_id:string|null;is_shared:boolean;notes:string|null;active:boolean};
+type NetWorthSnapshot={snapshot_date:string;account_assets:number;manual_assets:number;liabilities:number;net_worth:number};
 type Member={user_id:string;role:string;full_name:string};
 type Split={transaction_id:string;user_id:string;share_amount:number};
 type SplitMethod='equal'|'income'|'custom';
@@ -32,14 +36,15 @@ const pct=(a:number,b:number)=>b>0?Math.min(100,Math.round((a/b)*100)):0;
 const dueDateForMonth=(d:Date,dueDay:number)=>{const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return isoDate(new Date(d.getFullYear(),d.getMonth(),Math.min(Math.max(1,dueDay),last)))};
 
 export default function Finance({household}:{household:Household}){
- const [tab,setTab]=useState<'summary'|'budget'|'transactions'|'recurring'|'comparison'|'contributions'|'goals'|'accounts'>('summary');
+ const [tab,setTab]=useState<'summary'|'budget'|'transactions'|'recurring'|'comparison'|'contributions'|'goals'|'networth'|'accounts'>('summary');
  const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [categories,setCategories]=useState<Category[]>([]),[txs,setTxs]=useState<Tx[]>([]),[allocations,setAllocations]=useState<Allocation[]>([]);
  const [goals,setGoals]=useState<Goal[]>([]),[contributions,setContributions]=useState<Contribution[]>([]),[recurring,setRecurring]=useState<Recurring[]>([]),[occurrences,setOccurrences]=useState<RecurringOccurrence[]>([]);
  const [accounts,setAccounts]=useState<Account[]>([]),[accountTxs,setAccountTxs]=useState<{account_id:string|null;type:string;amount:number}[]>([]);
+ const [transfers,setTransfers]=useState<Transfer[]>([]),[assets,setAssets]=useState<FinanceAsset[]>([]),[netWorthSnapshots,setNetWorthSnapshots]=useState<NetWorthSnapshot[]>([]);
  const [members,setMembers]=useState<Member[]>([]),[splits,setSplits]=useState<Split[]>([]),[currentUser,setCurrentUser]=useState('');
- const [showTxForm,setShowTxForm]=useState(false),[editingTx,setEditingTx]=useState<Tx|null>(null),[showGoalForm,setShowGoalForm]=useState(false),[showAccountForm,setShowAccountForm]=useState(false),[showCategoryForm,setShowCategoryForm]=useState(false);
+ const [showTxForm,setShowTxForm]=useState(false),[editingTx,setEditingTx]=useState<Tx|null>(null),[showGoalForm,setShowGoalForm]=useState(false),[showAccountForm,setShowAccountForm]=useState(false),[editingAccount,setEditingAccount]=useState<Account|null>(null),[showAssetForm,setShowAssetForm]=useState(false),[editingAsset,setEditingAsset]=useState<FinanceAsset|null>(null),[showTransferForm,setShowTransferForm]=useState(false),[showCategoryForm,setShowCategoryForm]=useState(false);
  const [budgetDraft,setBudgetDraft]=useState<Record<string,string>>({});
  const [categoryGroupDraft,setCategoryGroupDraft]=useState<Record<string,BudgetGroup>>({});
  const [splitMethod,setSplitMethod]=useState<SplitMethod>('equal');
@@ -53,18 +58,22 @@ export default function Finance({household}:{household:Household}){
  async function load(){
   setLoading(true);setMessage('');
   await supabase.rpc('seed_finance_categories',{p_household_id:household.id});
+  await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});
   const bounds=monthBounds(month),m=monthDate(month);
   const historyStartDate=new Date(month.getFullYear(),month.getMonth()-11,1),historyStart=isoDate(historyStartDate),historyStartMonth=monthDate(historyStartDate);
   const userPromise=supabase.auth.getUser();
-  const [catR,txR,allocR,goalR,contR,recR,accR,accTxR,memberR,financeSettingsR,memberFinanceR,categorySettingsR,categoryMemberR,historyTxR,historyContR,historyAllocR,userR]=await Promise.all([
+  const [catR,txR,allocR,goalR,contR,recR,accR,accTxR,transferR,assetR,netWorthR,memberR,financeSettingsR,memberFinanceR,categorySettingsR,categoryMemberR,historyTxR,historyContR,historyAllocR,userR]=await Promise.all([
    supabase.from('budget_categories').select('id,name,icon,budget_group').eq('household_id',household.id).order('created_at'),
    supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,account_id,is_shared,notes,recurring_transaction_id').eq('household_id',household.id).gte('transaction_date',bounds.start).lte('transaction_date',bounds.end).order('transaction_date',{ascending:false}).order('created_at',{ascending:false}),
    supabase.from('budget_allocations').select('id,category_id,planned_amount,month').eq('household_id',household.id).eq('month',m),
    supabase.from('savings_goals').select('id,name,target_amount,target_date,icon,active').eq('household_id',household.id).eq('active',true).order('created_at'),
    supabase.from('goal_contributions').select('id,goal_id,amount,contribution_date,created_by').eq('household_id',household.id),
    supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,account_id,paid_by,is_shared,created_at').eq('household_id',household.id).eq('active',true).order('due_day'),
-   supabase.from('finance_accounts').select('id,name,account_type,opening_balance,owner_user_id,is_shared,active').eq('household_id',household.id).eq('active',true).order('created_at'),
+   supabase.from('finance_accounts').select('id,name,account_type,account_class,opening_balance,owner_user_id,is_shared,active,institution,credit_limit,statement_day,payment_due_day,apr,minimum_payment,notes').eq('household_id',household.id).eq('active',true).order('created_at'),
    supabase.from('transactions').select('account_id,type,amount').eq('household_id',household.id).not('account_id','is',null),
+   supabase.from('finance_transfers').select('id,from_account_id,to_account_id,amount,transfer_date,description').eq('household_id',household.id).order('transfer_date',{ascending:false}).order('created_at',{ascending:false}),
+   supabase.from('finance_assets').select('id,name,asset_type,estimated_value,purchase_value,owner_user_id,is_shared,notes,active').eq('household_id',household.id).eq('active',true).order('created_at'),
+   supabase.from('finance_net_worth_snapshots').select('snapshot_date,account_assets,manual_assets,liabilities,net_worth').eq('household_id',household.id).order('snapshot_date').limit(365),
    supabase.from('household_members').select('user_id,role').eq('household_id',household.id),
    supabase.from('finance_household_settings').select('household_id,split_method').eq('household_id',household.id).maybeSingle(),
    supabase.from('finance_member_settings').select('user_id,monthly_income,custom_share_percent').eq('household_id',household.id),
@@ -106,7 +115,7 @@ export default function Finance({household}:{household:Household}){
   const occurrenceR=await supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,period_month,due_date,status,paid_at,transaction_id').eq('household_id',household.id).eq('period_month',m).order('due_date');
   setCategories((catR.data||[]) as Category[]);setTxs(txData);setAllocations((allocR.data||[]) as unknown as Allocation[]);
   setGoals((goalR.data||[]) as unknown as Goal[]);setContributions((contR.data||[]) as unknown as Contribution[]);setRecurring((recR.data||[]) as unknown as Recurring[]);setOccurrences((occurrenceR.data||[]) as unknown as RecurringOccurrence[]);
-  setAccounts((accR.data||[]) as unknown as Account[]);setAccountTxs((accTxR.data||[]) as unknown as any[]);setMembers(memberData);setSplits((splitR.data||[]) as unknown as Split[]);
+  setAccounts((accR.data||[]) as unknown as Account[]);setAccountTxs((accTxR.data||[]) as unknown as any[]);setTransfers((transferR.data||[]) as unknown as Transfer[]);setAssets((assetR.data||[]) as unknown as FinanceAsset[]);setNetWorthSnapshots((netWorthR.data||[]) as unknown as NetWorthSnapshot[]);setMembers(memberData);setSplits((splitR.data||[]) as unknown as Split[]);
   setSplitMethod(((financeSettingsR.data as any)?.split_method||'equal') as SplitMethod);setMemberFinance(financeDraft);setCategoryRules(categoryRuleDraft);setCategoryCustom(categoryCustomDraft);
   setCurrentUser(userR.data.user?.id||'');
   setHistoryTxs((historyTxR.data||[]) as unknown as HistoryTx[]);setHistoryContributions((historyContR.data||[]) as unknown as HistoryContribution[]);setHistoryAllocations((historyAllocR.data||[]) as unknown as HistoryAllocation[]);
@@ -117,7 +126,7 @@ export default function Finance({household}:{household:Household}){
    groupDraft[c.id]=(c.budget_group||'variable') as BudgetGroup;
   }
   setBudgetDraft(draft);setCategoryGroupDraft(groupDraft);
-  const errors=[catR.error,txR.error,allocR.error,goalR.error,contR.error,recR.error,accR.error,memberR.error,financeSettingsR.error,memberFinanceR.error,categorySettingsR.error,categoryMemberR.error,historyTxR.error,historyContR.error,historyAllocR.error,occurrenceR.error].filter(Boolean);
+  const errors=[catR.error,txR.error,allocR.error,goalR.error,contR.error,recR.error,accR.error,transferR.error,assetR.error,netWorthR.error,memberR.error,financeSettingsR.error,memberFinanceR.error,categorySettingsR.error,categoryMemberR.error,historyTxR.error,historyContR.error,historyAllocR.error,occurrenceR.error].filter(Boolean);
   if(errors.length)setMessage('No se pudo cargar toda la información financiera.');
   setLoading(false);
  }
@@ -136,7 +145,32 @@ export default function Finance({household}:{household:Household}){
  const memberName=(id:string|null)=>members.find(m=>m.user_id===id)?.full_name||(id===currentUser?'Yo':'Miembro');
  const accountName=(id:string|null)=>accounts.find(a=>a.id===id)?.name||'Sin cuenta';
 
- const accountBalances=useMemo(()=>accounts.map(a=>{let balance=Number(a.opening_balance);for(const t of accountTxs.filter(x=>x.account_id===a.id))balance+=t.type==='income'?Number(t.amount):-Number(t.amount);return{...a,balance}}),[accounts,accountTxs]);
+ const accountBalances=useMemo(()=>accounts.map(a=>{
+  let balance=Number(a.opening_balance);
+  for(const t of accountTxs.filter(x=>x.account_id===a.id)){
+   const amount=Number(t.amount);
+   if(a.account_class==='asset')balance+=t.type==='income'?amount:-amount;
+   else balance+=t.type==='expense'?amount:-amount;
+  }
+  for(const transfer of transfers){
+   const amount=Number(transfer.amount);
+   if(transfer.from_account_id===a.id)balance+=a.account_class==='asset'?-amount:amount;
+   if(transfer.to_account_id===a.id)balance+=a.account_class==='asset'?amount:-amount;
+  }
+  return{...a,balance};
+ }),[accounts,accountTxs,transfers]);
+
+ const patrimony=useMemo(()=>{
+  const accountAssets=accountBalances.filter(a=>a.account_class==='asset').reduce((sum,a)=>sum+Number(a.balance),0);
+  const manualAssets=assets.reduce((sum,a)=>sum+Number(a.estimated_value),0);
+  const liabilities=accountBalances.filter(a=>a.account_class==='liability').reduce((sum,a)=>sum+Math.max(0,Number(a.balance)),0);
+  const liquidAssets=accountBalances.filter(a=>a.account_class==='asset'&&['cash','checking','savings'].includes(a.account_type)).reduce((sum,a)=>sum+Number(a.balance),0);
+  const netWorth=accountAssets+manualAssets-liabilities;
+  const debtRatio=accountAssets+manualAssets>0?liabilities/(accountAssets+manualAssets)*100:liabilities>0?100:0;
+  const creditUsed=accountBalances.filter(a=>a.account_type==='credit').reduce((sum,a)=>sum+Math.max(0,Number(a.balance)),0);
+  const creditLimit=accountBalances.filter(a=>a.account_type==='credit').reduce((sum,a)=>sum+Number(a.credit_limit||0),0);
+  return{accountAssets,manualAssets,totalAssets:accountAssets+manualAssets,liabilities,liquidAssets,netWorth,debtRatio,creditUsed,creditLimit,creditUtilization:creditLimit>0?creditUsed/creditLimit*100:0};
+ },[accountBalances,assets]);
 
  const contributionRatios=useMemo(()=>{
   if(!members.length)return [] as {user_id:string;ratio:number}[];
