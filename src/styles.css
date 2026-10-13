@@ -282,3 +282,19 @@ html[data-theme="light"] .home-control .control-section-head h3{color:#1d3441}
 }
 html[data-theme="light"] .home-control .control-hero::before{opacity:.20}
 @media(max-width:520px){.home-control .control-hero::before{width:125px;height:125px;right:0;bottom:0;opacity:.045}html[data-theme="light"] .home-control .control-hero::before{opacity:.11}}
+
+/* Global day/night surface parity across every module */
+html[data-theme="light"] .app :is(.finance-panel,.finance-kpi,.finance-modal,.family-access-panel,.family-member-card,.family-role-guide-card,.family-audit-panel,.invite-v2,.month-switch,.account-card,.goal-card,.couple-card,.budget-edit-row,.row,.module,.panel,.finance-tabs button,.transaction-row,.family-permission-modal,.family-limited-note,.split-methods button){background:#ffffff!important;color:#20313e!important;border-color:#d9e4eb!important}
+html[data-theme="light"] .app :is(.finance-panel,.finance-kpi,.finance-modal,.family-access-panel,.family-member-card,.family-role-guide-card,.family-audit-panel,.invite-v2,.account-card,.goal-card,.couple-card,.row,.module,.panel,.family-permission-modal) :is(h2,h3,strong,b){color:#20313e}
+html[data-theme="light"] .app :is(input,select,textarea){background:#f8fbfd;color:#20313e;border-color:#cfdee7}
+html[data-theme="light"] .app :is(.finance-tabs button.active,.family-responsibility-list span){background:#e7f4fb!important;color:#176c91!important}
+html[data-theme="light"] .app .finance-message{background:#edf7fc;color:#254b60;border-color:#b8d9e9}
+html[data-theme="light"] .app nav{background:#ffffffee;border-color:#d6e3ea}
+html[data-theme="light"] .app nav button:not(.fab){color:#506b7b}
+html[data-theme="light"] .app nav button.active{color:#087fae}
+html[data-theme="light"] .app .modal-backdrop{background:#102a4080}
+.app .content{min-width:0}.app .content>section{min-width:0}
+.app :is(.family-member-copy,.family-section-head>div,.finance-top>div){min-width:0;overflow-wrap:anywhere}
+.app .home-select-wrap{min-width:0;max-width:min(100%,70vw)}
+.app .home-select-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%}
+@media(max-width:560px){.app header{min-width:0}.app header>div:first-child{min-width:0;flex:1}.app .family-section-head{gap:12px;flex-wrap:wrap}.app .family-member-card{min-width:0}}
