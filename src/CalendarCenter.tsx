@@ -1,10 +1,10 @@
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {Bell,CalendarDays,Check,ChevronLeft,ChevronRight,Clock3,MapPin,Pencil,Plus,ReceiptText,Repeat2,Trash2,Users,X} from 'lucide-react';
+import {Bell,CalendarDays,Check,ChevronLeft,ChevronRight,Clock3,MapPin,Pencil,Plus,ReceiptText,Repeat2,Trash2,Users,Wrench,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
 type Member={user_id:string;full_name:string;birth_date:string|null};
-type EventCategory='family'|'appointment'|'task'|'birthday'|'social'|'health'|'school'|'other';
+type EventCategory='family'|'appointment'|'task'|'birthday'|'social'|'health'|'school'|'maintenance'|'other';
 type EventRow={id:string;title:string;description:string|null;event_date:string;start_time:string|null;end_time:string|null;event_type:string|null;location:string|null;category:EventCategory;assigned_to:string|null;all_day:boolean;recurrence:'none'|'weekly'|'monthly'|'yearly';recurrence_until:string|null;reminder_minutes:number|null};
 type AgendaItem={id:string;source:'event'|'task'|'payment'|'birthday';title:string;date:string;time:string|null;category:string;subtitle:string;event?:EventRow;completed?:boolean};
 
@@ -12,7 +12,7 @@ const iso=(d:Date)=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezo
 const monthStart=(d:Date)=>new Date(d.getFullYear(),d.getMonth(),1);
 const monthEnd=(d:Date)=>new Date(d.getFullYear(),d.getMonth()+1,0);
 const addDays=(d:Date,n:number)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
-const categoryLabel=(c:string)=>({family:'Familia',appointment:'Cita',task:'Tarea',birthday:'Cumpleaños',social:'Social',health:'Salud',school:'Estudios',other:'Otro'} as Record<string,string>)[c]||'Otro';
+const categoryLabel=(c:string)=>({family:'Familia',appointment:'Cita',task:'Tarea',birthday:'Cumpleaños',social:'Social',health:'Salud',school:'Estudios',maintenance:'Mantenimiento',other:'Otro'} as Record<string,string>)[c]||'Otro';
 
 export default function CalendarCenter({household,onChanged,onNavigate}:{household:Household;onChanged?:()=>void;onNavigate?:(tab:string)=>void}){
  const [month,setMonth]=useState(()=>monthStart(new Date())),[events,setEvents]=useState<EventRow[]>([]),[members,setMembers]=useState<Member[]>([]),[agendaExtra,setAgendaExtra]=useState<AgendaItem[]>([]);
@@ -88,7 +88,7 @@ export default function CalendarCenter({household,onChanged,onNavigate}:{househo
 
   {showForm&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setShowForm(false);setEditing(null)}}}><div className="finance-modal calendar-modal"><div className="modal-head"><h3>{editing?'Editar evento':'Nuevo evento'}</h3><button onClick={()=>{setShowForm(false);setEditing(null)}}><X/></button></div><form className="finance-form" onSubmit={saveEvent}>
    <label>Título<input name="title" defaultValue={editing?.title||''} placeholder="Ej. Cena familiar" required/></label>
-   <div className="two"><label>Categoría<select name="category" defaultValue={editing?.category||'family'}><option value="family">Familia</option><option value="appointment">Cita</option><option value="task">Tarea</option><option value="social">Social</option><option value="health">Salud</option><option value="school">Estudios</option><option value="other">Otro</option></select></label><label>Responsable<select name="assigned_to" defaultValue={editing?.assigned_to||''}><option value="">Todos / sin asignar</option>{members.map(m=><option value={m.user_id} key={m.user_id}>{m.full_name}</option>)}</select></label></div>
+   <div className="two"><label>Categoría<select name="category" defaultValue={editing?.category||'family'}><option value="family">Familia</option><option value="appointment">Cita</option><option value="task">Tarea</option><option value="social">Social</option><option value="health">Salud</option><option value="school">Estudios</option><option value="maintenance">Mantenimiento</option><option value="other">Otro</option></select></label><label>Responsable<select name="assigned_to" defaultValue={editing?.assigned_to||''}><option value="">Todos / sin asignar</option>{members.map(m=><option value={m.user_id} key={m.user_id}>{m.full_name}</option>)}</select></label></div>
    <label>Fecha<input name="date" type="date" defaultValue={editing?.event_date||selectedDay||iso(new Date())} required/></label>
    <label className="check-line"><input name="all_day" type="checkbox" defaultChecked={editing?.all_day||false}/> Todo el día</label>
    <div className="two"><label>Hora inicio<input name="start_time" type="time" defaultValue={editing?.start_time?.slice(0,5)||''}/></label><label>Hora fin<input name="end_time" type="time" defaultValue={editing?.end_time?.slice(0,5)||''}/></label></div>
