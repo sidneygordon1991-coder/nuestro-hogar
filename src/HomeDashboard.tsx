@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,Clock3,FileText,Gauge,HeartPulse,Home,ListChecks,Package,PiggyBank,ReceiptText,Settings2,Target,TrendingUp,Users,Utensils,WalletCards,Wrench,Zap} from 'lucide-react';
+import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,ClipboardCheck,Clock3,FileText,Gauge,HeartPulse,Home,ListChecks,Package,PiggyBank,ReceiptText,Settings2,Target,TrendingUp,Users,Utensils,WalletCards,Wrench,Zap} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -120,6 +120,7 @@ export default function HomeDashboard({household,finance,listCount,onNavigate}:{
    <div className="control-module-grid">
     <button onClick={()=>onNavigate('salud')}><span className="health"><HeartPulse/></span><div><strong>Salud del hogar</strong><small>Diagnóstico y recomendaciones automáticas</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('automatizaciones')}><span className="automations"><Zap/></span><div><strong>Automatizaciones</strong><small>Reglas, umbrales y acciones automáticas</small></div><ChevronRight/></button>
+    <button onClick={()=>onNavigate('cierre')}><span className="monthly-close"><ClipboardCheck/></span><div><strong>Cierre mensual</strong><small>Resumen, comparación y objetivos del mes</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('presupuesto')}><span className="finance"><WalletCards/></span><div><strong>Finanzas</strong><small>Presupuesto, movimientos y comparación</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('calendario')}><span className="calendar"><CalendarDays/></span><div><strong>Agenda</strong><small>Eventos, pagos y cumpleaños</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('listas')}><span className="lists"><ListChecks/></span><div><strong>Listas</strong><small>{listCount} lista{listCount===1?'':'s'} compartida{listCount===1?'':'s'}</small></div><ChevronRight/></button>
