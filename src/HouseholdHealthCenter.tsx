@@ -47,6 +47,8 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
 
  const m=snapshot.metrics||{};
  const coverageLow=snapshot.coverage_score<60;
+ const heroStatus=snapshot.coverage_score<40?'setup':snapshot.status;
+ const heroLabel=snapshot.coverage_score<40?'Configuración inicial':snapshot.coverage_score<80&&snapshot.overall_score>=90?'En buen camino':snapshot.status_label;
  const heroText=snapshot.urgent_count>0
   ?snapshot.urgent_count+' asunto'+(snapshot.urgent_count===1?'':'s')+' requiere'+(snapshot.urgent_count===1?'':'n')+' atención prioritaria.'
   :coverageLow
@@ -58,9 +60,9 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
 
   {message&&<div className="finance-message">{message}</div>}
 
-  <section className={'health-hero '+snapshot.status}>
+  <section className={'health-hero '+heroStatus}>
    <div className="health-score-ring" style={{'--score':snapshot.overall_score} as CSSProperties}><div><strong>{snapshot.overall_score}</strong><span>/ 100</span></div></div>
-   <div className="health-hero-copy"><p className="eyebrow">ÍNDICE OPERATIVO</p><h3>{snapshot.status_label}</h3><p>{heroText}</p><div className="health-hero-tags"><span><Gauge/> Cobertura {snapshot.coverage_score}%</span><span className={snapshot.urgent_count?'urgent':''}><AlertTriangle/> {snapshot.urgent_count} urgentes</span><span><Sparkles/> {snapshot.recommendations.length} recomendación{snapshot.recommendations.length===1?'':'es'}</span></div></div>
+   <div className="health-hero-copy"><p className="eyebrow">ÍNDICE OPERATIVO</p><h3>{heroLabel}</h3><p>{heroText}</p><div className="health-hero-tags"><span><Gauge/> Cobertura {snapshot.coverage_score}%</span><span className={snapshot.urgent_count?'urgent':''}><AlertTriangle/> {snapshot.urgent_count} urgentes</span><span><Sparkles/> {snapshot.recommendations.length} recomendación{snapshot.recommendations.length===1?'':'es'}</span></div></div>
    <button className="health-primary-action" onClick={()=>onNavigate(snapshot.recommendations[0]?.tab||'inicio')}><small>PRIMERA ACCIÓN</small><strong>{snapshot.recommendations[0]?.title||'Todo al día'}</strong><span>Revisar ahora <ChevronRight/></span></button>
   </section>
 
