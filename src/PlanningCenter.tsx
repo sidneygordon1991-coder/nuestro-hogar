@@ -150,7 +150,7 @@ export default function PlanningCenter({household,onNavigate}:{household:Househo
    <aside className="planning-side">
     <section className="planning-side-panel">
      <div className="planning-panel-head"><div><p className="eyebrow">SIGUIENTES PASOS</p><h3>Qué toca ahora</h3></div><ListChecks/></div>
-     <div className="planning-next-list">{nextMilestones.map(m=>{const g=goals.find(x=>x.id===m.planning_goal_id);return <button key={m.id} onClick={()=>{setOpenGoal(m.planning_goal_id);if(m.linked_tab)onNavigate(m.linked_tab)}}><span className={m.due_date&&m.due_date<iso()?'danger':'normal'}><Flag/></span><div><strong>{m.title}</strong><small>{g?.title||'Objetivo'} · {fmtDate(m.due_date)}</small></div><ChevronRight/></button>})}</div>
+     <div className="planning-next-list">{nextMilestones.map(m=>{const g=goals.find(x=>x.id===m.planning_goal_id);return <button key={m.id} onClick={()=>{setOpenGoal(m.planning_goal_id);if(m.linked_tab)onNavigate(String(m.linked_tab))}}><span className={m.due_date&&m.due_date<iso()?'danger':'normal'}><Flag/></span><div><strong>{m.title}</strong><small>{g?.title||'Objetivo'} · {fmtDate(m.due_date)}</small></div><ChevronRight/></button>})}</div>
      {!nextMilestones.length&&<div className="control-empty small"><CheckCircle2/><span>No hay pasos pendientes.</span></div>}
     </section>
 
