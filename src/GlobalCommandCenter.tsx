@@ -15,7 +15,9 @@ type Member={user_id:string;full_name:string};
 const iso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
 const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:2}).format(n);
 
-export default function GlobalCommandCenter({household,onNavigate,onChanged}:{household:Household;onNavigate:(tab:string)=>void;onChanged?:()=>void}){
+export default function GlobalCommandCenter({household,access,onNavigate,onChanged}:{household:Household;access?:Record<string,'none'|'view'|'edit'>;onNavigate:(tab:string)=>void;onChanged?:()=>void}){
+ const canEdit=(module:string)=>!access||access[module]==='edit';
+ const hasQuickEdit=canEdit('finance')||canEdit('lists')||canEdit('calendar')||canEdit('documents')||canEdit('maintenance');
  const [mode,setMode]=useState<Mode>(null),[action,setAction]=useState<QuickAction>(null);
  const [query,setQuery]=useState(''),[results,setResults]=useState<SearchResult[]>([]),[searching,setSearching]=useState(false);
  const [categories,setCategories]=useState<Category[]>([]),[accounts,setAccounts]=useState<Account[]>([]),[lists,setLists]=useState<ListRow[]>([]),[assets,setAssets]=useState<Asset[]>([]),[members,setMembers]=useState<Member[]>([]),[userId,setUserId]=useState('');
@@ -179,7 +181,7 @@ export default function GlobalCommandCenter({household,onNavigate,onChanged}:{ho
 
  return <div className="global-command-center">
   <button className="global-search-trigger" onClick={openSearch} title="Buscar en Nuestro Hogar"><Search/><span>Buscar</span><kbd>⌘K</kbd></button>
-  <button className="global-add-trigger" onClick={openQuick} title="Agregar rápido"><Plus/></button>
+  {hasQuickEdit&&<button className="global-add-trigger" onClick={openQuick} title="Agregar rápido"><Plus/></button>}
 
   {mode&&<><button className="global-command-scrim" onClick={close} aria-label="Cerrar"/><section className={'global-command-panel '+mode}>
    <div className="global-command-head">
@@ -198,14 +200,14 @@ export default function GlobalCommandCenter({household,onNavigate,onChanged}:{ho
 
    {mode==='quick'&&<>
     {!action?<div className="quick-action-grid">
-      <QuickCard icon={<ArrowDownLeft/>} tone="expense" title="Gasto" subtitle="Registra un gasto y reparte automáticamente" onClick={()=>setAction('expense')}/>
-      <QuickCard icon={<ArrowUpRight/>} tone="income" title="Ingreso" subtitle="Registra dinero que entró al hogar" onClick={()=>setAction('income')}/>
-      <QuickCard icon={<ListChecks/>} tone="task" title="Tarea" subtitle="Pendiente para ti o la familia" onClick={()=>setAction('task')}/>
-      <QuickCard icon={<ShoppingCart/>} tone="shopping" title="Compra" subtitle="Agrega algo a Supermercado" onClick={()=>setAction('shopping')}/>
-      <QuickCard icon={<CalendarDays/>} tone="event" title="Evento" subtitle="Cita o actividad en la agenda" onClick={()=>setAction('event')}/>
-      <QuickCard icon={<FileText/>} tone="document" title="Documento" subtitle="Guarda archivo o vencimiento" onClick={()=>setAction('document')}/>
-      <QuickCard icon={<Wrench/>} tone="maintenance" title="Mantenimiento" subtitle="Programa casa, vehículo o equipo" onClick={()=>setAction('maintenance')}/>
-      <QuickCard icon={<Search/>} tone="search" title="Buscar" subtitle="Encuentra cualquier información" onClick={openSearch}/>
+      {canEdit('finance')&&<QuickCard icon={<ArrowDownLeft/>} tone="expense" title="Gasto" subtitle="Registra un gasto y reparte automáticamente" onClick={()=>setAction('expense')}/>}
+      {canEdit('finance')&&<QuickCard icon={<ArrowUpRight/>} tone="income" title="Ingreso" subtitle="Registra dinero que entró al hogar" onClick={()=>setAction('income')}/>}
+      {canEdit('lists')&&<QuickCard icon={<ListChecks/>} tone="task" title="Tarea" subtitle="Pendiente para ti o la familia" onClick={()=>setAction('task')}/>}
+      {canEdit('lists')&&<QuickCard icon={<ShoppingCart/>} tone="shopping" title="Compra" subtitle="Agrega algo a Supermercado" onClick={()=>setAction('shopping')}/>}
+      {canEdit('calendar')&&<QuickCard icon={<CalendarDays/>} tone="event" title="Evento" subtitle="Cita o actividad en la agenda" onClick={()=>setAction('event')}/>}
+      {canEdit('documents')&&<QuickCard icon={<FileText/>} tone="document" title="Documento" subtitle="Guarda archivo o vencimiento" onClick={()=>setAction('document')}/>}
+      {canEdit('maintenance')&&<QuickCard icon={<Wrench/>} tone="maintenance" title="Mantenimiento" subtitle="Programa casa, vehículo o equipo" onClick={()=>setAction('maintenance')}/>}
+      <QuickCard icon={<Search/>} tone="search" title="Buscar" subtitle="Encuentra cualquier información permitida" onClick={openSearch}/>
      </div>:<div className="quick-form-wrap">
       <button className="quick-back" onClick={()=>{setAction(null);setMessage('')}}>‹ Volver a acciones</button>
       {(action==='expense'||action==='income')&&<TransactionForm type={action} categories={categories} accounts={accounts} busy={busy} onSubmit={e=>saveTransaction(e,action)}/>}
