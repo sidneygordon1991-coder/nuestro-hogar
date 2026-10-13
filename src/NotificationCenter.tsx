@@ -1,12 +1,12 @@
 import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Bell,BellRing,CalendarDays,Check,CheckCheck,Clock3,Settings,Target,Trash2,Users,WalletCards,X} from 'lucide-react';
+import {AlertTriangle,Bell,BellRing,CalendarDays,Check,CheckCheck,Clock3,FileText,Settings,Target,Trash2,Users,WalletCards,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
-type NotificationRow={id:string;type:'payment'|'event'|'task'|'birthday'|'budget'|'goal'|'system';severity:'info'|'warning'|'danger'|'success';title:string;body:string|null;action_tab:string|null;entity_type:string|null;entity_id:string|null;read_at:string|null;created_at:string};
-type Preferences={browser_notifications:boolean;payments:boolean;events:boolean;tasks:boolean;birthdays:boolean;budget:boolean;goals:boolean};
+type NotificationRow={id:string;type:'payment'|'event'|'task'|'birthday'|'budget'|'goal'|'document'|'system';severity:'info'|'warning'|'danger'|'success';title:string;body:string|null;action_tab:string|null;entity_type:string|null;entity_id:string|null;read_at:string|null;created_at:string};
+type Preferences={browser_notifications:boolean;payments:boolean;events:boolean;tasks:boolean;birthdays:boolean;budget:boolean;goals:boolean;documents:boolean};
 
-const defaults:Preferences={browser_notifications:false,payments:true,events:true,tasks:true,birthdays:true,budget:true,goals:true};
+const defaults:Preferences={browser_notifications:false,payments:true,events:true,tasks:true,birthdays:true,budget:true,goals:true,documents:true};
 
 export default function NotificationCenter({household,onNavigate}:{household:Household;onNavigate:(tab:string)=>void}){
  const [items,setItems]=useState<NotificationRow[]>([]),[prefs,setPrefs]=useState<Preferences>(defaults),[userId,setUserId]=useState(''),[open,setOpen]=useState(false),[settings,setSettings]=useState(false),[message,setMessage]=useState('');
@@ -26,13 +26,13 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'notifications',filter:'user_id=eq.'+user.id},payload=>{
     const row=payload.new as NotificationRow;setItems(current=>current.map(x=>x.id===row.id?row:x));
    }).subscribe();
- })();return()=>{cancelled=true;if(channel)supabase.removeChannel(channel)}},[household.id]);
+ })();return()=>{cancelled=true;if(channel)supabase.removeChannel(channel)}},[household.id,prefs.browser_notifications]);
 
  async function load(uid=userId){
   if(!uid)return;
   const [notificationR,prefR]=await Promise.all([
    supabase.from('notifications').select('id,type,severity,title,body,action_tab,entity_type,entity_id,read_at,created_at').eq('household_id',household.id).eq('user_id',uid).order('created_at',{ascending:false}).limit(60),
-   supabase.from('notification_preferences').select('browser_notifications,payments,events,tasks,birthdays,budget,goals').eq('household_id',household.id).eq('user_id',uid).maybeSingle()
+   supabase.from('notification_preferences').select('browser_notifications,payments,events,tasks,birthdays,budget,goals,documents').eq('household_id',household.id).eq('user_id',uid).maybeSingle()
   ]);
   setItems((notificationR.data||[]) as NotificationRow[]);setPrefs((prefR.data||defaults) as Preferences);
  }
@@ -110,6 +110,7 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
     <Preference label="Cumpleaños" checked={prefs.birthdays} onChange={v=>updatePrefs({birthdays:v})}/>
     <Preference label="Presupuesto" checked={prefs.budget} onChange={v=>updatePrefs({budget:v})}/>
     <Preference label="Metas" checked={prefs.goals} onChange={v=>updatePrefs({goals:v})}/>
+    <Preference label="Documentos y vencimientos" checked={prefs.documents} onChange={v=>updatePrefs({documents:v})}/>
     <p className="notification-note">El centro de alertas se actualiza desde el servidor. Con el permiso activado, este dispositivo puede recibir avisos push incluso cuando Nuestro Hogar está cerrado. En iPhone/iPad, instala primero la app en la pantalla de inicio.</p>
    </div>:<>
     <div className="notification-toolbar"><span>{unread?unread+' sin leer':'Todo al día'}</span><div><button disabled={!unread} onClick={markAll}><CheckCheck/> Marcar todo</button><button onClick={clearRead}><Trash2/> Limpiar leídas</button></div></div>
@@ -121,7 +122,7 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
 }
 
 function Preference({label,checked,onChange}:{label:string;checked:boolean;onChange:(v:boolean)=>void}){return <label className="notification-pref"><span>{label}</span><span className="switch"><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)}/><span/></span></label>}
-function notificationIcon(type:string){if(type==='payment')return <Clock3/>;if(type==='event')return <CalendarDays/>;if(type==='task')return <Check/>;if(type==='birthday')return <Users/>;if(type==='budget')return <WalletCards/>;if(type==='goal')return <Target/>;return <AlertTriangle/>}
+function notificationIcon(type:string){if(type==='payment')return <Clock3/>;if(type==='event')return <CalendarDays/>;if(type==='task')return <Check/>;if(type==='birthday')return <Users/>;if(type==='budget')return <WalletCards/>;if(type==='goal')return <Target/>;if(type==='document')return <FileText/>;return <AlertTriangle/>}
 function relativeTime(value:string){const diff=Math.max(0,Date.now()-new Date(value).getTime()),minutes=Math.floor(diff/60000);if(minutes<1)return'Ahora';if(minutes<60)return'Hace '+minutes+' min';const hours=Math.floor(minutes/60);if(hours<24)return'Hace '+hours+' h';const days=Math.floor(hours/24);return'Hace '+days+' día'+(days===1?'':'s')}
 
 function urlBase64ToUint8Array(base64String:string){const padding='='.repeat((4-base64String.length%4)%4),base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/'),raw=window.atob(base64),output=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)output[i]=raw.charCodeAt(i);return output}
