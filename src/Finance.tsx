@@ -451,10 +451,68 @@ export default function Finance({household}:{household:Household}){
  async function contribute(goalId:string,amount:number){
   if(!amount||amount<=0)return;setBusy(true);const {error}=await supabase.from('goal_contributions').insert({goal_id:goalId,household_id:household.id,amount,contribution_date:isoDate()});setBusy(false);setMessage(error?error.message:'Aporte registrado.');if(!error)await load();
  }
- async function addAccount(e:FormEvent<HTMLFormElement>){
-  e.preventDefault();setBusy(true);const f=new FormData(e.currentTarget);
-  const {error}=await supabase.from('finance_accounts').insert({household_id:household.id,name:String(f.get('name')).trim(),account_type:String(f.get('account_type')),opening_balance:Number(f.get('opening_balance')||0),owner_user_id:String(f.get('owner_user_id')||'')||null,is_shared:f.get('is_shared')==='on'});
-  setBusy(false);setMessage(error?error.message:'Cuenta agregada.');if(!error){setShowAccountForm(false);await load()}
+ async function saveAccount(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();setBusy(true);setMessage('');const form=new FormData(e.currentTarget);
+  const accountType=String(form.get('account_type')||'checking');
+  const forcedClass:AccountClass=['credit','loan','mortgage'].includes(accountType)?'liability':['cash','checking','savings','investment'].includes(accountType)?'asset':String(form.get('account_class')||'asset') as AccountClass;
+  const payload={
+   household_id:household.id,
+   name:String(form.get('name')||'').trim(),
+   account_type:accountType,
+   account_class:forcedClass,
+   opening_balance:Number(form.get('opening_balance')||0),
+   owner_user_id:String(form.get('owner_user_id')||'')||null,
+   is_shared:form.get('is_shared')==='on',
+   institution:String(form.get('institution')||'').trim()||null,
+   credit_limit:String(form.get('credit_limit')||'')?Number(form.get('credit_limit')):null,
+   statement_day:String(form.get('statement_day')||'')?Number(form.get('statement_day')):null,
+   payment_due_day:String(form.get('payment_due_day')||'')?Number(form.get('payment_due_day')):null,
+   apr:String(form.get('apr')||'')?Number(form.get('apr')):null,
+   minimum_payment:String(form.get('minimum_payment')||'')?Number(form.get('minimum_payment')):null,
+   notes:String(form.get('notes')||'').trim()||null,
+   updated_at:new Date().toISOString()
+  };
+  const result=editingAccount
+   ?await supabase.from('finance_accounts').update(payload).eq('id',editingAccount.id).eq('household_id',household.id)
+   :await supabase.from('finance_accounts').insert(payload);
+  setBusy(false);setMessage(result.error?result.error.message:editingAccount?'Cuenta actualizada.':'Cuenta agregada.');
+  if(!result.error){setShowAccountForm(false);setEditingAccount(null);await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});await load()}
+ }
+
+ async function archiveAccount(account:Account){
+  if(!window.confirm('¿Archivar esta cuenta? Los movimientos históricos se conservarán.'))return;
+  setBusy(true);const {error}=await supabase.from('finance_accounts').update({active:false,updated_at:new Date().toISOString()}).eq('id',account.id).eq('household_id',household.id);
+  setBusy(false);setMessage(error?error.message:'Cuenta archivada.');if(!error){await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});await load()}
+ }
+
+ async function saveAsset(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();setBusy(true);setMessage('');const form=new FormData(e.currentTarget);
+  const payload={household_id:household.id,name:String(form.get('name')||'').trim(),asset_type:String(form.get('asset_type')||'other'),estimated_value:Number(form.get('estimated_value')||0),purchase_value:String(form.get('purchase_value')||'')?Number(form.get('purchase_value')):null,owner_user_id:String(form.get('owner_user_id')||'')||null,is_shared:form.get('is_shared')==='on',notes:String(form.get('notes')||'').trim()||null,updated_at:new Date().toISOString()};
+  const result=editingAsset
+   ?await supabase.from('finance_assets').update(payload).eq('id',editingAsset.id).eq('household_id',household.id)
+   :await supabase.from('finance_assets').insert(payload);
+  setBusy(false);setMessage(result.error?result.error.message:editingAsset?'Activo actualizado.':'Activo agregado.');
+  if(!result.error){setShowAssetForm(false);setEditingAsset(null);await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});await load()}
+ }
+
+ async function deleteAsset(asset:FinanceAsset){
+  if(!window.confirm('¿Eliminar este activo del patrimonio?'))return;
+  setBusy(true);const {error}=await supabase.from('finance_assets').delete().eq('id',asset.id).eq('household_id',household.id);
+  setBusy(false);setMessage(error?error.message:'Activo eliminado.');if(!error){await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});await load()}
+ }
+
+ async function addTransfer(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();setBusy(true);setMessage('');const form=new FormData(e.currentTarget);
+  const from=String(form.get('from_account_id')||''),to=String(form.get('to_account_id')||'');
+  if(!from||!to||from===to){setBusy(false);setMessage('Selecciona dos cuentas diferentes.');return}
+  const {error}=await supabase.from('finance_transfers').insert({household_id:household.id,from_account_id:from,to_account_id:to,amount:Number(form.get('amount')||0),transfer_date:String(form.get('transfer_date')||isoDate()),description:String(form.get('description')||'').trim()||null});
+  setBusy(false);setMessage(error?error.message:'Transferencia registrada.');if(!error){setShowTransferForm(false);await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});await load()}
+ }
+
+ async function deleteTransfer(transfer:Transfer){
+  if(!window.confirm('¿Eliminar esta transferencia?'))return;
+  setBusy(true);const {error}=await supabase.from('finance_transfers').delete().eq('id',transfer.id).eq('household_id',household.id);
+  setBusy(false);setMessage(error?error.message:'Transferencia eliminada.');if(!error){await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});await load()}
  }
 
  function moveMonth(delta:number){setMonth(m=>new Date(m.getFullYear(),m.getMonth()+delta,1))}
