@@ -120,3 +120,7 @@
 
 
 .module-readonly-banner{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px;align-items:center;border:1px solid #3b4650;background:#7ea4ff0a;border-radius:11px;padding:8px 10px;margin-bottom:10px;color:#8ea7d8}.module-readonly-banner>svg{width:16px}.module-readonly-banner strong,.module-readonly-banner span{display:block}.module-readonly-banner strong{font-size:8px;color:#b7c7e8}.module-readonly-banner span{font-size:7px;color:#74829c;margin-top:1px}nav button:disabled{opacity:.32;cursor:not-allowed}
+
+/* Family invite security */
+.invite-code-v2>div{display:flex;gap:6px}.invite-code-v2 .invite-rotate{background:#20282e;color:#91a0a9;border:1px solid #34434c}.invite-code-v2 .invite-rotate:hover{color:#dce4e8;border-color:#4a5b65}.invite-code-v2 .invite-rotate:disabled{opacity:.5}
+@media(max-width:520px){.invite-code-v2{align-items:flex-start;gap:7px}.invite-code-v2>div{display:grid;grid-template-columns:1fr 1fr;width:100%}.invite-code-v2>div button{justify-content:center}}
