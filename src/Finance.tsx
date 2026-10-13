@@ -14,6 +14,8 @@ type Member={user_id:string;role:string;full_name:string};
 type Split={transaction_id:string;user_id:string;share_amount:number};
 type SplitMethod='equal'|'income'|'custom';
 type MemberFinanceDraft={monthly_income:string;custom_share_percent:string};
+type CategoryRuleMethod='inherit'|'equal'|'income'|'custom'|'personal';
+type CategoryRuleDraft={split_method:CategoryRuleMethod;responsible_user_id:string};
 
 const currency=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n||0);
 const isoDate=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
@@ -34,6 +36,8 @@ export default function Finance({household}:{household:Household}){
  const [budgetDraft,setBudgetDraft]=useState<Record<string,string>>({});
  const [splitMethod,setSplitMethod]=useState<SplitMethod>('equal');
  const [memberFinance,setMemberFinance]=useState<Record<string,MemberFinanceDraft>>({});
+ const [categoryRules,setCategoryRules]=useState<Record<string,CategoryRuleDraft>>({});
+ const [categoryCustom,setCategoryCustom]=useState<Record<string,Record<string,string>>>({});
 
  useEffect(()=>{load()},[household.id,month.getFullYear(),month.getMonth()]);
 
@@ -42,7 +46,7 @@ export default function Finance({household}:{household:Household}){
   await supabase.rpc('seed_finance_categories',{p_household_id:household.id});
   const bounds=monthBounds(month),m=monthDate(month);
   const userPromise=supabase.auth.getUser();
-  const [catR,txR,allocR,goalR,contR,recR,accR,accTxR,memberR,financeSettingsR,memberFinanceR,userR]=await Promise.all([
+  const [catR,txR,allocR,goalR,contR,recR,accR,accTxR,memberR,financeSettingsR,memberFinanceR,categorySettingsR,categoryMemberR,userR]=await Promise.all([
    supabase.from('budget_categories').select('id,name,icon').eq('household_id',household.id).order('created_at'),
    supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,account_id,is_shared,notes').eq('household_id',household.id).gte('transaction_date',bounds.start).lte('transaction_date',bounds.end).order('transaction_date',{ascending:false}).order('created_at',{ascending:false}),
    supabase.from('budget_allocations').select('id,category_id,planned_amount,month').eq('household_id',household.id).eq('month',m),
@@ -54,6 +58,8 @@ export default function Finance({household}:{household:Household}){
    supabase.from('household_members').select('user_id,role').eq('household_id',household.id),
    supabase.from('finance_household_settings').select('household_id,split_method').eq('household_id',household.id).maybeSingle(),
    supabase.from('finance_member_settings').select('user_id,monthly_income,custom_share_percent').eq('household_id',household.id),
+   supabase.from('finance_category_settings').select('category_id,split_method,responsible_user_id').eq('household_id',household.id),
+   supabase.from('finance_category_member_settings').select('category_id,user_id,custom_share_percent').eq('household_id',household.id),
    userPromise
   ]);
   const memberRows=(memberR.data||[]) as {user_id:string;role:string}[];
@@ -67,16 +73,29 @@ export default function Finance({household}:{household:Household}){
   if(missingMembers.length)await supabase.from('finance_member_settings').insert(missingMembers.map(m=>({household_id:household.id,user_id:m.user_id})));
   const financeDraft:Record<string,MemberFinanceDraft>={};
   for(const m of memberRows){const row=financeRows.find(x=>x.user_id===m.user_id);financeDraft[m.user_id]={monthly_income:String(Number(row?.monthly_income||0)),custom_share_percent:String(Number(row?.custom_share_percent||0))}}
+  const categoryRuleDraft:Record<string,CategoryRuleDraft>={};
+  for(const cat of (catR.data||[]) as Category[]){
+   const row=((categorySettingsR.data||[]) as any[]).find(x=>x.category_id===cat.id);
+   categoryRuleDraft[cat.id]={split_method:(row?.split_method||'inherit') as CategoryRuleMethod,responsible_user_id:String(row?.responsible_user_id||'')};
+  }
+  const categoryCustomDraft:Record<string,Record<string,string>>={};
+  for(const cat of (catR.data||[]) as Category[]){
+   categoryCustomDraft[cat.id]={};
+   for(const m of memberRows){
+    const row=((categoryMemberR.data||[]) as any[]).find(x=>x.category_id===cat.id&&x.user_id===m.user_id);
+    categoryCustomDraft[cat.id][m.user_id]=String(Number(row?.custom_share_percent||0));
+   }
+  }
   const txData=(txR.data||[]) as unknown as Tx[];
   const txIds=txData.map(t=>t.id);
   const splitR=txIds.length?await supabase.from('transaction_splits').select('transaction_id,user_id,share_amount').in('transaction_id',txIds):{data:[]};
   setCategories((catR.data||[]) as Category[]);setTxs(txData);setAllocations((allocR.data||[]) as unknown as Allocation[]);
   setGoals((goalR.data||[]) as unknown as Goal[]);setContributions((contR.data||[]) as unknown as Contribution[]);setRecurring((recR.data||[]) as unknown as Recurring[]);
   setAccounts((accR.data||[]) as unknown as Account[]);setAccountTxs((accTxR.data||[]) as unknown as any[]);setMembers(memberData);setSplits((splitR.data||[]) as unknown as Split[]);
-  setSplitMethod(((financeSettingsR.data as any)?.split_method||'equal') as SplitMethod);setMemberFinance(financeDraft);
+  setSplitMethod(((financeSettingsR.data as any)?.split_method||'equal') as SplitMethod);setMemberFinance(financeDraft);setCategoryRules(categoryRuleDraft);setCategoryCustom(categoryCustomDraft);
   setCurrentUser(userR.data.user?.id||'');
   const draft:Record<string,string>={};for(const c of (catR.data||[]) as Category[]){const a=((allocR.data||[]) as any[]).find(x=>x.category_id===c.id);draft[c.id]=a?String(Number(a.planned_amount)):'0'}setBudgetDraft(draft);
-  const errors=[catR.error,txR.error,allocR.error,goalR.error,contR.error,recR.error,accR.error,memberR.error,financeSettingsR.error,memberFinanceR.error].filter(Boolean);
+  const errors=[catR.error,txR.error,allocR.error,goalR.error,contR.error,recR.error,accR.error,memberR.error,financeSettingsR.error,memberFinanceR.error,categorySettingsR.error,categoryMemberR.error].filter(Boolean);
   if(errors.length)setMessage('No se pudo cargar toda la información financiera.');
   setLoading(false);
  }
@@ -118,18 +137,45 @@ export default function Finance({household}:{household:Household}){
   return customTotal>0?members.map(m=>({user_id:m.user_id,ratio:Number(memberFinance[m.user_id]?.custom_share_percent||0)/customTotal})):equal;
  },[members,memberFinance,splitMethod]);
 
- function makeSplitRows(transactionId:string,amount:number,paidBy:string,shared:boolean){
+ function ratiosForCategory(categoryId:string|null){
+  if(!members.length)return [] as {user_id:string;ratio:number}[];
+  const equal=members.map(m=>({user_id:m.user_id,ratio:1/members.length}));
+  if(!categoryId)return contributionRatios;
+  const rule=categoryRules[categoryId]||{split_method:'inherit' as CategoryRuleMethod,responsible_user_id:''};
+  if(rule.split_method==='inherit')return contributionRatios;
+  if(rule.split_method==='equal')return equal;
+  if(rule.split_method==='income'){
+   const total=members.reduce((s,m)=>s+Number(memberFinance[m.user_id]?.monthly_income||0),0);
+   return total>0?members.map(m=>({user_id:m.user_id,ratio:Number(memberFinance[m.user_id]?.monthly_income||0)/total})):equal;
+  }
+  if(rule.split_method==='personal'){
+   const target=rule.responsible_user_id||members[0]?.user_id;
+   return members.map(m=>({user_id:m.user_id,ratio:m.user_id===target?1:0}));
+  }
+  const customTotal=members.reduce((s,m)=>s+Number(categoryCustom[categoryId]?.[m.user_id]||0),0);
+  return customTotal>0?members.map(m=>({user_id:m.user_id,ratio:Number(categoryCustom[categoryId]?.[m.user_id]||0)/customTotal})):equal;
+ }
+
+ function makeSplitRows(transactionId:string,amount:number,paidBy:string,shared:boolean,categoryId:string|null){
   if(!shared||members.length<=1)return paidBy?[{transaction_id:transactionId,household_id:household.id,user_id:paidBy,share_amount:amount}]:[];
-  const cents=Math.round(amount*100);let used=0;
-  return contributionRatios.map((r,i)=>{const share=i===contributionRatios.length-1?cents-used:Math.floor(cents*r.ratio);used+=share;return{transaction_id:transactionId,household_id:household.id,user_id:r.user_id,share_amount:share/100}});
+  const ratios=ratiosForCategory(categoryId),cents=Math.round(amount*100);let used=0;
+  return ratios.map((r,i)=>{const share=i===ratios.length-1?cents-used:Math.floor(cents*r.ratio);used+=share;return{transaction_id:transactionId,household_id:household.id,user_id:r.user_id,share_amount:share/100}});
  }
 
  const contributionOverview=useMemo(()=>members.map(m=>{
   const ratio=contributionRatios.find(r=>r.user_id===m.user_id)?.ratio||0;
+  const planned=categories.reduce((sum,cat)=>{
+   const categoryPlan=allocationByCategory.get(cat.id)||0;
+   const categoryRatio=ratiosForCategory(cat.id).find(r=>r.user_id===m.user_id)?.ratio||0;
+   return sum+categoryPlan*categoryRatio;
+  },0);
   const paid=txs.filter(t=>t.type==='expense'&&t.is_shared&&t.paid_by===m.user_id).reduce((s,t)=>s+Number(t.amount),0);
-  const assigned=splits.filter(s=>s.user_id===m.user_id).reduce((sum,s)=>sum+Number(s.share_amount),0);
-  return{...m,ratio,planned:totals.planned*ratio,paid,assigned,balance:paid-assigned};
- }),[members,contributionRatios,txs,splits,totals.planned]);
+  const assigned=txs.filter(t=>t.type==='expense'&&t.is_shared).reduce((sum,t)=>{
+   const r=ratiosForCategory(t.category_id).find(r=>r.user_id===m.user_id)?.ratio||0;
+   return sum+Number(t.amount)*r;
+  },0);
+  return{...m,ratio,planned,paid,assigned,balance:paid-assigned};
+ }),[members,contributionRatios,txs,totals.planned,allocations,categoryRules,categoryCustom,memberFinance]);
 
  async function saveContributionSettings(){
   setBusy(true);setMessage('');
@@ -147,10 +193,37 @@ export default function Finance({household}:{household:Household}){
    const ids=sharedExpenses.map(t=>t.id);
    const {error:deleteError}=await supabase.from('transaction_splits').delete().in('transaction_id',ids);
    if(deleteError){setBusy(false);setMessage(deleteError.message);return}
-   const rows=sharedExpenses.flatMap(t=>makeSplitRows(t.id,Number(t.amount),t.paid_by||'',true));
+   const rows=sharedExpenses.flatMap(t=>makeSplitRows(t.id,Number(t.amount),t.paid_by||'',true,t.category_id));
    if(rows.length){const {error:insertError}=await supabase.from('transaction_splits').insert(rows);if(insertError){setBusy(false);setMessage(insertError.message);return}}
   }
   setBusy(false);setMessage('Regla de aportes guardada y gastos compartidos del mes recalculados.');await load();
+ }
+
+ async function saveCategoryRules(){
+  setBusy(true);setMessage('');
+  for(const cat of categories){
+   const rule=categoryRules[cat.id]||{split_method:'inherit' as CategoryRuleMethod,responsible_user_id:''};
+   if(rule.split_method==='custom'){
+    const total=members.reduce((s,m)=>s+Number(categoryCustom[cat.id]?.[m.user_id]||0),0);
+    if(Math.abs(total-100)>.01){setBusy(false);setMessage(`${cat.name}: los porcentajes personalizados deben sumar 100%.`);return}
+   }
+   if(rule.split_method==='personal'&&!rule.responsible_user_id){setBusy(false);setMessage(`${cat.name}: selecciona quién cubre esta categoría.`);return}
+  }
+  const user=await supabase.auth.getUser();
+  const ruleRows=categories.map(cat=>({household_id:household.id,category_id:cat.id,split_method:(categoryRules[cat.id]?.split_method||'inherit'),responsible_user_id:categoryRules[cat.id]?.split_method==='personal'?(categoryRules[cat.id]?.responsible_user_id||null):null,updated_by:user.data.user?.id||null,updated_at:new Date().toISOString()}));
+  const {error:ruleError}=await supabase.from('finance_category_settings').upsert(ruleRows,{onConflict:'household_id,category_id'});
+  if(ruleError){setBusy(false);setMessage(ruleError.message);return}
+  const customRows=categories.flatMap(cat=>members.map(m=>({household_id:household.id,category_id:cat.id,user_id:m.user_id,custom_share_percent:Number(categoryCustom[cat.id]?.[m.user_id]||0),updated_at:new Date().toISOString()})));
+  if(customRows.length){const {error:customError}=await supabase.from('finance_category_member_settings').upsert(customRows,{onConflict:'household_id,category_id,user_id'});if(customError){setBusy(false);setMessage(customError.message);return}}
+  const sharedExpenses=txs.filter(t=>t.type==='expense'&&t.is_shared);
+  if(sharedExpenses.length){
+   const ids=sharedExpenses.map(t=>t.id);
+   const {error:deleteError}=await supabase.from('transaction_splits').delete().in('transaction_id',ids);
+   if(deleteError){setBusy(false);setMessage(deleteError.message);return}
+   const rows=sharedExpenses.flatMap(t=>makeSplitRows(t.id,Number(t.amount),t.paid_by||'',true,t.category_id));
+   if(rows.length){const {error:insertError}=await supabase.from('transaction_splits').insert(rows);if(insertError){setBusy(false);setMessage(insertError.message);return}}
+  }
+  setBusy(false);setMessage('Reglas por categoría guardadas y gastos compartidos del mes recalculados.');await load();
  }
 
  async function addTransaction(e:FormEvent<HTMLFormElement>){
@@ -160,7 +233,7 @@ export default function Finance({household}:{household:Household}){
   const {data,error}=await supabase.from('transactions').insert(payload).select('id').single();
   if(error||!data){setBusy(false);setMessage(error?.message||'No se pudo guardar el movimiento.');return}
   if(type==='expense'){
-   const rows=makeSplitRows(data.id,amount,paidBy,shareMode==='shared');
+   const rows=makeSplitRows(data.id,amount,paidBy,shareMode==='shared',payload.category_id);
    if(rows.length)await supabase.from('transaction_splits').insert(rows);
   }
   if(f.get('recurring')==='on')await supabase.from('recurring_transactions').insert({household_id:household.id,category_id:payload.category_id,account_id:payload.account_id,type,description:payload.description,amount,due_day:Number(f.get('due_day')||new Date(payload.transaction_date+'T12:00').getDate()),paid_by:paidBy||null,is_shared:shareMode==='shared'});
@@ -237,7 +310,7 @@ export default function Finance({household}:{household:Household}){
 
    {members.length>1&&<div className="finance-panel">
     <div className="panel-title"><div><h3>Balance entre nosotros</h3><small>{splitMethodLabel(splitMethod)} · gastos compartidos de este mes.</small></div><button onClick={()=>setTab('contributions')}>Configurar <ChevronRight size={16}/></button></div>
-    <div className="couple-grid">{balances.map(b=><div className="couple-card" key={b.user_id}><span>{b.full_name}</span><strong className={b.net>=0?'positive':'negative'}>{b.net>=0?'+':''}{currency(b.net)}</strong><small>{b.net>0?'A favor':b.net<0?'Por compensar':'En equilibrio'}</small></div>)}</div>
+    <div className="couple-grid">{contributionOverview.map(b=><div className="couple-card" key={b.user_id}><span>{b.full_name}</span><strong className={b.balance>=0?'positive':'negative'}>{b.balance>=0?'+':''}{currency(b.balance)}</strong><small>{b.balance>0?'A favor':b.balance<0?'Por compensar':'En equilibrio'}</small></div>)}</div>
    </div>}
 
    <div className="finance-panel">
@@ -291,11 +364,27 @@ export default function Finance({household}:{household:Household}){
     <button className="finance-primary" disabled={busy||members.length<2} onClick={saveContributionSettings}><Check size={17}/>{busy?'Guardando...':'Guardar regla de aportes'}</button>
    </div>
 
-   <div className="finance-panel">
-    <div className="panel-title"><div><h3>Plan de aportes del mes</h3><small>Calculado sobre el presupuesto mensual configurado.</small></div><strong>{currency(totals.planned)}</strong></div>
-    <div className="contribution-table-head"><span>Persona</span><span>%</span><span>Plan</span><span>Pagó</span><span>Balance</span></div>
+   <div className="finance-panel contribution-plan">
+    <div className="contribution-plan-title"><h3>Plan de aportes del mes</h3><small>Calculado sobre el presupuesto mensual configurado y las reglas por categoría.</small><strong>{currency(totals.planned)}</strong></div>
+    <div className="contribution-table-head"><span>Persona</span><span>% base</span><span>Plan</span><span>Pagó</span><span>Balance</span></div>
     {contributionOverview.map(m=><div className="contribution-table-row" key={m.user_id}><span>{m.full_name}</span><b>{Math.round(m.ratio*1000)/10}%</b><b>{currency(m.planned)}</b><b>{currency(m.paid)}</b><b className={m.balance>=0?'positive':'negative'}>{m.balance>=0?'+':''}{currency(m.balance)}</b></div>)}
     {!totals.planned&&<div className="finance-note">Configura el presupuesto del mes para ver cuánto debería aportar cada persona al plan.</div>}
+   </div>
+
+   <div className="finance-panel category-rule-panel">
+    <div className="panel-title"><div><h3>Reglas por categoría</h3><small>Una categoría puede usar la regla general o tener su propia distribución.</small></div></div>
+    <div className="category-rule-list">
+     {categories.map(cat=>{const rule=categoryRules[cat.id]||{split_method:'inherit' as CategoryRuleMethod,responsible_user_id:''};return <div className="category-rule-card" key={cat.id}>
+      <div className="category-rule-main"><div><strong>{cat.name}</strong><small>{categoryRuleLabel(rule.split_method,splitMethod)}</small></div>
+       <select value={rule.split_method} onChange={e=>setCategoryRules({...categoryRules,[cat.id]:{...rule,split_method:e.target.value as CategoryRuleMethod}})}>
+        <option value="inherit">Usar regla general</option><option value="equal">Partes iguales</option><option value="income">Según ingresos</option><option value="custom">Personalizado</option><option value="personal">Una persona cubre 100%</option>
+       </select>
+      </div>
+      {rule.split_method==='personal'&&<div className="category-rule-detail"><label>Responsable<select value={rule.responsible_user_id} onChange={e=>setCategoryRules({...categoryRules,[cat.id]:{...rule,responsible_user_id:e.target.value}})}><option value="">Seleccionar</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select></label></div>}
+      {rule.split_method==='custom'&&<div className="category-custom-grid">{members.map(m=><label key={m.user_id}>{m.full_name}<div><input type="number" min="0" max="100" step=".1" value={categoryCustom[cat.id]?.[m.user_id]||'0'} onChange={e=>setCategoryCustom({...categoryCustom,[cat.id]:{...(categoryCustom[cat.id]||{}),[m.user_id]:e.target.value}})}/><span>%</span></div></label>)}</div>}
+     </div>})}
+    </div>
+    <button className="finance-primary" disabled={busy||members.length<1} onClick={saveCategoryRules}><Check size={17}/>{busy?'Guardando...':'Guardar reglas por categoría'}</button>
    </div>
   </div>}
 
@@ -338,4 +427,5 @@ function GoalCard({goal,saved,busy,onContribute}:{goal:Goal;saved:number;busy:bo
 
 function Modal({title,close,children}:{title:string;close:()=>void;children:any}){return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}><div className="finance-modal"><div className="modal-head"><h3>{title}</h3><button onClick={close}><X/></button></div>{children}</div></div>}
 function splitMethodLabel(method:SplitMethod){return method==='income'?'Proporcional a ingresos':method==='custom'?'Porcentaje personalizado':'Partes iguales'}
+function categoryRuleLabel(method:CategoryRuleMethod,globalMethod:SplitMethod){return method==='inherit'?`General · ${splitMethodLabel(globalMethod)}`:method==='equal'?'Partes iguales':method==='income'?'Según ingresos':method==='custom'?'Porcentaje personalizado':'Una persona cubre 100%'}
 function accountTypeName(type:string){return({cash:'Efectivo',checking:'Banco',savings:'Ahorro',credit:'Tarjeta',other:'Otra'} as Record<string,string>)[type]||'Cuenta'}
