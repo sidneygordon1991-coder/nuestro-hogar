@@ -35,7 +35,7 @@ const monthLabel=(d:Date)=>d.toLocaleDateString('es-GT',{month:'long',year:'nume
 const pct=(a:number,b:number)=>b>0?Math.min(100,Math.round((a/b)*100)):0;
 const dueDateForMonth=(d:Date,dueDay:number)=>{const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return isoDate(new Date(d.getFullYear(),d.getMonth(),Math.min(Math.max(1,dueDay),last)))};
 
-export default function Finance({household}:{household:Household}){
+export default function Finance({household,readOnly=false}:{household:Household;readOnly?:boolean}){
  const [tab,setTab]=useState<'summary'|'budget'|'transactions'|'recurring'|'comparison'|'contributions'|'goals'|'networth'|'accounts'>('summary');
  const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
@@ -57,8 +57,7 @@ export default function Finance({household}:{household:Household}){
 
  async function load(){
   setLoading(true);setMessage('');
-  await supabase.rpc('seed_finance_categories',{p_household_id:household.id});
-  await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});
+  if(!readOnly){await supabase.rpc('seed_finance_categories',{p_household_id:household.id});await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});}
   const bounds=monthBounds(month),m=monthDate(month);
   const historyStartDate=new Date(month.getFullYear(),month.getMonth()-11,1),historyStart=isoDate(historyStartDate),historyStartMonth=monthDate(historyStartDate);
   const userPromise=supabase.auth.getUser();
@@ -290,6 +289,7 @@ export default function Finance({household}:{household:Household}){
  }),[members,contributionRatios,txs,totals.planned,allocations,categoryRules,categoryCustom,memberFinance]);
 
  async function saveContributionSettings(){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   setBusy(true);setMessage('');
   const totalIncome=members.reduce((s,m)=>s+Number(memberFinance[m.user_id]?.monthly_income||0),0);
   const customTotal=members.reduce((s,m)=>s+Number(memberFinance[m.user_id]?.custom_share_percent||0),0);
@@ -312,6 +312,7 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function saveCategoryRules(){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   setBusy(true);setMessage('');
   for(const cat of categories){
    const rule=categoryRules[cat.id]||{split_method:'inherit' as CategoryRuleMethod,responsible_user_id:''};
@@ -339,6 +340,7 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function payRecurringOccurrence(occurrence:RecurringOccurrence){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   const recurringItem=recurringById(occurrence.recurring_transaction_id);
   if(!recurringItem||occurrence.status==='paid')return;
   setBusy(true);setMessage('');
@@ -357,12 +359,14 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function skipRecurringOccurrence(occurrence:RecurringOccurrence){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(occurrence.status==='paid')return;
   setBusy(true);const {error}=await supabase.from('recurring_transaction_occurrences').update({status:'skipped',updated_at:new Date().toISOString()}).eq('id',occurrence.id);setBusy(false);
   setMessage(error?error.message:'Pago omitido para este mes.');if(!error)await load();
  }
 
  async function addTransaction(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const type=String(f.get('type')) as 'income'|'expense',amount=Number(f.get('amount')),paidBy=String(f.get('paid_by')||currentUser),shareMode=String(f.get('share_mode')||'shared');
   const payload={household_id:household.id,description:String(f.get('description')).trim(),amount,type,transaction_date:String(f.get('date')),category_id:String(f.get('category_id')||'')||null,account_id:String(f.get('account_id')||'')||null,paid_by:paidBy||null,is_shared:shareMode==='shared',notes:String(f.get('notes')||'')||null};
@@ -385,6 +389,7 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function saveBudget(){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   setBusy(true);setMessage('');
   const rows=categories.map(cat=>({household_id:household.id,category_id:cat.id,month:monthDate(month),planned_amount:Number(budgetDraft[cat.id]||0)}));
   const {error}=await supabase.from('budget_allocations').upsert(rows,{onConflict:'household_id,category_id,month'});
@@ -396,6 +401,7 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function copyPreviousBudget(){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   setBusy(true);setMessage('');
   const previous=new Date(month.getFullYear(),month.getMonth()-1,1);
   const {data,error}=await supabase.from('budget_allocations').select('category_id,planned_amount').eq('household_id',household.id).eq('month',monthDate(previous));
@@ -407,6 +413,7 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function addCategory(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const name=String(f.get('name')||'').trim(),group=String(f.get('budget_group')||'variable') as BudgetGroup;
   const {error}=await supabase.from('budget_categories').insert({household_id:household.id,name,icon:'wallet',monthly_limit:0,budget_group:group});
@@ -414,6 +421,7 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function editTransaction(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();if(!editingTx)return;setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const type=String(f.get('type')) as 'income'|'expense',amount=Number(f.get('amount')),paidBy=String(f.get('paid_by')||currentUser),shareMode=String(f.get('share_mode')||'shared');
   const payload={description:String(f.get('description')).trim(),amount,type,transaction_date:String(f.get('date')),category_id:String(f.get('category_id')||'')||null,account_id:String(f.get('account_id')||'')||null,paid_by:paidBy||null,is_shared:shareMode==='shared',notes:String(f.get('notes')||'')||null};
@@ -434,6 +442,7 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function deleteTransaction(tx:Tx){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!window.confirm('¿Eliminar este movimiento? Esta acción actualizará los saldos y el presupuesto.'))return;
   setBusy(true);setMessage('');
   if(tx.recurring_transaction_id){
@@ -444,14 +453,17 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function addGoal(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);const f=new FormData(e.currentTarget);
   const {error}=await supabase.from('savings_goals').insert({household_id:household.id,name:String(f.get('name')).trim(),target_amount:Number(f.get('target_amount')),target_date:String(f.get('target_date')||'')||null});
   setBusy(false);setMessage(error?error.message:'Meta creada.');if(!error){setShowGoalForm(false);await load()}
  }
  async function contribute(goalId:string,amount:number){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!amount||amount<=0)return;setBusy(true);const {error}=await supabase.from('goal_contributions').insert({goal_id:goalId,household_id:household.id,amount,contribution_date:isoDate()});setBusy(false);setMessage(error?error.message:'Aporte registrado.');if(!error)await load();
  }
  async function saveAccount(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);setMessage('');const form=new FormData(e.currentTarget);
   const accountType=String(form.get('account_type')||'checking');
   const forcedClass:AccountClass=['credit','loan','mortgage'].includes(accountType)?'liability':['cash','checking','savings','investment'].includes(accountType)?'asset':String(form.get('account_class')||'asset') as AccountClass;
@@ -480,12 +492,14 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function archiveAccount(account:Account){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!window.confirm('¿Archivar esta cuenta? Los movimientos históricos se conservarán.'))return;
   setBusy(true);const {error}=await supabase.from('finance_accounts').update({active:false,updated_at:new Date().toISOString()}).eq('id',account.id).eq('household_id',household.id);
   setBusy(false);setMessage(error?error.message:'Cuenta archivada.');if(!error){await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});await load()}
  }
 
  async function saveAsset(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);setMessage('');const form=new FormData(e.currentTarget);
   const payload={household_id:household.id,name:String(form.get('name')||'').trim(),asset_type:String(form.get('asset_type')||'other'),estimated_value:Number(form.get('estimated_value')||0),purchase_value:String(form.get('purchase_value')||'')?Number(form.get('purchase_value')):null,owner_user_id:String(form.get('owner_user_id')||'')||null,is_shared:form.get('is_shared')==='on',notes:String(form.get('notes')||'').trim()||null,updated_at:new Date().toISOString()};
   const result=editingAsset
@@ -496,12 +510,14 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function deleteAsset(asset:FinanceAsset){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!window.confirm('¿Eliminar este activo del patrimonio?'))return;
   setBusy(true);const {error}=await supabase.from('finance_assets').delete().eq('id',asset.id).eq('household_id',household.id);
   setBusy(false);setMessage(error?error.message:'Activo eliminado.');if(!error){await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});await load()}
  }
 
  async function addTransfer(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);setMessage('');const form=new FormData(e.currentTarget);
   const from=String(form.get('from_account_id')||''),to=String(form.get('to_account_id')||'');
   if(!from||!to||from===to){setBusy(false);setMessage('Selecciona dos cuentas diferentes.');return}
@@ -510,6 +526,7 @@ export default function Finance({household}:{household:Household}){
  }
 
  async function deleteTransfer(transfer:Transfer){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!window.confirm('¿Eliminar esta transferencia?'))return;
   setBusy(true);const {error}=await supabase.from('finance_transfers').delete().eq('id',transfer.id).eq('household_id',household.id);
   setBusy(false);setMessage(error?error.message:'Transferencia eliminada.');if(!error){await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});await load()}
@@ -519,10 +536,10 @@ export default function Finance({household}:{household:Household}){
 
  if(loading)return <div className="finance-loading"><div className="loader"/></div>;
 
- return <section className="finance-v2">
+ return <section className={'finance-v2 '+(readOnly?'read-only':'')}>
   <div className="finance-top">
    <div><p className="eyebrow">FINANZAS DEL HOGAR</p><h2 className="page-title">Finanzas</h2><p className="muted">Presupuesto, movimientos, metas y aportes de la pareja.</p></div>
-   <button className="finance-new" onClick={()=>setShowTxForm(true)}><Plus size={18}/> Movimiento</button>
+   {!readOnly&&<button className="finance-new" onClick={()=>setShowTxForm(true)}><Plus size={18}/> Movimiento</button>}
   </div>
 
   <div className="month-switch"><button onClick={()=>moveMonth(-1)}><ArrowLeft size={18}/></button><strong>{monthLabel(month)}</strong><button onClick={()=>moveMonth(1)}><ArrowRight size={18}/></button></div>
@@ -790,7 +807,7 @@ export default function Finance({household}:{household:Household}){
    </div>
   </>}
 
-  {showTxForm&&<Modal title="Nuevo movimiento" close={()=>setShowTxForm(false)}><form className="finance-form" onSubmit={addTransaction}>
+  {showTxForm&&!readOnly&&<Modal title="Nuevo movimiento" close={()=>setShowTxForm(false)}><form className="finance-form" onSubmit={addTransaction}>
    <div className="two"><label>Tipo<select name="type" defaultValue="expense"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label><label>Monto<input name="amount" type="number" min=".01" step=".01" placeholder="0.00" required/></label></div>
    <label>Descripción<input name="description" placeholder="Ej. Supermercado" required/></label>
    <div className="two"><label>Categoría<select name="category_id"><option value="">Sin categoría</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input name="date" type="date" defaultValue={isoDate()} required/></label></div>
@@ -802,7 +819,7 @@ export default function Finance({household}:{household:Household}){
    <button className="finance-primary" disabled={busy}>{busy?'Guardando...':'Guardar movimiento'}</button>
   </form></Modal>}
 
-  {editingTx&&<Modal title="Editar movimiento" close={()=>setEditingTx(null)}><form className="finance-form" onSubmit={editTransaction}>
+  {editingTx&&!readOnly&&<Modal title="Editar movimiento" close={()=>setEditingTx(null)}><form className="finance-form" onSubmit={editTransaction}>
    <div className="two"><label>Tipo<select name="type" defaultValue={editingTx.type}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label><label>Monto<input name="amount" type="number" min=".01" step=".01" defaultValue={Number(editingTx.amount)} required/></label></div>
    <label>Descripción<input name="description" defaultValue={editingTx.description} required/></label>
    <div className="two"><label>Categoría<select name="category_id" defaultValue={editingTx.category_id||''}><option value="">Sin categoría</option>{categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select></label><label>Fecha<input name="date" type="date" defaultValue={editingTx.transaction_date} required/></label></div>
@@ -813,11 +830,11 @@ export default function Finance({household}:{household:Household}){
    <button className="finance-primary" disabled={busy}><Check size={17}/>{busy?'Guardando...':'Guardar cambios'}</button>
   </form></Modal>}
 
-  {showCategoryForm&&<Modal title="Nueva categoría" close={()=>setShowCategoryForm(false)}><form className="finance-form" onSubmit={addCategory}><label>Nombre<input name="name" placeholder="Ej. Mascotas" required/></label><label>Tipo<select name="budget_group" defaultValue="variable"><option value="fixed">Gasto fijo</option><option value="variable">Gasto variable</option><option value="saving">Ahorro</option></select></label><button className="finance-primary" disabled={busy}>{busy?'Guardando...':'Crear categoría'}</button></form></Modal>}
+  {showCategoryForm&&!readOnly&&<Modal title="Nueva categoría" close={()=>setShowCategoryForm(false)}><form className="finance-form" onSubmit={addCategory}><label>Nombre<input name="name" placeholder="Ej. Mascotas" required/></label><label>Tipo<select name="budget_group" defaultValue="variable"><option value="fixed">Gasto fijo</option><option value="variable">Gasto variable</option><option value="saving">Ahorro</option></select></label><button className="finance-primary" disabled={busy}>{busy?'Guardando...':'Crear categoría'}</button></form></Modal>}
 
-  {showGoalForm&&<Modal title="Nueva meta" close={()=>setShowGoalForm(false)}><form className="finance-form" onSubmit={addGoal}><label>Nombre<input name="name" placeholder="Ej. Fondo de emergencia" required/></label><label>Meta<input name="target_amount" type="number" min="1" step=".01" placeholder="50000" required/></label><label>Fecha objetivo<input name="target_date" type="date"/></label><button className="finance-primary" disabled={busy}>Crear meta</button></form></Modal>}
+  {showGoalForm&&!readOnly&&<Modal title="Nueva meta" close={()=>setShowGoalForm(false)}><form className="finance-form" onSubmit={addGoal}><label>Nombre<input name="name" placeholder="Ej. Fondo de emergencia" required/></label><label>Meta<input name="target_amount" type="number" min="1" step=".01" placeholder="50000" required/></label><label>Fecha objetivo<input name="target_date" type="date"/></label><button className="finance-primary" disabled={busy}>Crear meta</button></form></Modal>}
 
-  {showAccountForm&&<Modal title={editingAccount?'Editar cuenta o deuda':'Nueva cuenta o deuda'} close={()=>{setShowAccountForm(false);setEditingAccount(null)}}><form className="finance-form" onSubmit={saveAccount}>
+  {showAccountForm&&!readOnly&&<Modal title={editingAccount?'Editar cuenta o deuda':'Nueva cuenta o deuda'} close={()=>{setShowAccountForm(false);setEditingAccount(null)}}><form className="finance-form" onSubmit={saveAccount}>
    <label>Nombre<input name="name" defaultValue={editingAccount?.name||''} placeholder="Ej. Cuenta BI o Visa" required/></label>
    <div className="two"><label>Tipo<select name="account_type" defaultValue={editingAccount?.account_type||'checking'}><option value="checking">Cuenta bancaria</option><option value="savings">Ahorro</option><option value="cash">Efectivo</option><option value="investment">Inversión</option><option value="credit">Tarjeta de crédito</option><option value="loan">Préstamo</option><option value="mortgage">Hipoteca</option><option value="other">Otra</option></select></label><label>Clase<select name="account_class" defaultValue={editingAccount?.account_class||'asset'}><option value="asset">Activo / dinero que tengo</option><option value="liability">Deuda / dinero que debo</option></select></label></div>
    <div className="two"><label>Institución<input name="institution" defaultValue={editingAccount?.institution||''} placeholder="Ej. Banco Industrial"/></label><label>Saldo inicial / deuda actual<input name="opening_balance" type="number" min="0" step=".01" defaultValue={editingAccount?Number(editingAccount.opening_balance):0}/></label></div>
@@ -832,7 +849,7 @@ export default function Finance({household}:{household:Household}){
    <button className="finance-primary" disabled={busy}><Check size={17}/>{busy?'Guardando...':editingAccount?'Guardar cambios':'Agregar cuenta'}</button>
   </form></Modal>}
 
-  {showAssetForm&&<Modal title={editingAsset?'Editar activo':'Nuevo activo'} close={()=>{setShowAssetForm(false);setEditingAsset(null)}}><form className="finance-form" onSubmit={saveAsset}>
+  {showAssetForm&&!readOnly&&<Modal title={editingAsset?'Editar activo':'Nuevo activo'} close={()=>{setShowAssetForm(false);setEditingAsset(null)}}><form className="finance-form" onSubmit={saveAsset}>
    <label>Nombre<input name="name" defaultValue={editingAsset?.name||''} placeholder="Ej. Vehículo familiar" required/></label>
    <div className="two"><label>Tipo<select name="asset_type" defaultValue={editingAsset?.asset_type||'vehicle'}><option value="property">Propiedad</option><option value="vehicle">Vehículo</option><option value="investment">Inversión externa</option><option value="valuable">Objeto de valor</option><option value="other">Otro</option></select></label><label>Valor estimado actual<input name="estimated_value" type="number" min="0" step=".01" defaultValue={editingAsset?Number(editingAsset.estimated_value):''} required/></label></div>
    <div className="two"><label>Valor de compra<input name="purchase_value" type="number" min="0" step=".01" defaultValue={editingAsset?.purchase_value??''} placeholder="Opcional"/></label><label>Propietario<select name="owner_user_id" defaultValue={editingAsset?.owner_user_id||currentUser}><option value="">Hogar</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select></label></div>
@@ -841,7 +858,7 @@ export default function Finance({household}:{household:Household}){
    <button className="finance-primary" disabled={busy}><Check size={17}/>{busy?'Guardando...':editingAsset?'Guardar cambios':'Agregar activo'}</button>
   </form></Modal>}
 
-  {showTransferForm&&<Modal title="Transferir / pagar deuda" close={()=>setShowTransferForm(false)}><form className="finance-form" onSubmit={addTransfer}>
+  {showTransferForm&&!readOnly&&<Modal title="Transferir / pagar deuda" close={()=>setShowTransferForm(false)}><form className="finance-form" onSubmit={addTransfer}>
    <div className="transfer-explainer"><ArrowRightLeft/><div><strong>Movimiento entre cuentas</strong><small>No se registra como ingreso ni gasto. Si el destino es una tarjeta o préstamo, reduce la deuda.</small></div></div>
    <label>Desde<select name="from_account_id" defaultValue={accountBalances.find(a=>a.account_class==='asset')?.id||''} required><option value="">Seleccionar cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name} · {accountTypeName(a.account_type)}</option>)}</select></label>
    <label>Hacia<select name="to_account_id" defaultValue={accountBalances.find(a=>a.account_class==='liability')?.id||''} required><option value="">Seleccionar cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name} · {accountTypeName(a.account_type)}</option>)}</select></label>
