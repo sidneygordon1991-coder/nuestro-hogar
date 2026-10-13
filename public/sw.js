@@ -1,6 +1,6 @@
-const CACHE='nuestro-hogar-v3';
+const CACHE='nuestro-hogar-v4';
 const BASE='/nuestro-hogar/';
-const SHELL=[BASE,BASE+'manifest.webmanifest',BASE+'icon.svg'];
+const SHELL=[BASE,BASE+'manifest.webmanifest',BASE+'icon.svg',BASE+'icon-192.png',BASE+'icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{
@@ -25,8 +25,8 @@ self.addEventListener('push',event=>{
  const title=data.title||'Nuestro Hogar';
  const options={
   body:data.body||'',
-  icon:data.icon||BASE+'icon.svg',
-  badge:data.badge||BASE+'icon.svg',
+  icon:data.icon||BASE+'icon-192.png',
+  badge:data.badge||BASE+'icon-192.png',
   tag:data.tag||'nuestro-hogar',
   data:data.data||{url:BASE},
   renotify:true
