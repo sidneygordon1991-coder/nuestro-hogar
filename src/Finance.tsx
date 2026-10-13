@@ -103,10 +103,6 @@ export default function Finance({household}:{household:Household}){
   const txIds=txData.map(t=>t.id);
   const splitR=txIds.length?await supabase.from('transaction_splits').select('transaction_id,user_id,share_amount').in('transaction_id',txIds):{data:[]};
   const recurringRows=(recR.data||[]) as unknown as Recurring[];
-  const occurrenceSeeds=recurringRows
-   .filter(r=>m>=monthDate(new Date(r.created_at)))
-   .map(r=>({recurring_transaction_id:r.id,household_id:household.id,period_month:m,due_date:dueDateForMonth(month,Number(r.due_day)),status:'pending'}));
-  if(occurrenceSeeds.length)await supabase.from('recurring_transaction_occurrences').upsert(occurrenceSeeds,{onConflict:'recurring_transaction_id,period_month',ignoreDuplicates:true});
   const occurrenceR=await supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,period_month,due_date,status,paid_at,transaction_id').eq('household_id',household.id).eq('period_month',m).order('due_date');
   setCategories((catR.data||[]) as Category[]);setTxs(txData);setAllocations((allocR.data||[]) as unknown as Allocation[]);
   setGoals((goalR.data||[]) as unknown as Goal[]);setContributions((contR.data||[]) as unknown as Contribution[]);setRecurring((recR.data||[]) as unknown as Recurring[]);setOccurrences((occurrenceR.data||[]) as unknown as RecurringOccurrence[]);
