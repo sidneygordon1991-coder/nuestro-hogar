@@ -1,5 +1,6 @@
+import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
-import {Activity,AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,ClipboardCheck,Clock3,FileText,Gauge,HardDrive,HeartPulse,Home,ListChecks,Map as MapIcon,Package,PiggyBank,ReceiptText,Settings2,Target,TrendingUp,Users,Utensils,WalletCards,Wrench,Zap} from 'lucide-react';
+import {AlertTriangle,Bell,CheckCircle2,ChevronRight,Clock3,Package,PiggyBank,ReceiptText,Target} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -107,12 +108,12 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
 
  return <section className="home-dashboard home-control">
   <section className={'control-hero '+(urgent.length?'attention ':'')+(finance.projected<0?'risk':'')}>
-   <div className="control-hero-copy"><p className="eyebrow">{greeting}{firstName?', '+firstName:''}</p><h2>{statusTitle}</h2><p>{statusCopy}</p><div className="control-hero-tags"><span><CalendarDays/> {todayItems.length} hoy</span><span><Clock3/> {weekCounts.payments} pagos esta semana</span><span><ListChecks/> {weekCounts.tasks} tareas</span></div></div>
+   <div className="control-hero-copy"><p className="eyebrow">{greeting}{firstName?', '+firstName:''}</p><h2>{statusTitle}</h2><p>{statusCopy}</p><div className="control-hero-tags"><span><ModuleIcon name="calendar"/> {todayItems.length} hoy</span><span><Clock3/> {weekCounts.payments} pagos esta semana</span><span><ModuleIcon name="lists"/> {weekCounts.tasks} tareas</span></div></div>
    {can('finance')&&<button className="control-money" onClick={()=>onNavigate('presupuesto')}><small>CIERRE ESTIMADO</small><strong>{hasFinance?money(finance.projected):'—'}</strong><span className={finance.projected<0?'bad':'good'}>{finance.projected<0?'Revisar presupuesto':'Plan del mes'} <ChevronRight/></span></button>}
   </section>
 
   {can('finance')&&<div className="control-finance-strip">
-   <button onClick={()=>onNavigate('presupuesto')}><span className="control-finance-icon available"><WalletCards/></span><div><small>Disponible hoy</small><strong>{money(finance.available)}</strong><em>{finance.pending?money(finance.pending)+' comprometidos':'Sin compromisos'}</em></div></button>
+   <button onClick={()=>onNavigate('presupuesto')}><span className="control-finance-icon available"><ModuleIcon name="finance"/></span><div><small>Disponible hoy</small><strong>{money(finance.available)}</strong><em>{finance.pending?money(finance.pending)+' comprometidos':'Sin compromisos'}</em></div></button>
    <button onClick={()=>onNavigate('presupuesto')}><span className="control-finance-icon saving"><PiggyBank/></span><div><small>Ahorro del mes</small><strong>{money(finance.saving)}</strong><em>{finance.goalName?finance.goalProgress+'% de '+finance.goalName:'Sin meta principal'}</em></div></button>
    <button onClick={()=>onNavigate('presupuesto')}><span className="control-finance-icon expense"><ReceiptText/></span><div><small>Gastado</small><strong>{money(finance.expense)}</strong><em>{finance.income?Math.round(finance.expense/finance.income*100)+'% de ingresos':'Sin ingresos registrados'}</em></div></button>
   </div>}
@@ -125,12 +126,12 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
   <div className="control-two-columns">
    <section className="control-section">
     <div className="control-section-head"><div><p className="eyebrow">HOY</p><h3>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</h3></div><button onClick={()=>onNavigate('calendario')}>Agenda <ChevronRight/></button></div>
-    {todayItems.length?<div className="today-list">{todayItems.slice(0,5).map(item=><AgendaRow key={item.id} item={item} onNavigate={onNavigate}/>)}</div>:<div className="control-empty"><CalendarDays/><strong>Día despejado</strong><span>No tienes actividades programadas para hoy.</span></div>}
+    {todayItems.length?<div className="today-list">{todayItems.slice(0,5).map(item=><AgendaRow key={item.id} item={item} onNavigate={onNavigate}/>)}</div>:<div className="control-empty"><ModuleIcon name="calendar"/><strong>Día despejado</strong><span>No tienes actividades programadas para hoy.</span></div>}
    </section>
 
    <section className="control-section">
     <div className="control-section-head"><div><p className="eyebrow">ESTA SEMANA</p><h3>Lo próximo</h3></div><button onClick={()=>onNavigate('calendario')}>Calendario <ChevronRight/></button></div>
-    <div className="week-summary"><div><CalendarDays/><strong>{weekCounts.events}</strong><span>eventos</span></div><div><ListChecks/><strong>{weekCounts.tasks}</strong><span>tareas</span></div><div><Clock3/><strong>{weekCounts.payments}</strong><span>pagos</span></div></div>
+    <div className="week-summary"><div><ModuleIcon name="calendar"/><strong>{weekCounts.events}</strong><span>eventos</span></div><div><ModuleIcon name="lists"/><strong>{weekCounts.tasks}</strong><span>tareas</span></div><div><Clock3/><strong>{weekCounts.payments}</strong><span>pagos</span></div></div>
     {laterItems.length?<div className="week-upcoming">{laterItems.map(item=><AgendaRow key={item.id} item={item} onNavigate={onNavigate} compact/>)}</div>:<div className="control-empty small"><CheckCircle2/><span>No hay más compromisos esta semana.</span></div>}
    </section>
   </div>
@@ -144,19 +145,19 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
   <section className="control-section quick-access-section">
    <div className="control-section-head"><div><p className="eyebrow">TU HOGAR</p><h3>Accesos rápidos</h3></div></div>
    <div className="control-module-grid">
-    {can('health')&&<button onClick={()=>onNavigate('salud')}><span className="health"><HeartPulse/></span><div><strong>Salud del hogar</strong><small>Diagnóstico y recomendaciones automáticas</small></div><ChevronRight/></button>}
-    {can('automations')&&<button onClick={()=>onNavigate('automatizaciones')}><span className="automations"><Zap/></span><div><strong>Automatizaciones</strong><small>Reglas, umbrales y acciones automáticas</small></div><ChevronRight/></button>}
-    {can('monthly_close')&&<button onClick={()=>onNavigate('cierre')}><span className="monthly-close"><ClipboardCheck/></span><div><strong>Cierre mensual</strong><small>Resumen, comparación y objetivos del mes</small></div><ChevronRight/></button>}
-    {can('planning')&&<button onClick={()=>onNavigate('planeacion')}><span className="planning"><MapIcon/></span><div><strong>Planeación</strong><small>Objetivos de 1, 3, 6 y 12 meses</small></div><ChevronRight/></button>}
-    {can('finance')&&<button onClick={()=>onNavigate('presupuesto')}><span className="finance"><WalletCards/></span><div><strong>Finanzas</strong><small>Presupuesto, movimientos y comparación</small></div><ChevronRight/></button>}
-    {can('calendar')&&<button onClick={()=>onNavigate('calendario')}><span className="calendar"><CalendarDays/></span><div><strong>Agenda</strong><small>Eventos, pagos y cumpleaños</small></div><ChevronRight/></button>}
-    {can('lists')&&<button onClick={()=>onNavigate('listas')}><span className="lists"><ListChecks/></span><div><strong>Listas</strong><small>{listCount} lista{listCount===1?'':'s'} compartida{listCount===1?'':'s'}</small></div><ChevronRight/></button>}
-    <button onClick={()=>onNavigate('familia')}><span className="family"><Users/></span><div><strong>Familia</strong><small>Perfiles, permisos y responsabilidades</small></div><ChevronRight/></button>
-    {can('documents')&&<button onClick={()=>onNavigate('documentos')}><span className="documents"><FileText/></span><div><strong>Documentos</strong><small>Bóveda, vencimientos y garantías</small></div><ChevronRight/></button>}
-    {can('meals')&&<button onClick={()=>onNavigate('comidas')}><span className="meals"><Utensils/></span><div><strong>Comidas</strong><small>Plan semanal, recetas, despensa y compras</small></div><ChevronRight/></button>}
-    {can('maintenance')&&<button onClick={()=>onNavigate('mantenimiento')}><span className="maintenance"><Wrench/></span><div><strong>Mantenimiento</strong><small>Casa, vehículos, servicios y garantías</small></div><ChevronRight/></button>}
-    {can('backups')&&<button onClick={()=>onNavigate('respaldos')}><span className="backups"><HardDrive/></span><div><strong>Respaldos</strong><small>Exportación, copias y recuperación</small></div><ChevronRight/></button>}
-    {can('diagnostics')&&<button onClick={()=>onNavigate('diagnostico')}><span className="diagnostics"><Activity/></span><div><strong>Diagnóstico</strong><small>Integridad, errores, PWA y confiabilidad</small></div><ChevronRight/></button>}
+    {can('health')&&<button onClick={()=>onNavigate('salud')}><span className="health"><ModuleIcon name="health"/></span><div><strong>Salud del hogar</strong><small>Diagnóstico y recomendaciones automáticas</small></div><ChevronRight/></button>}
+    {can('automations')&&<button onClick={()=>onNavigate('automatizaciones')}><span className="automations"><ModuleIcon name="automations"/></span><div><strong>Automatizaciones</strong><small>Reglas, umbrales y acciones automáticas</small></div><ChevronRight/></button>}
+    {can('monthly_close')&&<button onClick={()=>onNavigate('cierre')}><span className="monthly-close"><ModuleIcon name="monthly_close"/></span><div><strong>Cierre mensual</strong><small>Resumen, comparación y objetivos del mes</small></div><ChevronRight/></button>}
+    {can('planning')&&<button onClick={()=>onNavigate('planeacion')}><span className="planning"><ModuleIcon name="planning"/></span><div><strong>Planeación</strong><small>Objetivos de 1, 3, 6 y 12 meses</small></div><ChevronRight/></button>}
+    {can('finance')&&<button onClick={()=>onNavigate('presupuesto')}><span className="finance"><ModuleIcon name="finance"/></span><div><strong>Finanzas</strong><small>Presupuesto, movimientos y comparación</small></div><ChevronRight/></button>}
+    {can('calendar')&&<button onClick={()=>onNavigate('calendario')}><span className="calendar"><ModuleIcon name="calendar"/></span><div><strong>Agenda</strong><small>Eventos, pagos y cumpleaños</small></div><ChevronRight/></button>}
+    {can('lists')&&<button onClick={()=>onNavigate('listas')}><span className="lists"><ModuleIcon name="lists"/></span><div><strong>Listas</strong><small>{listCount} lista{listCount===1?'':'s'} compartida{listCount===1?'':'s'}</small></div><ChevronRight/></button>}
+    <button onClick={()=>onNavigate('familia')}><span className="family"><ModuleIcon name="family"/></span><div><strong>Familia</strong><small>Perfiles, permisos y responsabilidades</small></div><ChevronRight/></button>
+    {can('documents')&&<button onClick={()=>onNavigate('documentos')}><span className="documents"><ModuleIcon name="documents"/></span><div><strong>Documentos</strong><small>Bóveda, vencimientos y garantías</small></div><ChevronRight/></button>}
+    {can('meals')&&<button onClick={()=>onNavigate('comidas')}><span className="meals"><ModuleIcon name="meals"/></span><div><strong>Comidas</strong><small>Plan semanal, recetas, despensa y compras</small></div><ChevronRight/></button>}
+    {can('maintenance')&&<button onClick={()=>onNavigate('mantenimiento')}><span className="maintenance"><ModuleIcon name="maintenance"/></span><div><strong>Mantenimiento</strong><small>Casa, vehículos, servicios y garantías</small></div><ChevronRight/></button>}
+    {can('backups')&&<button onClick={()=>onNavigate('respaldos')}><span className="backups"><ModuleIcon name="backups"/></span><div><strong>Respaldos</strong><small>Exportación, copias y recuperación</small></div><ChevronRight/></button>}
+    {can('diagnostics')&&<button onClick={()=>onNavigate('diagnostico')}><span className="diagnostics"><ModuleIcon name="diagnostics"/></span><div><strong>Diagnóstico</strong><small>Integridad, errores, PWA y confiabilidad</small></div><ChevronRight/></button>}
    </div>
   </section>
 
@@ -168,8 +169,8 @@ function AgendaRow({item,onNavigate,compact=false}:{item:AgendaItem;onNavigate:(
  return <button className={'agenda-home-row '+(compact?'compact ':'')+item.kind} onClick={()=>onNavigate(item.tab)}><span className="agenda-home-icon">{agendaIcon(item.kind)}</span><div><strong>{item.title}</strong><small>{compact?formatDate(item.date)+' · ':''}{item.time?item.time+' · ':''}{item.subtitle}</small></div><ChevronRight/></button>
 }
 
-function attentionIcon(type:string){if(type==='payment')return <Clock3/>;if(type==='task')return <ListChecks/>;if(type==='event')return <CalendarDays/>;if(type==='birthday')return <Users/>;if(type==='budget')return <AlertTriangle/>;if(type==='goal')return <Target/>;if(type==='document')return <FileText/>;if(type==='maintenance')return <Wrench/>;if(type==='pantry')return <Package/>;if(type==='planning')return <MapIcon/>;return <Bell/>}
-function agendaIcon(kind:AgendaItem['kind']){if(kind==='payment')return <Clock3/>;if(kind==='task')return <ListChecks/>;if(kind==='birthday')return <Users/>;return <CalendarDays/>}
+function attentionIcon(type:string){if(type==='payment')return <Clock3/>;if(type==='task')return <ModuleIcon name="lists"/>;if(type==='event')return <ModuleIcon name="calendar"/>;if(type==='birthday')return <ModuleIcon name="family"/>;if(type==='budget')return <AlertTriangle/>;if(type==='goal')return <Target/>;if(type==='document')return <ModuleIcon name="documents"/>;if(type==='maintenance')return <ModuleIcon name="maintenance"/>;if(type==='pantry')return <Package/>;if(type==='planning')return <ModuleIcon name="planning"/>;return <Bell/>}
+function agendaIcon(kind:AgendaItem['kind']){if(kind==='payment')return <Clock3/>;if(kind==='task')return <ModuleIcon name="lists"/>;if(kind==='birthday')return <ModuleIcon name="family"/>;return <ModuleIcon name="calendar"/>}
 function formatDate(value:string){const date=new Date(value+'T12:00');return date.toLocaleDateString('es-GT',{weekday:'short',day:'numeric'}).replace('.','')}
 function greetingLabel(){const h=new Date().getHours();return h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches'}
 function eventOccursOn(event:EventSource,target:string){

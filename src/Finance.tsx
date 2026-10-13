@@ -1,5 +1,6 @@
+import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowRightLeft,ArrowUpRight,BarChart3,Building2,CalendarClock,Car,Check,ChevronRight,CircleDollarSign,Copy,CreditCard,Gauge,Gem,GraduationCap,HeartPulse,Home,Landmark,Pencil,Plane,PiggyBank,Plus,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingDown,TrendingUp,Users,WalletCards,X} from 'lucide-react';
+import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowRightLeft,ArrowUpRight,BarChart3,Building2,CalendarClock,Car,Check,ChevronRight,CircleDollarSign,Copy,CreditCard,Gauge,Gem,GraduationCap,Landmark,Pencil,Plane,PiggyBank,Plus,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingDown,TrendingUp,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -563,7 +564,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
     <Kpi label="Ingresos" value={currency(totals.income)} icon={<ArrowDownLeft/>} tone="good"/>
     <Kpi label="Gastado" value={currency(totals.expense)} icon={<ArrowUpRight/>} tone="warn"/>
     <Kpi label="Ahorrado" value={currency(totals.saving)} icon={<PiggyBank/>} tone="save"/>
-    <Kpi label="Disponible" value={currency(totals.available)} icon={<WalletCards/>} tone={totals.available>=0?'good':'bad'}/>
+    <Kpi label="Disponible" value={currency(totals.available)} icon={<ModuleIcon name="finance"/>} tone={totals.available>=0?'good':'bad'}/>
    </div>
 
    <div className={'finance-panel projection-panel '+smartBudget.health}>
@@ -704,7 +705,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
 
   {tab==='contributions'&&<div className="contribution-layout">
    <div className="finance-panel">
-    <div className="panel-title"><div><h3>Cómo dividimos los gastos</h3><small>Esta regla se usa automáticamente en cada gasto marcado como compartido.</small></div><Users size={20}/></div>
+    <div className="panel-title"><div><h3>Cómo dividimos los gastos</h3><small>Esta regla se usa automáticamente en cada gasto marcado como compartido.</small></div><ModuleIcon name="family" size={20}/></div>
     <div className="split-methods">
      <button className={splitMethod==='equal'?'active':''} onClick={()=>setSplitMethod('equal')}><strong>Partes iguales</strong><span>{members.length===2?'50 / 50':'Mismo porcentaje para todos'}</span></button>
      <button className={splitMethod==='income'?'active':''} onClick={()=>setSplitMethod('income')}><strong>Según ingresos</strong><span>Quien gana más aporta proporcionalmente más</span></button>
@@ -912,16 +913,16 @@ function Modal({title,close,children}:{title:string;close:()=>void;children:any}
 function transactionIcon(type:'income'|'expense',category:string){
  if(type==='income')return <ArrowDownLeft/>;
  const key=category.toLocaleLowerCase('es-GT');
- if(key.includes('vivienda'))return <Home/>;
+ if(key.includes('vivienda'))return <ModuleIcon name="home"/>;
  if(key.includes('aliment'))return <ShoppingCart/>;
  if(key.includes('transport'))return <Car/>;
  if(key.includes('servicio'))return <ReceiptText/>;
- if(key.includes('salud'))return <HeartPulse/>;
+ if(key.includes('salud'))return <ModuleIcon name="health"/>;
  if(key.includes('educa'))return <GraduationCap/>;
  if(key.includes('ahorro'))return <PiggyBank/>;
  if(key.includes('viaje'))return <Plane/>;
  if(key.includes('entreten'))return <Sparkles/>;
- return <WalletCards/>;
+ return <ModuleIcon name="finance"/>;
 }
 function statusLabel(status:string){return status==='paid'?'Pagado':status==='overdue'?'Vencido':status==='skipped'?'Omitido':'Pendiente'}
 function splitMethodLabel(method:SplitMethod){return method==='income'?'Proporcional a ingresos':method==='custom'?'Porcentaje personalizado':'Partes iguales'}
@@ -931,7 +932,7 @@ function NetWorthChart({data}:{data:NetWorthSnapshot[]}){
  const rows=data.slice(-90),values=rows.map(x=>Number(x.net_worth)),min=Math.min(...values,0),max=Math.max(...values,1),range=Math.max(1,max-min);
  return <div className="net-worth-chart"><div className="net-worth-chart-bars">{rows.map((row,index)=>{const h=Math.max(4,((Number(row.net_worth)-min)/range)*100);return <div className="net-worth-chart-col" key={row.snapshot_date} title={new Date(row.snapshot_date+'T12:00').toLocaleDateString('es-GT')+' · '+currency(Number(row.net_worth))}><span style={{height:h+'%'}}/><small>{index===0||index===rows.length-1||index%Math.max(1,Math.floor(rows.length/4))===0?new Date(row.snapshot_date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'}):''}</small></div>})}</div><div className="net-worth-chart-summary"><span>Inicio <b>{currency(Number(rows[0].net_worth))}</b></span><span>Actual <b className={Number(rows[rows.length-1]?.net_worth||0)>=Number(rows[0].net_worth)?'positive':'negative'}>{currency(Number(rows[rows.length-1]?.net_worth||0))}</b></span></div></div>
 }
-function accountIcon(type:string){if(type==='credit')return <CreditCard/>;if(type==='loan'||type==='mortgage')return <CircleDollarSign/>;if(type==='investment')return <TrendingUp/>;if(type==='cash')return <WalletCards/>;if(type==='savings')return <PiggyBank/>;return <Landmark/>}
-function assetIcon(type:FinanceAsset['asset_type']){if(type==='property')return <Building2/>;if(type==='vehicle')return <Car/>;if(type==='investment')return <TrendingUp/>;if(type==='valuable')return <Gem/>;return <WalletCards/>}
+function accountIcon(type:string){if(type==='credit')return <CreditCard/>;if(type==='loan'||type==='mortgage')return <CircleDollarSign/>;if(type==='investment')return <TrendingUp/>;if(type==='cash')return <ModuleIcon name="finance"/>;if(type==='savings')return <PiggyBank/>;return <Landmark/>}
+function assetIcon(type:FinanceAsset['asset_type']){if(type==='property')return <Building2/>;if(type==='vehicle')return <Car/>;if(type==='investment')return <TrendingUp/>;if(type==='valuable')return <Gem/>;return <ModuleIcon name="finance"/>}
 function assetTypeName(type:FinanceAsset['asset_type']){return({property:'Propiedad',vehicle:'Vehículo',investment:'Inversión',valuable:'Objeto de valor',other:'Otro activo'} as Record<string,string>)[type]||'Activo'}
 function accountTypeName(type:string){return({cash:'Efectivo',checking:'Cuenta bancaria',savings:'Ahorro',investment:'Inversión',credit:'Tarjeta de crédito',loan:'Préstamo',mortgage:'Hipoteca',other:'Otra'} as Record<string,string>)[type]||'Cuenta'}

@@ -1,5 +1,6 @@
+import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
-import {Activity,AlertTriangle,ArchiveRestore,BellRing,Bug,Check,CheckCircle2,ChevronRight,Clock3,Cloud,Database,HardDrive,History,MonitorSmartphone,RefreshCw,Server,ShieldCheck,Smartphone,Wifi,WifiOff,Wrench} from 'lucide-react';
+import {AlertTriangle,BellRing,Bug,Check,CheckCircle2,ChevronRight,Clock3,Cloud,Database,History,MonitorSmartphone,RefreshCw,Server,ShieldCheck,Wifi,WifiOff} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {clientReadiness,formatLatency,qualityLabel,type QualityStatus} from './lib/quality';
 import './DiagnosticCenter.css';
@@ -97,12 +98,12 @@ export default function DiagnosticCenter({household,onNavigate}:{household:House
  const healthyChecks=checks.filter(c=>c.status==='ok').length;
 
  if(loading)return <div className="finance-loading"><div className="loader"/></div>;
- if(!result)return <section className="diagnostic-center"><div className="document-empty"><Activity/><strong>No pudimos ejecutar el diagnóstico</strong><span>{message||'Intenta nuevamente.'}</span><button onClick={()=>runDiagnostics(true)}><RefreshCw/> Reintentar</button></div></section>;
+ if(!result)return <section className="diagnostic-center"><div className="document-empty"><ModuleIcon name="diagnostics"/><strong>No pudimos ejecutar el diagnóstico</strong><span>{message||'Intenta nuevamente.'}</span><button onClick={()=>runDiagnostics(true)}><RefreshCw/> Reintentar</button></div></section>;
 
  return <section className="diagnostic-center">
   <div className="diagnostic-top">
    <div><p className="eyebrow">CALIDAD Y CONFIABILIDAD</p><h2 className="page-title">Centro de diagnóstico</h2><p className="muted">Verifica integridad de datos, sincronización, PWA, errores de cliente y preparación del dispositivo.</p></div>
-   <div className="diagnostic-actions"><button onClick={runMaintenance} disabled={!!busy}><Wrench/>{busy==='maintenance'?'Ejecutando...':'Mantenimiento seguro'}</button><button className="primary" onClick={()=>runDiagnostics(false)} disabled={!!busy}><RefreshCw/>{busy==='diagnose'?'Analizando...':'Ejecutar diagnóstico'}</button></div>
+   <div className="diagnostic-actions"><button onClick={runMaintenance} disabled={!!busy}><ModuleIcon name="maintenance"/>{busy==='maintenance'?'Ejecutando...':'Mantenimiento seguro'}</button><button className="primary" onClick={()=>runDiagnostics(false)} disabled={!!busy}><RefreshCw/>{busy==='diagnose'?'Analizando...':'Ejecutar diagnóstico'}</button></div>
   </div>
   {message&&<div className="finance-message">{message}</div>}
 
@@ -117,7 +118,7 @@ export default function DiagnosticCenter({household,onNavigate}:{household:House
    <SystemCard icon={<Server/>} title="Backend" value={formatLatency(latency)} detail="Tiempo de respuesta del último diagnóstico." tone={latency!=null&&latency<600?'good':latency!=null?'warning':'neutral'}/>
    <SystemCard icon={<MonitorSmartphone/>} title="PWA" value={device.serviceWorkerControlled?'Controlada':'No controlada'} detail={device.standalone?'Instalada como aplicación.':device.serviceWorkerSupported?'Disponible en navegador, no instalada.':'Service Worker no soportado.'} tone={device.serviceWorkerControlled?'good':'warning'}/>
    <SystemCard icon={<BellRing/>} title="Notificaciones" value={device.notifications==='granted'?(device.pushActive?'Push activo':'Permiso activo'):device.notifications==='denied'?'Bloqueadas':'Sin habilitar'} detail={device.notifications==='granted'?'Permiso del navegador concedido.':'Puedes habilitarlas desde la campana si tu navegador lo permite.'} tone={device.notifications==='granted'?'good':device.notifications==='denied'?'danger':'warning'}/>
-   <SystemCard icon={<HardDrive/>} title="Almacenamiento local" value={device.storageUsed==null?'Sin medición':formatBytes(device.storageUsed)} detail={device.storageQuota?formatBytes(device.storageQuota)+' disponibles como cuota del navegador.':'El navegador no expuso la cuota.'} tone="neutral"/>
+   <SystemCard icon={<ModuleIcon name="backups"/>} title="Almacenamiento local" value={device.storageUsed==null?'Sin medición':formatBytes(device.storageUsed)} detail={device.storageQuota?formatBytes(device.storageQuota)+' disponibles como cuota del navegador.':'El navegador no expuso la cuota.'} tone="neutral"/>
    <SystemCard icon={<ShieldCheck/>} title="Preparación del dispositivo" value={readiness.score+'/100'} detail="Conectividad + Service Worker + instalación + notificaciones." tone={readiness.score>=80?'good':readiness.score>=50?'warning':'danger'}/>
   </div>
 
@@ -130,7 +131,7 @@ export default function DiagnosticCenter({household,onNavigate}:{household:House
    <section className="diagnostic-panel">
     <div className="diagnostic-panel-head"><div><p className="eyebrow">ATENCIÓN</p><h3>Qué revisar primero</h3></div><AlertTriangle/></div>
     {issues.length?<div className="diagnostic-priority-list">{issues.slice(0,7).map(check=><button key={check.key} className={check.status} onClick={()=>check.action_tab&&onNavigate(check.action_tab)}><span>{checkIcon(check.status)}</span><div><strong>{check.title}</strong><small>{check.detail}</small></div><ChevronRight/></button>)}</div>:<div className="diagnostic-all-good"><ShieldCheck/><div><strong>Sin inconsistencias detectadas</strong><span>Los controles de integridad están pasando correctamente.</span></div></div>}
-    <div className="diagnostic-maintenance-note"><Wrench/><div><strong>Mantenimiento seguro</strong><span>Regenera recurrentes faltantes, sincroniza estados con movimientos enlazados y limpia datos vencidos. No elimina información vigente ni modifica importes.</span></div></div>
+    <div className="diagnostic-maintenance-note"><ModuleIcon name="maintenance"/><div><strong>Mantenimiento seguro</strong><span>Regenera recurrentes faltantes, sincroniza estados con movimientos enlazados y limpia datos vencidos. No elimina información vigente ni modifica importes.</span></div></div>
    </section>
   </div>
 
@@ -158,7 +159,7 @@ function DiagnosticTrend({rows}:{rows:DiagnosticRun[]}){
  const min=Math.min(50,...recent.map(r=>r.score)),range=Math.max(1,100-min);
  return <div className="diagnostic-trend"><div className="diagnostic-trend-chart">{recent.map((row,index)=><div key={row.id} title={dateLabel(row.created_at)+' · '+row.score+'/100'}><span className={row.status} style={{height:Math.max(8,(row.score-min)/range*100)+'%'}}/><small>{index===0||index===recent.length-1||recent.length<=6?new Date(row.created_at).toLocaleDateString('es-GT',{day:'numeric',month:'short'}).replace('.',''):''}</small></div>)}</div><div className="diagnostic-trend-foot"><span>Inicio <b>{recent[0].score}</b></span><span>Actual <b>{recent[recent.length-1].score}</b></span></div></div>
 }
-function checkIcon(status:CheckState){if(status==='ok')return <CheckCircle2/>;if(status==='error')return <AlertTriangle/>;if(status==='warning')return <Wrench/>;return <Activity/>}
+function checkIcon(status:CheckState){if(status==='ok')return <CheckCircle2/>;if(status==='error')return <AlertTriangle/>;if(status==='warning')return <ModuleIcon name="maintenance"/>;return <ModuleIcon name="diagnostics"/>}
 function rankState(status:CheckState){return status==='error'?0:status==='warning'?1:status==='info'?2:3}
 function diagnosticCopy(status:QualityStatus){return status==='excellent'?'La estructura técnica está limpia y no hay señales relevantes de inconsistencia.':status==='healthy'?'El sistema está estable. Hay ajustes menores que conviene mantener bajo control.':status==='attention'?'Hay inconsistencias o mantenimiento pendiente que conviene resolver antes de seguir creciendo.':'Hay fallos importantes de integridad o confiabilidad que requieren revisión prioritaria.'}
 function relativeTime(value:string){const ms=Math.max(0,Date.now()-new Date(value).getTime()),m=Math.floor(ms/60000);if(m<1)return'ahora';if(m<60)return'hace '+m+' min';const h=Math.floor(m/60);if(h<24)return'hace '+h+' h';const d=Math.floor(h/24);return'hace '+d+' día'+(d===1?'':'s')}

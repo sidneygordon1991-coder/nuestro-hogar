@@ -1,5 +1,6 @@
+import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,BellRing,Check,ChevronRight,Clock3,FileText,Gauge,History,ListChecks,Package,Play,RefreshCw,Settings2,ShoppingCart,SlidersHorizontal,WalletCards,Wrench,Zap} from 'lucide-react';
+import {BellRing,Check,ChevronRight,Clock3,Gauge,History,Package,Play,Settings2,ShoppingCart,SlidersHorizontal} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import './AutomationCenter.css';
 
@@ -10,10 +11,10 @@ type RuleRun={id:string;rule_key:RuleKey;action:string;affected_count:number;sum
 
 const definitions:Record<RuleKey,{group:string;title:string;description:string;kind:'alert'|'action';field?:string;unit?:string;min?:number;max?:number;step?:number;icon:React.ReactNode;defaultValue?:number|string}> = {
  payment_due_alert:{group:'Finanzas',title:'Pagos por vencer',description:'Avisa antes de que venza un pago recurrente y mantiene alertas si queda vencido.',kind:'alert',field:'days_before',unit:'días antes',min:0,max:30,step:1,defaultValue:3,icon:<Clock3/>},
- budget_limit_alert:{group:'Finanzas',title:'Límite de presupuesto',description:'Advierte cuando una categoría alcanza el porcentaje configurado de su presupuesto mensual.',kind:'alert',field:'threshold_percent',unit:'% utilizado',min:50,max:100,step:1,defaultValue:90,icon:<WalletCards/>},
- task_due_alert:{group:'Organización',title:'Tareas próximas',description:'Avisa por tareas asignadas que están próximas a su fecha límite o ya vencieron.',kind:'alert',field:'days_before',unit:'días antes',min:0,max:30,step:1,defaultValue:1,icon:<ListChecks/>},
- document_expiry_alert:{group:'Documentos',title:'Documentos por vencer',description:'Anticipa renovaciones de pólizas, identificaciones, contratos y otros documentos.',kind:'alert',field:'days_before',unit:'días antes',min:0,max:90,step:1,defaultValue:30,icon:<FileText/>},
- maintenance_date_alert:{group:'Casa y vehículos',title:'Mantenimiento por fecha',description:'Avisa antes de servicios programados para casa, vehículos y equipos.',kind:'alert',field:'days_before',unit:'días antes',min:0,max:90,step:1,defaultValue:30,icon:<Wrench/>},
+ budget_limit_alert:{group:'Finanzas',title:'Límite de presupuesto',description:'Advierte cuando una categoría alcanza el porcentaje configurado de su presupuesto mensual.',kind:'alert',field:'threshold_percent',unit:'% utilizado',min:50,max:100,step:1,defaultValue:90,icon:<ModuleIcon name="finance"/>},
+ task_due_alert:{group:'Organización',title:'Tareas próximas',description:'Avisa por tareas asignadas que están próximas a su fecha límite o ya vencieron.',kind:'alert',field:'days_before',unit:'días antes',min:0,max:30,step:1,defaultValue:1,icon:<ModuleIcon name="lists"/>},
+ document_expiry_alert:{group:'Documentos',title:'Documentos por vencer',description:'Anticipa renovaciones de pólizas, identificaciones, contratos y otros documentos.',kind:'alert',field:'days_before',unit:'días antes',min:0,max:90,step:1,defaultValue:30,icon:<ModuleIcon name="documents"/>},
+ maintenance_date_alert:{group:'Casa y vehículos',title:'Mantenimiento por fecha',description:'Avisa antes de servicios programados para casa, vehículos y equipos.',kind:'alert',field:'days_before',unit:'días antes',min:0,max:90,step:1,defaultValue:30,icon:<ModuleIcon name="maintenance"/>},
  maintenance_mileage_alert:{group:'Casa y vehículos',title:'Mantenimiento por kilometraje',description:'Avisa cuando un vehículo se acerca al kilometraje de su próximo servicio.',kind:'alert',field:'km_before',unit:'km antes',min:0,max:10000,step:100,defaultValue:500,icon:<Gauge/>},
  warranty_expiry_alert:{group:'Casa y vehículos',title:'Garantías por vencer',description:'Avisa antes de que termine la garantía registrada de un activo.',kind:'alert',field:'days_before',unit:'días antes',min:0,max:90,step:1,defaultValue:30,icon:<BellRing/>},
  pantry_expiry_alert:{group:'Comidas',title:'Productos por vencer',description:'Avisa para usar primero los productos de despensa que están cerca de su vencimiento.',kind:'alert',field:'days_before',unit:'días antes',min:0,max:30,step:1,defaultValue:7,icon:<Package/>},
@@ -94,7 +95,7 @@ export default function AutomationCenter({household,onNavigate,readOnly=false}:{
   {message&&<div className="finance-message">{message}</div>}
 
   <section className="automation-hero">
-   <div className="automation-hero-icon"><Zap/></div>
+   <div className="automation-hero-icon"><ModuleIcon name="automations"/></div>
    <div><p className="eyebrow">MOTOR ACTIVO</p><h3>{activeCount} de {rules.length} reglas activas</h3><p>Las reglas se evalúan automáticamente cada hora. Las alertas respetan además las preferencias personales de notificaciones de cada integrante.</p></div>
    <div className="automation-hero-stats"><span><BellRing/><b>{alertCount}</b><small>alertas</small></span><span><Settings2/><b>{actionCount}</b><small>acciones</small></span><span><History/><b>{lastActivity?relativeTime(lastActivity.created_at):'—'}</b><small>última actividad</small></span></div>
   </section>
@@ -107,12 +108,12 @@ export default function AutomationCenter({household,onNavigate,readOnly=false}:{
   <div className="automation-bottom-grid">
    <section className="automation-log-panel">
     <div className="automation-panel-head"><div><p className="eyebrow">ACTIVIDAD</p><h3>Historial reciente</h3></div><History/></div>
-    {runs.length?<div className="automation-log-list">{runs.slice(0,10).map(run=><div key={run.id}><span className={run.action==='configured'?'config':'run'}>{run.action==='configured'?<SlidersHorizontal/>:<Zap/>}</span><div><strong>{definitions[run.rule_key]?.title||run.rule_key}</strong><small>{run.summary}</small></div><em>{relativeTime(run.created_at)}</em></div>)}</div>:<div className="control-empty small"><History/><span>Las ejecuciones y cambios de reglas aparecerán aquí.</span></div>}
+    {runs.length?<div className="automation-log-list">{runs.slice(0,10).map(run=><div key={run.id}><span className={run.action==='configured'?'config':'run'}>{run.action==='configured'?<SlidersHorizontal/>:<ModuleIcon name="automations"/>}</span><div><strong>{definitions[run.rule_key]?.title||run.rule_key}</strong><small>{run.summary}</small></div><em>{relativeTime(run.created_at)}</em></div>)}</div>:<div className="control-empty small"><History/><span>Las ejecuciones y cambios de reglas aparecerán aquí.</span></div>}
    </section>
    <section className="automation-log-panel">
     <div className="automation-panel-head"><div><p className="eyebrow">CÓMO FUNCIONA</p><h3>Dos niveles de control</h3></div><Settings2/></div>
     <div className="automation-explainer">
-     <div><span><Zap/></span><div><strong>Regla del hogar</strong><small>Define si el hogar vigila una condición y el umbral que utiliza.</small></div></div>
+     <div><span><ModuleIcon name="automations"/></span><div><strong>Regla del hogar</strong><small>Define si el hogar vigila una condición y el umbral que utiliza.</small></div></div>
      <div><span><BellRing/></span><div><strong>Preferencias personales</strong><small>Cada integrante decide qué categorías de alertas quiere recibir en su dispositivo.</small></div></div>
      <button onClick={()=>onNavigate('inicio')}>Abrir centro de alertas desde la campana <ChevronRight/></button>
     </div>

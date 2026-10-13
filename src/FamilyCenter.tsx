@@ -1,5 +1,6 @@
+import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronRight,Copy,Eye,History,LogOut,Phone,RefreshCw,Save,Settings2,Shield,ShieldCheck,Trash2,UserCog,UserRound,Users,X} from 'lucide-react';
+import {Cake,AlertTriangle,Check,Copy,Eye,History,LogOut,Phone,RefreshCw,Save,Settings2,Shield,ShieldCheck,Trash2,UserCog,UserRound,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -135,7 +136,7 @@ export default function FamilyCenter({household,onChanged,onHouseholdRenamed}:{h
 
   <section className="family-access-panel"><div className="family-section-head"><div><p className="eyebrow">CONFIGURACIÓN</p><h3>Nombre de la familia</h3><p>{household.name}</p></div>{myAccess.can_manage_members&&<button className="member-edit" onClick={()=>setRenamingHousehold(true)}>Editar nombre</button>}</div></section>
   <div className="family-summary family-access-summary">
-   <div><span><Users/></span><div><small>Integrantes</small><strong>{members.length}</strong></div></div>
+   <div><span><ModuleIcon name="family"/></span><div><small>Integrantes</small><strong>{members.length}</strong></div></div>
    <div><span><ShieldCheck/></span><div><small>Administración</small><strong>{admins}</strong><em>propietario / admin</em></div></div>
    <div><span><UserCog/></span><div><small>Adultos</small><strong>{adults}</strong></div></div>
    <div><span><Eye/></span><div><small>Tu rol</small><strong>{roleLabel(myAccess.role)}</strong></div></div>
@@ -147,7 +148,7 @@ export default function FamilyCenter({household,onChanged,onHouseholdRenamed}:{h
     <div className="family-avatar">{member.avatar_url?<img src={member.avatar_url} alt=""/>:<span>{initials(member.full_name)}</span>}</div>
     <div className="family-member-copy"><div><strong>{member.full_name}</strong>{member.user_id===currentUser&&<em>Tú</em>}<b className={'family-role '+member.role}>{roleLabel(member.role)}</b></div><small>{member.relationship||'Integrante del hogar'}</small>
      <div className="family-responsibility-list">{(member.responsibilities||[]).slice(0,4).map(tag=><span key={tag}>{responsibilityLabel(tag)}</span>)}{!member.responsibilities?.length&&<span className="empty">Sin responsabilidades asignadas</span>}</div>
-     <div className="family-meta">{member.birth_date&&<span>🎂 {new Date(member.birth_date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'long'})}</span>}{member.phone&&<span><Phone/> {member.phone}</span>}</div>
+     <div className="family-meta">{member.birth_date&&<span><Cake size={14}/> {new Date(member.birth_date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'long'})}</span>}{member.phone&&<span><Phone/> {member.phone}</span>}</div>
     </div>
     <div className="family-member-actions">{member.user_id===currentUser&&<button className="member-edit" onClick={()=>setEditing(true)}>Editar perfil</button>}{myAccess.can_manage_members&&member.role!=='owner'&&<button className="member-access" onClick={()=>openManager(member)}><Settings2/> Permisos</button>}</div>
    </article>)}</div>

@@ -1,5 +1,6 @@
+import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,BadgeCheck,CalendarClock,Car,CheckCircle2,ExternalLink,FileText,FolderArchive,GraduationCap,HeartPulse,Home,LockKeyhole,Paperclip,Pencil,Plus,Search,ShieldCheck,Trash2,Upload,Users,WalletCards,X} from 'lucide-react';
+import {AlertTriangle,BadgeCheck,CalendarClock,Car,ExternalLink,GraduationCap,LockKeyhole,Paperclip,Pencil,Plus,Search,ShieldCheck,Trash2,Upload,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -132,7 +133,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
   <div className="document-kpis">
-   <div><span className="all"><FolderArchive/></span><small>Documentos</small><strong>{stats.total}</strong><em>{stats.withFile} con archivo</em></div>
+   <div><span className="all"><ModuleIcon name="documents"/></span><small>Documentos</small><strong>{stats.total}</strong><em>{stats.withFile} con archivo</em></div>
    <div><span className="soon"><CalendarClock/></span><small>Vencen en 30 días</small><strong>{stats.expiring}</strong><em>{stats.expiring?'Revisar próximos':'Sin vencimientos próximos'}</em></div>
    <div><span className="expired"><AlertTriangle/></span><small>Vencidos</small><strong>{stats.expired}</strong><em>{stats.expired?'Requieren atención':'Todo vigente'}</em></div>
   </div>
@@ -143,7 +144,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
   </div>
 
   <div className="document-category-strip">
-   <button className={category==='all'?'active':''} onClick={()=>setCategory('all')}><FolderArchive/><span>Todos</span><b>{documents.length}</b></button>
+   <button className={category==='all'?'active':''} onClick={()=>setCategory('all')}><ModuleIcon name="documents"/><span>Todos</span><b>{documents.length}</b></button>
    {categories.map(cat=>{const count=documents.filter(d=>d.category===cat.id).length;return <button className={category===cat.id?'active':''} key={cat.id} onClick={()=>setCategory(cat.id)}>{categoryIcon(cat.id)}<span>{cat.label}</span><b>{count}</b></button>})}
   </div>
 
@@ -154,14 +155,14 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
      {doc.document_number&&<div><span>Número</span><b>{doc.document_number}</b></div>}
      {doc.expires_on&&<div><span>Vencimiento</span><b>{formatDate(doc.expires_on)}</b></div>}
      {doc.owner_user_id&&<div><span>Titular</span><b>{memberName(doc.owner_user_id,members,userId)}</b></div>}
-     <div><span>Acceso</span><b>{doc.access_scope==='private'?<><LockKeyhole/> Privado</>:<><Users/> Hogar</>}</b></div>
+     <div><span>Acceso</span><b>{doc.access_scope==='private'?<><LockKeyhole/> Privado</>:<><ModuleIcon name="family"/> Hogar</>}</b></div>
     </div>
     {doc.tags?.length>0&&<div className="document-tags">{doc.tags.slice(0,5).map(tag=><span key={tag}>#{tag}</span>)}</div>}
-    <div className="document-file">{doc.file_path?<><Paperclip/><div><strong>{doc.original_filename||'Archivo adjunto'}</strong><small>{formatSize(doc.file_size)}{doc.mime_type?' · '+fileTypeLabel(doc.mime_type):''}</small></div><button onClick={()=>openFile(doc)}><ExternalLink/> Abrir</button></>:<><FileText/><div><strong>Solo registro</strong><small>Sin archivo adjunto</small></div></>}</div>
+    <div className="document-file">{doc.file_path?<><Paperclip/><div><strong>{doc.original_filename||'Archivo adjunto'}</strong><small>{formatSize(doc.file_size)}{doc.mime_type?' · '+fileTypeLabel(doc.mime_type):''}</small></div><button onClick={()=>openFile(doc)}><ExternalLink/> Abrir</button></>:<><ModuleIcon name="documents"/><div><strong>Solo registro</strong><small>Sin archivo adjunto</small></div></>}</div>
     {!readOnly&&<div className="document-actions"><button onClick={()=>startEdit(doc)}><Pencil/> Editar</button><button className="danger" onClick={()=>deleteDocument(doc)} disabled={busy}><Trash2/> Eliminar</button></div>}
    </article>})}
   </div>
-  {!filtered.length&&<div className="document-empty"><FolderArchive/><strong>{documents.length?'No encontramos documentos':'Tu bóveda está vacía'}</strong><span>{documents.length?'Prueba con otra búsqueda o categoría.':'Guarda aquí DPI, pasaportes, contratos, seguros, facturas y garantías.'}</span>{!documents.length&&!readOnly&&<button onClick={startNew}><Plus/> Agregar primer documento</button>}</div>}
+  {!filtered.length&&<div className="document-empty"><ModuleIcon name="documents"/><strong>{documents.length?'No encontramos documentos':'Tu bóveda está vacía'}</strong><span>{documents.length?'Prueba con otra búsqueda o categoría.':'Guarda aquí DPI, pasaportes, contratos, seguros, facturas y garantías.'}</span>{!documents.length&&!readOnly&&<button onClick={startNew}><Plus/> Agregar primer documento</button>}</div>}
 
   {showForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeForm()}}><div className="finance-modal document-modal">
    <div className="modal-head"><div><p className="eyebrow">BÓVEDA SEGURA</p><h3>{editing?'Editar documento':'Nuevo documento'}</h3></div><button onClick={closeForm}><X/></button></div>
@@ -193,4 +194,4 @@ function expiryStatus(value:string|null){
 function categoryLabel(id:DocCategory){return categories.find(c=>c.id===id)?.label||'Otros'}
 function memberName(id:string,members:Member[],userId:string){if(id===userId)return'Yo';return members.find(m=>m.user_id===id)?.full_name||'Miembro'}
 function fileTypeLabel(mime:string){if(mime==='application/pdf')return'PDF';if(mime.startsWith('image/'))return'Imagen';if(mime.includes('word'))return'Word';if(mime.includes('excel')||mime.includes('sheet'))return'Excel';return'Archivo'}
-function categoryIcon(category:DocCategory){if(category==='personal')return <FileText/>;if(category==='home')return <Home/>;if(category==='vehicle')return <Car/>;if(category==='health')return <HeartPulse/>;if(category==='finance')return <WalletCards/>;if(category==='insurance')return <ShieldCheck/>;if(category==='warranty')return <BadgeCheck/>;if(category==='education')return <GraduationCap/>;return <FolderArchive/>}
+function categoryIcon(category:DocCategory){if(category==='personal')return <ModuleIcon name="documents"/>;if(category==='home')return <ModuleIcon name="home"/>;if(category==='vehicle')return <Car/>;if(category==='health')return <ModuleIcon name="health"/>;if(category==='finance')return <ModuleIcon name="finance"/>;if(category==='insurance')return <ShieldCheck/>;if(category==='warranty')return <BadgeCheck/>;if(category==='education')return <GraduationCap/>;return <ModuleIcon name="documents"/>}

@@ -1,5 +1,6 @@
+import ModuleIcon from './ModuleIcon';
 import {useEffect,useState,type CSSProperties} from 'react';
-import {AlertTriangle,CalendarDays,CheckCircle2,ChevronRight,FileText,Gauge,ListChecks,Package,RefreshCw,Sparkles,TrendingUp,Utensils,WalletCards,Wrench} from 'lucide-react';
+import {AlertTriangle,CheckCircle2,ChevronRight,Gauge,Package,RefreshCw,Sparkles,TrendingUp} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import './HouseholdHealthCenter.css';
 
@@ -86,11 +87,11 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
    <section className="health-panel">
     <div className="health-panel-head"><div><p className="eyebrow">INDICADORES</p><h3>Resumen rápido</h3></div><TrendingUp/></div>
     <div className="health-metric-grid">
-     <Metric icon={<WalletCards/>} label="Balance del mes" value={money(Number(m.income||0)-Number(m.expense||0)-Number(m.saving||0))} detail={Math.round(Number(m.savings_rate||0))+'% tasa de ahorro'} tone="finance"/>
+     <Metric icon={<ModuleIcon name="finance"/>} label="Balance del mes" value={money(Number(m.income||0)-Number(m.expense||0)-Number(m.saving||0))} detail={Math.round(Number(m.savings_rate||0))+'% tasa de ahorro'} tone="finance"/>
      <Metric icon={<TrendingUp/>} label="Patrimonio neto" value={money(Number(m.net_worth||0))} detail={Number(m.overbudget_categories||0)+' categorías excedidas'} tone="worth"/>
-     <Metric icon={<ListChecks/>} label="Pendientes" value={String(m.tasks_open||0)} detail={(m.tasks_overdue||0)+' vencidos · '+(m.tasks_due7||0)+' esta semana'} tone="tasks"/>
-     <Metric icon={<CalendarDays/>} label="Agenda 7 días" value={String(m.events7||0)} detail="eventos próximos" tone="agenda"/>
-     <Metric icon={<Wrench/>} label="Mantenimientos" value={String(m.maintenance_overdue||0)} detail={(m.maintenance_upcoming||0)+' próximos'} tone="maintenance"/>
+     <Metric icon={<ModuleIcon name="lists"/>} label="Pendientes" value={String(m.tasks_open||0)} detail={(m.tasks_overdue||0)+' vencidos · '+(m.tasks_due7||0)+' esta semana'} tone="tasks"/>
+     <Metric icon={<ModuleIcon name="calendar"/>} label="Agenda 7 días" value={String(m.events7||0)} detail="eventos próximos" tone="agenda"/>
+     <Metric icon={<ModuleIcon name="maintenance"/>} label="Mantenimientos" value={String(m.maintenance_overdue||0)} detail={(m.maintenance_upcoming||0)+' próximos'} tone="maintenance"/>
      <Metric icon={<Package/>} label="Despensa" value={String(m.pantry_low||0)} detail={(m.pantry_soon||0)+' por vencer'} tone="food"/>
     </div>
    </section>
@@ -110,7 +111,7 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
 }
 
 function Metric({icon,label,value,detail,tone}:{icon:React.ReactNode;label:string;value:string;detail:string;tone:string}){return <div className={'health-metric '+tone}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong><em>{detail}</em></div></div>}
-function domainIcon(key:DomainKey){if(key==='finance')return <WalletCards/>;if(key==='organization')return <ListChecks/>;if(key==='documents')return <FileText/>;if(key==='maintenance')return <Wrench/>;return <Utensils/>}
+function domainIcon(key:DomainKey){if(key==='finance')return <ModuleIcon name="finance"/>;if(key==='organization')return <ModuleIcon name="lists"/>;if(key==='documents')return <ModuleIcon name="documents"/>;if(key==='maintenance')return <ModuleIcon name="maintenance"/>;return <ModuleIcon name="meals"/>}
 function recommendationIcon(severity:Recommendation['severity']){if(severity==='danger')return <AlertTriangle/>;if(severity==='warning')return <Gauge/>;if(severity==='success')return <CheckCircle2/>;return <Sparkles/>}
 function HealthTrend({rows}:{rows:HealthHistory[]}){
  if(!rows.length)return <div className="control-empty small"><TrendingUp/><span>El histórico comenzará a construirse desde hoy.</span></div>;

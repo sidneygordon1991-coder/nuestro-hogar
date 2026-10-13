@@ -1,295 +1,109 @@
-/*
- * Nuestro Hogar — theme contract v2
- * The source screens use a dark-first stylesheet. All selectable theme surfaces
- * receive semantic tokens here, including the six lazy-loaded CSS modules.
- * Keep semantic success/warning/error colors separate from surface colors.
- */
+/* One palette for every screen, including lazy-loaded modules.
+   Component styles consume these roles; only this file defines theme colors. */
 html {
-  --nh-page:#0d1014;--nh-surface:#161b20;--nh-subtle:#11161a;
-  --nh-border:#29343c;--nh-text:#eef3f6;--nh-muted:#94a2ac;
-  --nh-accent:#71cef0;--nh-track:#28333b;--nh-success:#79dbae;
-  --nh-warning:#efb56b;--nh-danger:#ef9999;
+ color-scheme:dark;
+ --nh-page:#0d141c; --nh-surface:#17212b; --nh-subtle:#111b24; --nh-raised:#202e3b;
+ --nh-text:#edf3f8; --nh-muted:#a6b7c6; --nh-border:#35495a; --nh-track:#304557;
+ --nh-accent:#7ad7f5; --nh-blue:#9bbcff; --nh-purple:#c7a7ff;
+ --nh-success:#83dfb6; --nh-warning:#f4c37e; --nh-danger:#ffa7b2;
+ --nh-accent-soft:#163346; --nh-blue-soft:#1c2e49; --nh-purple-soft:#302740;
+ --nh-success-soft:#18372e; --nh-warning-soft:#3c3020; --nh-danger-soft:#3e2630;
+ --nh-neutral-soft:#202e3b; --nh-accent-border:#477f99; --nh-success-border:#497d69;
+ --nh-chart-accent:#67c9ed; --nh-chart-blue:#8baeff; --nh-chart-purple:#b896ef;
+ --nh-chart-previous:#758c9e; --nh-chart-success:#67cda2; --nh-chart-warning:#edb365; --nh-chart-danger:#ed8b98;
+ --nh-action:#78d0ef; --nh-on-action:#092735; --nh-on-brand:#ffffff;
+ --nh-shadow:#00000030; --nh-highlight:#ffffff0d; --nh-scrim:#06111fb3;
 }
 html[data-theme="light"] {
-  --nh-page:#f4f7fa;--nh-surface:#ffffff;--nh-subtle:#f2f7fa;
-  --nh-border:#d6e3ea;--nh-text:#213745;--nh-muted:#596f7e;
-  --nh-accent:#087ca7;--nh-track:#dfe9ee;--nh-success:#197b55;
-  --nh-warning:#a86715;--nh-danger:#b43c4b;
+ color-scheme:light;
+ --nh-page:#f3f7fb; --nh-surface:#ffffff; --nh-subtle:#f5f8fb; --nh-raised:#eaf1f7;
+ --nh-text:#203547; --nh-muted:#4e6679; --nh-border:#cbd9e4; --nh-track:#dbe6ee;
+ --nh-accent:#086785; --nh-blue:#335dad; --nh-purple:#7245a2;
+ --nh-success:#176b4a; --nh-warning:#8c560d; --nh-danger:#aa3446;
+ --nh-accent-soft:#e4f2fa; --nh-blue-soft:#e8effb; --nh-purple-soft:#f0eafa;
+ --nh-success-soft:#e5f3ec; --nh-warning-soft:#fff3e0; --nh-danger-soft:#fbe9ed;
+ --nh-neutral-soft:#edf3f8; --nh-accent-border:#9fc6d9; --nh-success-border:#a2cfb9;
+ --nh-chart-accent:#1685ad; --nh-chart-blue:#5278c2; --nh-chart-purple:#9164ce;
+ --nh-chart-previous:#758c9e; --nh-chart-success:#258560; --nh-chart-warning:#b47926; --nh-chart-danger:#c65b6b;
+ --nh-action:#78d0ef; --nh-on-action:#092735; --nh-on-brand:#ffffff;
+ --nh-shadow:#28465e14; --nh-highlight:#ffffff99; --nh-scrim:#10273d80;
 }
-html[data-theme="light"] .app {
-  color:var(--nh-text);
+/* Filled actions use a dedicated pair, separate from data-series colors. */
+:is(.auth form>button,.formgrid>button,.primary,.finance-primary,.finance-new,.mini-add,
+ .quick>button,nav .fab,.skip-link,.notification-device>button) {
+ background:var(--nh-action); color:var(--nh-on-action);
 }
-html[data-theme="light"] .app :is(
- .automation-hero,.automation-rule-card,.automation-log-panel,
- .backup-kpis>div,.backup-panel,.backup-safety,
- .diagnostic-hero,.diagnostic-issue-totals>div,.diagnostic-system-card,.diagnostic-panel,
- .health-domain-card,.health-panel,.health-coverage-panel,.health-history-panel,
- .monthly-close-period,.monthly-close-hero,.monthly-close-metric,.monthly-close-panel,.monthly-close-reflection,
- .planning-kpis>div,.planning-roadmap-panel,.planning-goals-panel,.planning-side-panel,
- .planning-modal,.backup-modal
-) {
- background:var(--nh-surface)!important;
- border-color:var(--nh-border)!important;
- color:var(--nh-text)!important;
+:is(button,[role="button"],a,input,select,textarea):focus-visible {
+ outline:2px solid var(--nh-accent); outline-offset:3px;
 }
-html[data-theme="light"] .app :is(
- .automation-hero,.backup-safety,.diagnostic-hero,.monthly-close-hero,.monthly-close-reflection,
- .health-hero,.health-hero.watch,.health-hero.risk,.health-hero.setup
-) {
- background:linear-gradient(135deg,#ffffff 0%,#edf6fa 100%)!important;
- color:var(--nh-text)!important;
- border-color:var(--nh-border)!important;
- box-shadow:0 6px 24px #32556c0c;
+::placeholder {color:var(--nh-muted);opacity:1;}
+button {cursor:pointer;}
+button:disabled {cursor:default;}
+.app {line-height:1.45;}
+.app :is(h1,h2,h3,h4,strong,b) {font-variant-numeric:tabular-nums;}
+.app :is(p,small,em) {line-height:1.5;}
+.app :is(.finance-panel,.control-section,.family-access-panel,.calendar-panel,.health-panel,
+ .backup-panel,.diagnostic-panel,.monthly-close-panel,.planning-goals-panel) {
+ box-shadow:0 4px 18px var(--nh-shadow);
 }
-html[data-theme="light"] .app .health-hero.watch {
- background:linear-gradient(135deg,#fff8ee,#ffffff)!important;border-color:#ecd7b2!important;
+.nh-object-icon {flex-shrink:0;vertical-align:middle;}
+.nh-icon-detail {fill:currentColor;fill-opacity:.18;}
+.brand-mark {color:var(--nh-on-action);}
+.brand-mark .nh-object-icon {width:36px;height:36px;}
+/* Object icons need enough room for their details; directional controls stay compact. */
+.app-menu-groups button>span .nh-object-icon {width:23px;height:23px;}
+.control-module-grid button>span .nh-object-icon {width:25px;height:25px;}
+.app :is(.health-domain-icon,.health-rec-icon,.planning-goal-icon,
+ .automation-hero-icon,.automation-rule-main>span,.backup-export-card>span,
+ .document-category-icon,.maintenance-asset-head>span,.meal-smart-icon) .nh-object-icon {
+ width:21px;height:21px;
 }
-html[data-theme="light"] .app .health-hero.risk {
- background:linear-gradient(135deg,#fff1f2,#ffffff)!important;border-color:#efc7cb!important;
+/* Allow long names and translated descriptions to wrap without colliding with actions. */
+.app .home-select-wrap {width:100%;min-width:0;max-width:100%;}
+.app .home-select-label {
+ white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;
+ line-height:1.22;display:block;padding-right:23px;
 }
-html[data-theme="light"] .app :is(
- .automation-hero-stats>span,.automation-log-list>div,.automation-explainer>div,
- .automation-explainer>button,.automation-rule-config input,
- .backup-import,.backup-export-card,.backup-list article,.backup-list-actions button,
- .recovery-list article,.backup-create-note,
- .diagnostic-actions button,.diagnostic-hero-copy>div span,.diagnostic-check,
- .diagnostic-priority-list>button,.diagnostic-error-list article,
- .health-refresh,.health-hero-tags span,.health-primary-action,
- .health-rec,.health-metric,.health-rec-rank,.health-coverage-modules button,
- .monthly-close-actions button,.monthly-close-period>button,
- .monthly-close-hero-copy>div span,.monthly-close-insights>button,
- .monthly-operation,.monthly-networth,.monthly-reflection-grid textarea,
- .monthly-focus-editor input,.monthly-add-focus,
- .planning-roadmap-column,.planning-roadmap-goal,.planning-tabs button,
- .planning-goal-card,.planning-goal-numbers>div,.planning-milestones>div,
- .planning-milestones>div>button:first-child,.planning-goal-actions button,
- .planning-next-list>button,.planning-funding,.planning-finance-link,
- .planning-horizon-picker label
-) {
- background:var(--nh-subtle)!important;
- border-color:var(--nh-border)!important;
- color:var(--nh-text)!important;
-}
-html[data-theme="light"] .app :is(
- .automation-rule-main>strong,.automation-hero h3,.automation-panel-head h3,
- .backup-kpis strong,.backup-panel-head h3,.backup-export-card strong,
- .backup-list strong,.recovery-list strong,.backup-safety strong,
- .diagnostic-hero h3,.diagnostic-system-card strong,.diagnostic-panel-head h3,
- .diagnostic-check strong,.diagnostic-priority-list strong,.diagnostic-trend-foot b,
- .health-hero-copy h2,.health-domain-copy strong,.health-domain-score strong,
- .health-panel-head h3,.health-rec strong,.health-metric strong,
- .health-coverage-panel strong,.health-trend-foot b,
- .monthly-close-hero h3,.monthly-close-metric strong,.monthly-close-panel-head h3,
- .monthly-close-insights strong,.monthly-close-categories strong,
- .monthly-operation strong,.monthly-rate-row strong,.monthly-close-trend-foot b,
- .planning-kpis strong,.planning-panel-head h3,.planning-roadmap-goal strong,
- .planning-goal-main strong,.planning-goal-numbers strong,.planning-milestones strong,
- .planning-next-list strong,.planning-funding-list b
-) {
- color:var(--nh-text)!important;
- opacity:1!important;
-}
-html[data-theme="light"] .app :is(
- .automation-hero p:last-child,.automation-hero-stats small,.automation-group-head>span,
- .automation-rule-main small,.automation-rule-main p,.automation-rule-config label,
- .automation-log-list small,.automation-log-list em,.automation-explainer small,
- .backup-kpis small,.backup-kpis em,.backup-panel-head p:last-child,
- .backup-export-card small,.backup-list small,.backup-list em,.recovery-list small,
- .backup-safety p,
- .diagnostic-score span,.diagnostic-hero-copy>p:last-of-type,
- .diagnostic-issue-totals span,.diagnostic-system-card small,
- .diagnostic-system-card em,.diagnostic-check small,.diagnostic-check em,
- .diagnostic-priority-list small,.diagnostic-error-list small,.diagnostic-error-list em,
- .diagnostic-trend-chart small,.diagnostic-trend-foot,.diagnostic-ci span,
- .health-score-ring span,.health-hero-copy>p:last-of-type,.health-primary-action small,
- .health-domain-copy small,.health-domain-copy em,.health-domain-score span,
- .health-rec>div small,.health-metric small,.health-metric em,
- .health-coverage-panel p:last-child,.health-trend-col>small,.health-trend-foot,
- .monthly-close-period small,.monthly-close-period span,.monthly-close-score span,
- .monthly-close-hero-copy>p:last-of-type,.monthly-close-balance small,
- .monthly-close-balance span,.monthly-close-metric small,.monthly-close-metric em,
- .monthly-close-panel-head p:last-child,.monthly-close-insights small,
- .monthly-close-categories small,.monthly-operation small,.monthly-operation em,
- .monthly-close-chart small,.monthly-close-trend-foot,
- .monthly-networth small,.monthly-rate-row>div:first-child,.monthly-rate-row>small,
- .monthly-reflection-grid>label>span,.monthly-focus-editor>span,
- .monthly-close-notice small,
- .planning-kpis small,.planning-kpis em,.planning-panel-head>span,
- .planning-roadmap-column-head span,.planning-roadmap-goal small,
- .planning-roadmap-empty,.planning-goal-main small,.planning-goal-main p,
- .planning-goal-progress-label,.planning-goal-date small,.planning-goal-numbers small,
- .planning-milestones-head small,.planning-milestones small,
- .planning-next-list small,.planning-funding span,.planning-funding-list>div,
- .planning-horizon-picker>span,.planning-horizon-picker small,
- .planning-auto-roadmap small
-) {
- color:var(--nh-muted)!important;
- opacity:1!important;
-}
-/* Icon wells retain their category color while their backgrounds lighten. */
-html[data-theme="light"] .app :is(
- .automation-hero-icon,.automation-rule-main>span:first-child,.automation-explainer>div>span,
- .backup-export-card>span,.backup-list-icon,.recovery-icon,.backup-safety>span,
- .diagnostic-check>span,.diagnostic-priority-list>button>span,
- .diagnostic-system-card>span,.diagnostic-error-list article>span,
- .health-domain-icon,.health-rec-icon,.health-metric>span,
- .health-coverage-panel>div:first-child>span,
- .monthly-close-metric>span,.monthly-close-insights>button>span,
- .monthly-operation>span,.monthly-close-notice>svg,
- .planning-roadmap-goal>span,.planning-goal-icon,.planning-next-list>button>span
-) {background:#e7f2f8!important;}
-html[data-theme="light"] .app :is(
- .automation-hero-icon,.automation-rule-main>span:first-child,
- .backup-export-card>span,.diagnostic-system-card>span,
- .health-domain-icon,.health-rec-icon,.health-metric>span,
- .monthly-close-insights>button>span,.planning-goal-icon
-) {color:var(--nh-accent)!important;}
-/* Readable semantic category colors in day mode */
-html[data-theme="light"] .app :is(
- .backup-kpis .safe,.backup-list-icon,.recovery-icon.finance,
- .diagnostic-system-card.good>span,.diagnostic-check:not(.warning):not(.error):not(.info)>span,
- .diagnostic-issue-totals .info strong,
- .health-domain-card.good .health-domain-icon,.health-domain-card.excellent .health-domain-icon,
- .health-rec.success .health-rec-icon,.health-metric.worth>span,
- .monthly-close-metric.income>span,.monthly-close-metric>b.good,
- .monthly-operation.good>span,.monthly-close-balance strong.positive,
- .planning-kpis .funding,.planning-kpis .good,.planning-funding strong,
- .planning-goal-actions button.complete
-) {color:var(--nh-success)!important;}
-html[data-theme="light"] .app :is(
- .backup-kpis .warning,.recovery-icon,
- .diagnostic-issue-totals .warning strong,.diagnostic-system-card.warning>span,
- .diagnostic-check.warning>span,.diagnostic-priority-list>button.warning>span,
- .health-domain-card.watch .health-domain-icon,.health-rec.warning .health-rec-icon,
- .health-metric.maintenance>span,.monthly-close-insights>button.warning>span,
- .monthly-operation.warning>span,.planning-kpis .soon,
- .planning-roadmap-goal.warning>span,.planning-goal-card.warning .planning-goal-icon
-) {color:var(--nh-warning)!important;}
-html[data-theme="light"] .app :is(
- .backup-list-actions button.danger,.recovery-list .discard,
- .diagnostic-issue-totals .error strong,.diagnostic-system-card.danger>span,
- .diagnostic-check.error>span,.diagnostic-priority-list>button.error>span,
- .diagnostic-error-list b,.health-domain-card.risk .health-domain-icon,
- .health-rec.danger .health-rec-icon,.monthly-close-metric.expense>span,
- .monthly-close-metric>b.bad,.monthly-operation.danger>span,
- .monthly-close-balance strong.negative,.planning-kpis .danger,
- .planning-goal-card.danger .planning-goal-icon,.planning-goal-actions button.danger
-) {color:var(--nh-danger)!important;}
-html[data-theme="light"] .app :is(
- .automation-run,.automation-rule-config button,.backup-primary,
- .diagnostic-actions button.primary,.diagnostic-error-list button,
- .monthly-close-primary,.planning-new,.planning-milestones-head button
-) {background:#e5f4fb!important;color:#086f96!important;border-color:#aed6e8!important;}
-html[data-theme="light"] .app :is(
- .planning-tabs button.active,.planning-horizon-picker label.active
-) {background:#e3f3fc!important;color:#0c749c!important;border-color:#9dccde!important;}
-/* Charts, indicators and progress tracks: keep filled data accents visible. */
-html[data-theme="light"] .app :is(
- .health-domain-bar,.health-coverage-track,.monthly-category-bar,
- .monthly-rate-track,.planning-goal-progress
-) {background:var(--nh-track)!important;}
-html[data-theme="light"] .app :is(.diagnostic-score,.monthly-close-score) {
- background:conic-gradient(#1b9970 calc(var(--score)*1%),#e2eaf0 0)!important;
-}
-html[data-theme="light"] .app :is(.diagnostic-score:before,.health-score-ring:before,.monthly-close-score:before) {
- background:#ffffff!important;
-}
-html[data-theme="light"] .app :is(.diagnostic-hero.attention .diagnostic-score,.monthly-close-hero.watch .monthly-close-score) {
- background:conic-gradient(#c98a2b calc(var(--score)*1%),#e2eaf0 0)!important;
-}
-html[data-theme="light"] .app :is(.diagnostic-hero.risk .diagnostic-score,.monthly-close-hero.risk .monthly-close-score) {
- background:conic-gradient(#d35a67 calc(var(--score)*1%),#e2eaf0 0)!important;
-}
-html[data-theme="light"] .app .health-score-ring {
- background:conic-gradient(#1b9970 calc(var(--score)*1%),#e2eaf0 0)!important;
-}
-html[data-theme="light"] .app .health-hero.watch .health-score-ring {
- background:conic-gradient(#c98a2b calc(var(--score)*1%),#e2eaf0 0)!important;
-}
-html[data-theme="light"] .app .health-hero.risk .health-score-ring {
- background:conic-gradient(#d35a67 calc(var(--score)*1%),#e2eaf0 0)!important;
-}
-html[data-theme="light"] .app .health-hero.setup .health-score-ring {
- background:conic-gradient(#238fb8 calc(var(--score)*1%),#e2eaf0 0)!important;
-}
-/* Shared widgets not yet covered by the older global light palette. */
-html[data-theme="light"] .app :is(
- .global-command-panel,.global-search-box,.global-search-results>section,
- .document-search,.document-meta>div,.document-file,
- .document-actions button,.document-category-strip button,
- .list-empty-v2,.list-item-form,.list-check,
- .maintenance-warranty-list>div,.maintenance-asset-head>button,
- .maintenance-alert-row>div:last-child button,
- .meal-day-head,.meal-slot-actions button,.recipe-ingredients-editor,
- .pantry-card-head>button,.pantry-quantity>button,
- .family-summary>div,.family-member-actions button,
- .account-debt-details>div,.asset-actions button,.account-card-actions button,
- .modal-head button,.pwa-install,.pwa-install-close
-) {background:var(--nh-subtle)!important;color:var(--nh-text)!important;border-color:var(--nh-border)!important;}
-html[data-theme="light"] .app :is(
- .global-command-panel,.document-search,.document-category-strip button,
- .list-item-form,.maintenance-warranty-list>div,.recipe-ingredients-editor,
- .family-summary>div,.account-debt-details>div,.pwa-install
-) :is(h2,h3,strong,b) {color:var(--nh-text)!important;}
-html[data-theme="light"] .app :is(.global-command-panel,.pwa-install) :is(p,small,em) {
- color:var(--nh-muted)!important;
-}
-html[data-theme="light"] .app :is(input,textarea,select) {color-scheme:light;}
-html[data-theme="light"] .app :is(button,[role="button"]):focus-visible,
-html[data-theme="light"] .header-theme-toggle:focus-visible {
- outline:2px solid var(--nh-accent);outline-offset:2px;
-}
-html[data-theme="light"] .auth :is(.auth-card,.status) {background:#fff;color:var(--nh-text);border-color:var(--nh-border);}
-html[data-theme="light"] .auth :is(.auth-card h1,.auth-card strong) {color:var(--nh-text);}
-html[data-theme="light"] .auth :is(input,select,textarea) {background:#f7fafc;color:var(--nh-text);border-color:var(--nh-border);}
-html[data-theme="light"] .auth .muted {color:var(--nh-muted);}
-/* Small screens should never clip the family name when switching appearance. */
-.app .home-select-wrap {max-width:100%;min-width:0;}
-.app .home-select-label {overflow-wrap:anywhere;}
+.app :is(.control-money,.finance-kpi,.comparison-kpi,.planning-kpis>div) {min-width:0;}
+.app :is(.health-domain-copy em,.health-metric em) {white-space:normal;overflow:visible;}
+.app-menu-groups strong {font-size:13px;}
+.app-menu-groups em {font-size:11px;}
+.app-menu-groups section button {padding:10px 8px;gap:10px;}
+.app .control-module-grid strong {font-size:13px;}
+.app .control-module-grid small {font-size:11px;}
+.header-theme-toggle .theme-moon {display:none;}
+html[data-theme="light"] .header-theme-toggle .theme-sun {display:none;}
+html[data-theme="light"] .header-theme-toggle .theme-moon {display:block;}
 @media(max-width:620px) {
- .app header>div:first-child {min-width:0;}
- .app .home-select-wrap {min-width:0;max-width:100%;}
+ .app header {flex-wrap:wrap;row-gap:12px;}
+ .app header>div:first-child {flex:1 1 100%;padding-right:42px;}
+ .app header .header-actions {width:100%;justify-content:flex-end;}
+ .app .home-select-label {font-size:clamp(20px,5.6vw,26px);}
+ .header-theme-toggle {width:34px;height:34px;top:0;}
+ .app .health-domain-grid {grid-template-columns:1fr;}
+ .app .finance-top,.app .health-top {flex-wrap:wrap;align-items:flex-start;}
+ .app .pwa-update {bottom:calc(98px + env(safe-area-inset-bottom));}
 }
 @media(prefers-reduced-motion:reduce) {
- html[data-theme="light"] .app *,html[data-theme="dark"] .app * {transition-duration:.001ms!important;}
+ *,*::before,*::after {scroll-behavior:auto!important;transition-duration:.001ms!important;}
 }
+/* The watermark is a mask: its ink follows the active palette as well. */
+.home-control .control-hero {position:relative;isolation:isolate;overflow:hidden;}
+.home-control .control-hero::before {
+ content:"";position:absolute;right:-14px;bottom:-14px;width:190px;height:190px;
+ pointer-events:none;z-index:-1;opacity:.09;background-color:var(--nh-accent);
+ --house-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Cg fill='none' stroke='black' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 88 90 35l62 53M45 79v68h90V79M75 147v-43h30v43M68 68h10m24 0h10'/%3E%3Cpath d='M24 157c19-22 30-22 44-17m89 18c-18-23-27-27-43-20' stroke-width='3'/%3E%3C/g%3E%3C/svg%3E");
+ mask-image:var(--house-mask);mask-size:contain;mask-position:center;mask-repeat:no-repeat;
+ -webkit-mask-image:var(--house-mask);-webkit-mask-size:contain;-webkit-mask-position:center;-webkit-mask-repeat:no-repeat;
+}
+@media(max-width:520px) {.home-control .control-hero::before{width:130px;height:130px;}}
 
-/* Fine-grained audit: nested controls in the remaining core modules. */
-html[data-theme="light"] .app :is(
- .document-empty,.maintenance-asset-data>div,.maintenance-plan-details>div,
- .maintenance-plan-actions button,.maintenance-history>article,
- .family-role-select select,.family-responsibility-editor button,
- .family-permission-table-head,.family-permission-row,
- .global-search-trigger,.global-add-trigger,.global-command-head>button,
- .global-result-group-head b,.global-quick-form,
- .transaction-action,.home-snapshot>button
-) {background:var(--nh-subtle)!important;color:var(--nh-text)!important;border-color:var(--nh-border)!important;}
-html[data-theme="light"] .app :is(
- .document-empty strong,.maintenance-history>article strong,
- .family-permission-table-head strong,.family-permission-row strong,
- .global-quick-form strong,.home-snapshot>button strong
-) {color:var(--nh-text)!important;}
-html[data-theme="light"] .app :is(
- .document-empty,.family-role-select,.family-role-select small,
- .family-responsibility-editor>span,.global-result-group-head,
- .home-snapshot>button small,.maintenance-asset-data>div small,
- .maintenance-plan-details>div small,.maintenance-history>article small
-) {color:var(--nh-muted)!important;}
-html[data-theme="light"] .app :is(.family-leave,.family-remove-member) {
- background:#fff0f2!important;color:#a72d40!important;border-color:#efc5cb!important;
+/* Numeric badges remain readable even when a data bar reaches the chart's top. */
+.saving-rate-track>b {
+ left:50%;right:auto;transform:translateX(-50%);background:var(--nh-surface);
+ color:var(--nh-purple);border:1px solid var(--nh-border);border-radius:6px;padding:2px 5px;
 }
-html[data-theme="light"] .app .recurring-actions .skip {
- background:#edf4f7!important;color:#516979!important;border-color:#cadce6!important;
-}
-html[data-theme="light"] .app .global-command-scrim {
- background:#112a3c7a!important;
-}
-/* Keep icon and amount colors visible in nested controls. */
-html[data-theme="light"] .app :is(
- .global-add-trigger svg,.global-search-trigger svg,.transaction-action.edit svg,
- .document-empty>svg,.home-snapshot>button>svg
-) {color:var(--nh-accent)!important;}
-html[data-theme="light"] .app :is(
- .family-permission-row button,.global-quick-form button,
- .maintenance-plan-actions button,.home-snapshot>button
-):focus-visible {outline:2px solid var(--nh-accent);outline-offset:2px;}
+.balance-track>i {background:var(--nh-muted);opacity:.65;}
+.category-bars .previous,.category-comparison-legend .previous {background:var(--nh-chart-previous);}
+.app :is(.planning-goal-card.completed,.planning-milestones>div.done,.list-item-v2.done,
+ .family-responsibility-list span.empty,.health-domain-card.unconfigured) {opacity:1;}

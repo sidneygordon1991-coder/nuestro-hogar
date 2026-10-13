@@ -1,5 +1,6 @@
+import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowDownLeft,ArrowUpRight,CalendarDays,Car,Check,FileText,ListChecks,Package,Plus,ReceiptText,Search,ShoppingCart,Users,Utensils,WalletCards,Wrench,X} from 'lucide-react';
+import {ArrowDownLeft,ArrowUpRight,Car,Check,Package,Plus,ReceiptText,Search,ShoppingCart,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -202,11 +203,11 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
     {!action?<div className="quick-action-grid">
       {canEdit('finance')&&<QuickCard icon={<ArrowDownLeft/>} tone="expense" title="Gasto" subtitle="Registra un gasto y reparte automáticamente" onClick={()=>setAction('expense')}/>}
       {canEdit('finance')&&<QuickCard icon={<ArrowUpRight/>} tone="income" title="Ingreso" subtitle="Registra dinero que entró al hogar" onClick={()=>setAction('income')}/>}
-      {canEdit('lists')&&<QuickCard icon={<ListChecks/>} tone="task" title="Tarea" subtitle="Pendiente para ti o la familia" onClick={()=>setAction('task')}/>}
+      {canEdit('lists')&&<QuickCard icon={<ModuleIcon name="lists"/>} tone="task" title="Tarea" subtitle="Pendiente para ti o la familia" onClick={()=>setAction('task')}/>}
       {canEdit('lists')&&<QuickCard icon={<ShoppingCart/>} tone="shopping" title="Compra" subtitle="Agrega algo a Supermercado" onClick={()=>setAction('shopping')}/>}
-      {canEdit('calendar')&&<QuickCard icon={<CalendarDays/>} tone="event" title="Evento" subtitle="Cita o actividad en la agenda" onClick={()=>setAction('event')}/>}
-      {canEdit('documents')&&<QuickCard icon={<FileText/>} tone="document" title="Documento" subtitle="Guarda archivo o vencimiento" onClick={()=>setAction('document')}/>}
-      {canEdit('maintenance')&&<QuickCard icon={<Wrench/>} tone="maintenance" title="Mantenimiento" subtitle="Programa casa, vehículo o equipo" onClick={()=>setAction('maintenance')}/>}
+      {canEdit('calendar')&&<QuickCard icon={<ModuleIcon name="calendar"/>} tone="event" title="Evento" subtitle="Cita o actividad en la agenda" onClick={()=>setAction('event')}/>}
+      {canEdit('documents')&&<QuickCard icon={<ModuleIcon name="documents"/>} tone="document" title="Documento" subtitle="Guarda archivo o vencimiento" onClick={()=>setAction('document')}/>}
+      {canEdit('maintenance')&&<QuickCard icon={<ModuleIcon name="maintenance"/>} tone="maintenance" title="Mantenimiento" subtitle="Programa casa, vehículo o equipo" onClick={()=>setAction('maintenance')}/>}
       <QuickCard icon={<Search/>} tone="search" title="Buscar" subtitle="Encuentra cualquier información permitida" onClick={openSearch}/>
      </div>:<div className="quick-form-wrap">
       <button className="quick-back" onClick={()=>{setAction(null);setMessage('')}}>‹ Volver a acciones</button>
@@ -238,7 +239,7 @@ function TransactionForm({type,categories,accounts,busy,onSubmit}:{type:'expense
 }
 
 function TaskForm({lists,members,busy,onSubmit}:{lists:ListRow[];members:Member[];busy:boolean;onSubmit:(e:FormEvent<HTMLFormElement>)=>void}){
- return <form className="finance-form global-quick-form" onSubmit={onSubmit}><QuickTitle icon={<ListChecks/>} label="TAREA" title="Nuevo pendiente"/>
+ return <form className="finance-form global-quick-form" onSubmit={onSubmit}><QuickTitle icon={<ModuleIcon name="lists"/>} label="TAREA" title="Nuevo pendiente"/>
   <label>Tarea<input name="text" placeholder="Ej. Pagar internet" required/></label>
   <div className="two"><label>Lista<select name="list_id" defaultValue=""><option value="">Pendientes (automático)</option>{lists.filter(l=>l.list_type!=='shopping').map(l=><option key={l.id} value={l.id}>{l.title}</option>)}</select></label><label>Responsable<select name="assigned_to" defaultValue=""><option value="">Sin asignar</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select></label></div>
   <label>Fecha límite<input name="due_date" type="date"/></label><label>Nota<input name="notes" placeholder="Opcional"/></label>
@@ -254,38 +255,38 @@ function ShoppingForm({busy,onSubmit}:{busy:boolean;onSubmit:(e:FormEvent<HTMLFo
 }
 
 function EventForm({members,busy,onSubmit}:{members:Member[];busy:boolean;onSubmit:(e:FormEvent<HTMLFormElement>)=>void}){
- return <form className="finance-form global-quick-form" onSubmit={onSubmit}><QuickTitle icon={<CalendarDays/>} label="AGENDA" title="Nuevo evento"/>
+ return <form className="finance-form global-quick-form" onSubmit={onSubmit}><QuickTitle icon={<ModuleIcon name="calendar"/>} label="AGENDA" title="Nuevo evento"/>
   <label>Título<input name="title" placeholder="Ej. Cita médica" required/></label>
   <div className="two"><label>Fecha<input name="date" type="date" defaultValue={iso()} required/></label><label>Hora<input name="time" type="time"/></label></div>
   <div className="two"><label>Categoría<select name="category" defaultValue="family"><option value="family">Familia</option><option value="appointment">Cita</option><option value="task">Tarea</option><option value="social">Social</option><option value="health">Salud</option><option value="school">Estudios</option><option value="other">Otro</option></select></label><label>Responsable<select name="assigned_to" defaultValue=""><option value="">Todos</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select></label></div>
   <label className="check-line"><input name="all_day" type="checkbox"/> Todo el día</label><label>Descripción<input name="description" placeholder="Opcional"/></label>
-  <button className="finance-primary" disabled={busy}><CalendarDays/>{busy?'Guardando...':'Agregar evento'}</button>
+  <button className="finance-primary" disabled={busy}><ModuleIcon name="calendar"/>{busy?'Guardando...':'Agregar evento'}</button>
  </form>
 }
 
 function DocumentForm({busy,onSubmit}:{busy:boolean;onSubmit:(e:FormEvent<HTMLFormElement>)=>void}){
- return <form className="finance-form global-quick-form" onSubmit={onSubmit}><QuickTitle icon={<FileText/>} label="BÓVEDA" title="Guardar documento"/>
+ return <form className="finance-form global-quick-form" onSubmit={onSubmit}><QuickTitle icon={<ModuleIcon name="documents"/>} label="BÓVEDA" title="Guardar documento"/>
   <label>Título<input name="title" placeholder="Ej. Seguro del vehículo" required/></label>
   <div className="two"><label>Categoría<select name="category" defaultValue="other"><option value="personal">Personal</option><option value="home">Casa</option><option value="vehicle">Vehículo</option><option value="health">Salud</option><option value="finance">Finanzas</option><option value="insurance">Seguro</option><option value="warranty">Garantía</option><option value="education">Educación</option><option value="other">Otro</option></select></label><label>Vence<input name="expires_on" type="date"/></label></div>
   <label>Archivo<input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"/></label>
   <label>Nota<input name="notes" placeholder="Opcional"/></label><label className="check-line"><input type="checkbox" name="private"/> Solo yo puedo verlo</label>
-  <button className="finance-primary" disabled={busy}><FileText/>{busy?'Guardando...':'Guardar documento'}</button>
+  <button className="finance-primary" disabled={busy}><ModuleIcon name="documents"/>{busy?'Guardando...':'Guardar documento'}</button>
  </form>
 }
 
 function MaintenanceForm({assets,members,busy,onSubmit}:{assets:Asset[];members:Member[];busy:boolean;onSubmit:(e:FormEvent<HTMLFormElement>)=>void}){
- return <form className="finance-form global-quick-form" onSubmit={onSubmit}><QuickTitle icon={<Wrench/>} label="MANTENIMIENTO" title="Programar servicio"/>
+ return <form className="finance-form global-quick-form" onSubmit={onSubmit}><QuickTitle icon={<ModuleIcon name="maintenance"/>} label="MANTENIMIENTO" title="Programar servicio"/>
   <label>Actividad<input name="title" placeholder="Ej. Cambio de aceite" required/></label>
   <div className="two"><label>Activo<select name="asset_id" defaultValue=""><option value="">General del hogar</option>{assets.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label>Tipo<select name="maintenance_type" defaultValue="service"><option value="service">Servicio</option><option value="repair">Reparación</option><option value="inspection">Inspección</option><option value="insurance">Seguro</option><option value="registration">Renovación</option><option value="warranty">Garantía</option><option value="cleaning">Limpieza</option><option value="other">Otro</option></select></label></div>
   <div className="two"><label>Próxima fecha<input name="next_due_date" type="date"/></label><label>Próximo km<input name="next_due_mileage" type="number" min="0" step="1"/></label></div>
   <div className="two"><label>Repetir cada meses<input name="interval_months" type="number" min="1" max="120" placeholder="Ej. 6"/></label><label>Repetir cada km<input name="interval_km" type="number" min="1" step="1" placeholder="Ej. 5000"/></label></div>
   <div className="two"><label>Proveedor<input name="provider" placeholder="Opcional"/></label><label>Responsable<select name="assigned_to" defaultValue=""><option value="">Todos</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select></label></div>
-  <button className="finance-primary" disabled={busy}><Wrench/>{busy?'Guardando...':'Programar mantenimiento'}</button>
+  <button className="finance-primary" disabled={busy}><ModuleIcon name="maintenance"/>{busy?'Guardando...':'Programar mantenimiento'}</button>
  </form>
 }
 
 function QuickTitle({icon,label,title}:{icon:React.ReactNode;label:string;title:string}){return <div className="quick-form-title"><span>{icon}</span><div><p className="eyebrow">{label}</p><h3>{title}</h3></div></div>}
 function ChevronResult(){return <span className="global-result-chevron">›</span>}
 function resultGroup(type:string){if(type==='transaction')return'Finanzas';if(type==='document')return'Documentos';if(type==='event')return'Agenda';if(type==='list'||type==='list_item')return'Listas';if(type==='recipe'||type==='pantry')return'Comidas';if(type==='maintenance'||type==='asset')return'Casa y activos';if(type==='person')return'Familia';return'Otros'}
-function resultIcon(type:string){if(type==='transaction')return <ReceiptText/>;if(type==='document')return <FileText/>;if(type==='event')return <CalendarDays/>;if(type==='list'||type==='list_item')return <ListChecks/>;if(type==='recipe')return <Utensils/>;if(type==='pantry')return <Package/>;if(type==='maintenance')return <Wrench/>;if(type==='asset')return <Car/>;if(type==='person')return <Users/>;return <Search/>}
+function resultIcon(type:string){if(type==='transaction')return <ReceiptText/>;if(type==='document')return <ModuleIcon name="documents"/>;if(type==='event')return <ModuleIcon name="calendar"/>;if(type==='list'||type==='list_item')return <ModuleIcon name="lists"/>;if(type==='recipe')return <ModuleIcon name="meals"/>;if(type==='pantry')return <Package/>;if(type==='maintenance')return <ModuleIcon name="maintenance"/>;if(type==='asset')return <Car/>;if(type==='person')return <ModuleIcon name="family"/>;return <Search/>}
 function formatDate(value:string){return new Date(value+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'}).replace('.','')}

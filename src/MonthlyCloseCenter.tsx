@@ -1,5 +1,6 @@
+import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,ArrowDownRight,ArrowUpRight,CalendarCheck2,Check,CheckCircle2,ChevronLeft,ChevronRight,ClipboardCheck,Copy,FileText,ListChecks,Minus,Plus,ReceiptText,RefreshCw,Sparkles,Target,TrendingUp,Utensils,WalletCards,Wrench} from 'lucide-react';
+import {AlertTriangle,ArrowDownRight,ArrowUpRight,CalendarCheck2,Check,CheckCircle2,ChevronLeft,ChevronRight,Copy,Minus,Plus,ReceiptText,RefreshCw,Sparkles,Target,TrendingUp} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import './MonthlyCloseCenter.css';
 
@@ -111,7 +112,7 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
  }
 
  if(loading)return <div className="finance-loading"><div className="loader"/></div>;
- if(!snapshot)return <section className="monthly-close-center"><div className="document-empty"><ClipboardCheck/><strong>No pudimos preparar el cierre</strong><span>{message||'Intenta nuevamente.'}</span><button onClick={()=>load()}><RefreshCw/> Reintentar</button></div></section>;
+ if(!snapshot)return <section className="monthly-close-center"><div className="document-empty"><ModuleIcon name="monthly_close"/><strong>No pudimos preparar el cierre</strong><span>{message||'Intenta nuevamente.'}</span><button onClick={()=>load()}><RefreshCw/> Reintentar</button></div></section>;
 
  const f=snapshot.financial,p=snapshot.previous,c=snapshot.changes,o=snapshot.operations;
  const maxCategory=Math.max(1,...snapshot.top_categories.map(x=>Number(x.amount||0)));
@@ -159,10 +160,10 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
   <div className="monthly-close-operations">
    <OperationCard icon={<CheckCircle2/>} title="Tareas completadas" value={o.tasks_completed} detail={o.tasks_overdue?o.tasks_overdue+' vencida'+(o.tasks_overdue===1?'':'s'):'Sin vencidas'} tone={o.tasks_overdue?'warning':'good'} onClick={()=>onNavigate('listas')}/>
    <OperationCard icon={<CalendarCheck2/>} title="Agenda" value={o.events} detail="eventos del período" tone="neutral" onClick={()=>onNavigate('calendario')}/>
-   <OperationCard icon={<Wrench/>} title="Mantenimiento" value={o.maintenance_count} detail={o.maintenance_count?currency(o.maintenance_cost):'sin servicios'} tone="neutral" onClick={()=>onNavigate('mantenimiento')}/>
-   <OperationCard icon={<FileText/>} title="Documentos" value={o.documents_due} detail="con vencimiento en el mes" tone={o.documents_due?'warning':'good'} onClick={()=>onNavigate('documentos')}/>
-   <OperationCard icon={<Utensils/>} title="Comidas preparadas" value={o.meals_prepared} detail="registradas" tone="neutral" onClick={()=>onNavigate('comidas')}/>
-   <OperationCard icon={<WalletCards/>} title="Pagos recurrentes" value={o.recurring_paid} detail={o.recurring_pending?o.recurring_pending+' pendiente'+(o.recurring_pending===1?'':'s'):'todos resueltos'} tone={o.recurring_pending?'danger':'good'} onClick={()=>onNavigate('presupuesto')}/>
+   <OperationCard icon={<ModuleIcon name="maintenance"/>} title="Mantenimiento" value={o.maintenance_count} detail={o.maintenance_count?currency(o.maintenance_cost):'sin servicios'} tone="neutral" onClick={()=>onNavigate('mantenimiento')}/>
+   <OperationCard icon={<ModuleIcon name="documents"/>} title="Documentos" value={o.documents_due} detail="con vencimiento en el mes" tone={o.documents_due?'warning':'good'} onClick={()=>onNavigate('documentos')}/>
+   <OperationCard icon={<ModuleIcon name="meals"/>} title="Comidas preparadas" value={o.meals_prepared} detail="registradas" tone="neutral" onClick={()=>onNavigate('comidas')}/>
+   <OperationCard icon={<ModuleIcon name="finance"/>} title="Pagos recurrentes" value={o.recurring_paid} detail={o.recurring_pending?o.recurring_pending+' pendiente'+(o.recurring_pending===1?'':'s'):'todos resueltos'} tone={o.recurring_pending?'danger':'good'} onClick={()=>onNavigate('presupuesto')}/>
   </div>
 
   <div className="monthly-close-secondary-grid">
@@ -172,7 +173,7 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
    </section>
 
    <section className="monthly-close-panel">
-    <div className="monthly-close-panel-head"><div><p className="eyebrow">PATRIMONIO</p><h3>Posición financiera</h3></div><WalletCards/></div>
+    <div className="monthly-close-panel-head"><div><p className="eyebrow">PATRIMONIO</p><h3>Posición financiera</h3></div><ModuleIcon name="finance"/></div>
     <div className="monthly-networth"><small>Patrimonio registrado</small><strong>{f.net_worth==null?'Sin dato':currency(f.net_worth)}</strong>{c.net_worth_amount!=null&&<span className={c.net_worth_amount>=0?'positive':'negative'}>{c.net_worth_amount>=0?<ArrowUpRight/>:<ArrowDownRight/>}{currency(Math.abs(c.net_worth_amount))} vs período anterior</span>}</div>
     <div className="monthly-rate-row"><div><span>Tasa de ahorro</span><strong>{f.saving_rate}%</strong></div><div className="monthly-rate-track"><span style={{width:Math.min(100,Math.max(2,f.saving_rate*4))+'%'}}/></div><small>{f.saving_rate>=15?'Nivel sólido':f.saving_rate>=10?'Buen punto de partida':'Objetivo sugerido: 10% o más'}</small></div>
    </section>
@@ -185,7 +186,7 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
     <div className="monthly-focus-editor"><span>Objetivos del próximo mes</span>{focus.map((item,index)=><div key={index}><input value={item} disabled={readOnly} onChange={e=>setFocusValue(index,e.target.value)} placeholder={'Objetivo '+(index+1)}/>{!readOnly&&<button onClick={()=>removeFocus(index)} title="Quitar"><Minus/></button>}</div>)}{!readOnly&&focus.length<5&&<button className="monthly-add-focus" onClick={addFocus}><Plus/> Agregar objetivo</button>}</div>
    </div>
    <div className="monthly-close-footer">
-    {isCurrent&&!closure?<div className="monthly-close-notice"><CalendarCheck2/><span><strong>Mes en curso</strong><small>Puedes revisar la vista previa ahora. El cierre definitivo estará disponible cuando termine {monthLabel(month).split(' ')[0]}.</small></span></div>:closure?<div className="monthly-close-notice closed"><CheckCircle2/><span><strong>Cierre protegido</strong><small>Los números quedaron congelados; solo puedes actualizar la reflexión y los objetivos.</small></span></div>:<div className="monthly-close-notice ready"><ClipboardCheck/><span><strong>Listo para cerrar</strong><small>Al cerrar, guardaremos esta fotografía para futuras comparaciones.</small></span></div>}
+    {isCurrent&&!closure?<div className="monthly-close-notice"><CalendarCheck2/><span><strong>Mes en curso</strong><small>Puedes revisar la vista previa ahora. El cierre definitivo estará disponible cuando termine {monthLabel(month).split(' ')[0]}.</small></span></div>:closure?<div className="monthly-close-notice closed"><CheckCircle2/><span><strong>Cierre protegido</strong><small>Los números quedaron congelados; solo puedes actualizar la reflexión y los objetivos.</small></span></div>:<div className="monthly-close-notice ready"><ModuleIcon name="monthly_close"/><span><strong>Listo para cerrar</strong><small>Al cerrar, guardaremos esta fotografía para futuras comparaciones.</small></span></div>}
     {!readOnly&&<button className="monthly-close-primary" disabled={busy||isCurrent} onClick={closure?saveReflection:finalize}>{busy?'Guardando...':closure?'Guardar reflexión':'Cerrar mes'}</button>}
    </div>
   </section>
@@ -194,7 +195,7 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
 
 function CloseMetric({title,value,previous,change,kind,subtitle}:{title:string;value:string;previous:string;change:number|null;kind:'income'|'expense'|'saving'|'budget';subtitle?:string}){
  const good=change==null?null:kind==='expense'?change<=0:change>=0;
- return <article className={'monthly-close-metric '+kind}><span>{kind==='income'?<ArrowUpRight/>:kind==='expense'?<ArrowDownRight/>:kind==='saving'?<Target/>:<WalletCards/>}</span><div><small>{title}</small><strong>{value}</strong><em>{subtitle||'Anterior: '+previous}</em></div>{change!=null&&<b className={good?'good':'bad'}>{change>0?'+':''}{Math.round(change)}%</b>}</article>
+ return <article className={'monthly-close-metric '+kind}><span>{kind==='income'?<ArrowUpRight/>:kind==='expense'?<ArrowDownRight/>:kind==='saving'?<Target/>:<ModuleIcon name="finance"/>}</span><div><small>{title}</small><strong>{value}</strong><em>{subtitle||'Anterior: '+previous}</em></div>{change!=null&&<b className={good?'good':'bad'}>{change>0?'+':''}{Math.round(change)}%</b>}</article>
 }
 function OperationCard({icon,title,value,detail,tone,onClick}:{icon:React.ReactNode;title:string;value:number;detail:string;tone:'good'|'warning'|'danger'|'neutral';onClick:()=>void}){
  return <button className={'monthly-operation '+tone} onClick={onClick}><span>{icon}</span><div><small>{title}</small><strong>{value}</strong><em>{detail}</em></div><ChevronRight/></button>

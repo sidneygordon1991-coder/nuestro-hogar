@@ -1,6 +1,7 @@
+import ModuleIcon from './ModuleIcon';
 
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,ArrowRight,Building2,CalendarDays,Car,Check,CheckCircle2,ChevronRight,CircleDollarSign,Clock3,CreditCard,Edit3,Flag,Home,ListChecks,Map,Pause,Plane,Plus,ReceiptText,Sparkles,Target,Trash2,TrendingUp,WalletCards,Wrench,X} from 'lucide-react';
+import {AlertTriangle,ArrowRight,Building2,Car,Check,CheckCircle2,ChevronRight,CircleDollarSign,Clock3,CreditCard,Edit3,Flag,Pause,Plane,Plus,ReceiptText,Sparkles,Target,Trash2,TrendingUp,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import './PlanningCenter.css';
 
@@ -140,7 +141,7 @@ export default function PlanningCenter({household,onNavigate,readOnly=false}:{ho
   </div>
 
   <section className="planning-roadmap-panel">
-   <div className="planning-panel-head"><div><p className="eyebrow">ROADMAP</p><h3>Horizonte de los próximos 12 meses</h3></div><Map/></div>
+   <div className="planning-panel-head"><div><p className="eyebrow">ROADMAP</p><h3>Horizonte de los próximos 12 meses</h3></div><ModuleIcon name="planning"/></div>
    <div className="planning-roadmap">{roadmap.map(bucket=><div className="planning-roadmap-column" key={bucket.horizon}><div className="planning-roadmap-column-head"><strong>{bucket.horizon} {bucket.horizon===1?'mes':'meses'}</strong><span>{bucket.goals.length}</span></div>{bucket.goals.length?bucket.goals.slice(0,4).map(goal=><button key={goal.id} className={'planning-roadmap-goal '+paceTone(goal.pace_status)} onClick={()=>setOpenGoal(goal.id)}><span>{goalIcon(goal.goal_type)}</span><div><strong>{goal.title}</strong><small>{goal.target_amount?Math.round(goal.progress_pct)+'% · '+money(goal.required_monthly||0)+'/mes':Math.round(goal.progress_pct)+'% completado'}</small></div></button>):<div className="planning-roadmap-empty">Sin objetivos</div>}</div>)}</div>
   </section>
 
@@ -150,18 +151,18 @@ export default function PlanningCenter({household,onNavigate,readOnly=false}:{ho
    <section className="planning-goals-panel">
     <div className="planning-panel-head"><div><p className="eyebrow">OBJETIVOS</p><h3>{horizon?'Horizonte '+horizon+' '+(horizon===1?'mes':'meses'):'Todos los objetivos'}</h3></div><span>{filtered.length}</span></div>
     <div className="planning-goal-list">{filtered.map(goal=><GoalCard key={goal.id} goal={goal} milestones={milestones.filter(m=>m.planning_goal_id===goal.id)} expanded={openGoal===goal.id} onExpand={()=>setOpenGoal(openGoal===goal.id?null:goal.id)} onEdit={()=>startGoal(goal)} onStatus={status=>setGoalStatus(goal,status)} onDelete={()=>deleteGoal(goal)} onToggleMilestone={toggleMilestone} onDeleteMilestone={deleteMilestone} onAddMilestone={()=>setShowMilestone(goal.id)} onNavigate={onNavigate} readOnly={readOnly}/>)}</div>
-    {!filtered.length&&<div className="document-empty"><Map/><strong>No hay objetivos en este horizonte</strong><span>{readOnly?'No hay objetivos disponibles para consultar.':'Agrega una meta y Nuestro Hogar construirá el primer roadmap automáticamente.'}</span>{!readOnly&&<button onClick={()=>startGoal()}><Plus/> Crear objetivo</button>}</div>}
+    {!filtered.length&&<div className="document-empty"><ModuleIcon name="planning"/><strong>No hay objetivos en este horizonte</strong><span>{readOnly?'No hay objetivos disponibles para consultar.':'Agrega una meta y Nuestro Hogar construirá el primer roadmap automáticamente.'}</span>{!readOnly&&<button onClick={()=>startGoal()}><Plus/> Crear objetivo</button>}</div>}
    </section>
 
    <aside className="planning-side">
     <section className="planning-side-panel">
-     <div className="planning-panel-head"><div><p className="eyebrow">SIGUIENTES PASOS</p><h3>Qué toca ahora</h3></div><ListChecks/></div>
+     <div className="planning-panel-head"><div><p className="eyebrow">SIGUIENTES PASOS</p><h3>Qué toca ahora</h3></div><ModuleIcon name="lists"/></div>
      <div className="planning-next-list">{nextMilestones.map(m=>{const g=goals.find(x=>x.id===m.planning_goal_id);return <button key={m.id} onClick={()=>{setOpenGoal(m.planning_goal_id);if(m.linked_tab)onNavigate(String(m.linked_tab))}}><span className={m.due_date&&m.due_date<iso()?'danger':'normal'}><Flag/></span><div><strong>{m.title}</strong><small>{g?.title||'Objetivo'} · {fmtDate(m.due_date)}</small></div><ChevronRight/></button>})}</div>
      {!nextMilestones.length&&<div className="control-empty small"><CheckCircle2/><span>No hay pasos pendientes.</span></div>}
     </section>
 
     <section className="planning-side-panel">
-     <div className="planning-panel-head"><div><p className="eyebrow">CARGA FINANCIERA</p><h3>Compromiso mensual</h3></div><WalletCards/></div>
+     <div className="planning-panel-head"><div><p className="eyebrow">CARGA FINANCIERA</p><h3>Compromiso mensual</h3></div><ModuleIcon name="finance"/></div>
      <div className="planning-funding"><strong>{money(summary.monthly_required)}</strong><span>necesarios al mes para cumplir objetivos financieros activos en fecha.</span></div>
      <div className="planning-funding-list">{activeGoals.filter(g=>g.required_monthly!=null&&Number(g.required_monthly)>0).sort((a,b)=>Number(b.required_monthly)-Number(a.required_monthly)).slice(0,5).map(g=><div key={g.id}><span>{g.title}</span><b>{money(Number(g.required_monthly))}</b></div>)}</div>
      <button className="planning-finance-link" onClick={()=>onNavigate('presupuesto')}>Revisar capacidad en Finanzas <ChevronRight/></button>
@@ -207,7 +208,7 @@ function GoalModal({goal,savings,accounts,maintenance,events,busy,onClose,onSubm
  </form></div></div>
 }
 
-function goalIcon(type:GoalType){if(type==='saving')return <CircleDollarSign/>;if(type==='travel')return <Plane/>;if(type==='housing')return <Building2/>;if(type==='vehicle')return <Car/>;if(type==='debt')return <CreditCard/>;if(type==='maintenance')return <Wrench/>;if(type==='event')return <CalendarDays/>;if(type==='purchase')return <ReceiptText/>;if(type==='home')return <Home/>;return <Target/>}
+function goalIcon(type:GoalType){if(type==='saving')return <CircleDollarSign/>;if(type==='travel')return <Plane/>;if(type==='housing')return <Building2/>;if(type==='vehicle')return <Car/>;if(type==='debt')return <CreditCard/>;if(type==='maintenance')return <ModuleIcon name="maintenance"/>;if(type==='event')return <ModuleIcon name="calendar"/>;if(type==='purchase')return <ReceiptText/>;if(type==='home')return <ModuleIcon name="home"/>;return <Target/>}
 function goalTypeLabel(type:GoalType){return({saving:'Ahorro',travel:'Viaje',purchase:'Compra',housing:'Vivienda',vehicle:'Vehículo',debt:'Deuda',maintenance:'Mantenimiento',event:'Evento',home:'Hogar',other:'Otro'} as Record<string,string>)[type]||'Objetivo'}
 function priorityLabel(p:Priority){return p==='high'?'Alta':p==='medium'?'Media':'Baja'}
 function paceTone(p:PaceStatus){return p==='completed'||p==='on_track'?'good':p==='due_soon'?'soon':p==='at_risk'?'warning':'danger'}

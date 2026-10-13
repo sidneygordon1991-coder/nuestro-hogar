@@ -1,5 +1,6 @@
+import ModuleIcon from './ModuleIcon';
 import {ChangeEvent,useEffect,useMemo,useRef,useState} from 'react';
-import {AlertTriangle,ArchiveRestore,CalendarDays,CheckCircle2,Clock3,Database,Download,FileJson,FileSpreadsheet,FileText,HardDrive,History,Import,Package,Printer,RefreshCw,ShieldCheck,Trash2,UploadCloud,WalletCards,X} from 'lucide-react';
+import {ArchiveRestore,CheckCircle2,Database,Download,FileJson,FileSpreadsheet,History,Package,Printer,RefreshCw,ShieldCheck,Trash2,UploadCloud,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import './BackupCenter.css';
 
@@ -167,7 +168,7 @@ export default function BackupCenter({household}:{household:Household}){
  if(loading)return <div className="finance-loading"><div className="loader"/></div>;
 
  return <section className="backup-center">
-  <div className="backup-top"><div><p className="eyebrow">SEGURIDAD DE DATOS</p><h2 className="page-title">Respaldos y recuperación</h2><p className="muted">Exporta tu información, conserva fotografías completas y recupera eliminaciones accidentales.</p></div><button className="backup-primary" onClick={()=>setShowCreate(true)}><HardDrive/> Crear respaldo</button></div>
+  <div className="backup-top"><div><p className="eyebrow">SEGURIDAD DE DATOS</p><h2 className="page-title">Respaldos y recuperación</h2><p className="muted">Exporta tu información, conserva fotografías completas y recupera eliminaciones accidentales.</p></div><button className="backup-primary" onClick={()=>setShowCreate(true)}><ModuleIcon name="backups"/> Crear respaldo</button></div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
   <div className="backup-kpis">
@@ -180,8 +181,8 @@ export default function BackupCenter({household}:{household:Household}){
    <div className="backup-panel-head"><div><p className="eyebrow">EXPORTAR</p><h3>Lleva tus datos contigo</h3><p>CSV abre directamente en Excel. El JSON conserva la estructura completa para respaldo e importación.</p></div><Download/></div>
    <div className="backup-export-grid">
     <ExportCard icon={<FileJson/>} title="Respaldo completo" text="Todos los datos del hogar y metadatos de documentos." action="Descargar JSON" busy={busy==='json'} onClick={downloadLiveJson}/>
-    <ExportCard icon={<WalletCards/>} title="Finanzas" text="Movimientos con categoría, monto, fecha y notas." action="Descargar CSV" busy={busy==='finance'} onClick={exportFinance}/>
-    <ExportCard icon={<CalendarDays/>} title="Agenda" text="Eventos, horarios, recurrencia y ubicaciones." action="Descargar CSV" busy={busy==='calendar'} onClick={exportCalendar}/>
+    <ExportCard icon={<ModuleIcon name="finance"/>} title="Finanzas" text="Movimientos con categoría, monto, fecha y notas." action="Descargar CSV" busy={busy==='finance'} onClick={exportFinance}/>
+    <ExportCard icon={<ModuleIcon name="calendar"/>} title="Agenda" text="Eventos, horarios, recurrencia y ubicaciones." action="Descargar CSV" busy={busy==='calendar'} onClick={exportCalendar}/>
     <ExportCard icon={<FileSpreadsheet/>} title="Listas" text="Compras, tareas, cantidades y estados." action="Descargar CSV" busy={busy==='lists'} onClick={exportLists}/>
     <ExportCard icon={<Package/>} title="Despensa" text="Inventario, mínimos, ubicaciones y vencimientos." action="Descargar CSV" busy={busy==='pantry'} onClick={exportPantry}/>
     <ExportCard icon={<Printer/>} title="Informe mensual" text="Resumen listo para imprimir o guardar como PDF." action="Imprimir / PDF" busy={busy==='print'} onClick={printMonthly}/>
@@ -191,7 +192,7 @@ export default function BackupCenter({household}:{household:Household}){
   <div className="backup-two">
    <section className="backup-panel">
     <div className="backup-panel-head"><div><p className="eyebrow">RESPALDOS</p><h3>Fotografías completas</h3></div><button className="backup-import" onClick={()=>fileRef.current?.click()} disabled={busy==='import'}><UploadCloud/>{busy==='import'?'Importando...':'Importar JSON'}</button><input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={importBackup}/></div>
-    {backups.length?<div className="backup-list">{backups.map(b=><article key={b.id}><span className="backup-list-icon"><HardDrive/></span><div><strong>{b.name}</strong><small>{dateTime(b.created_at)} · {formatBytes(b.size_bytes)} · {Number(b.counts?.total_records||0)} registros</small><em>{b.source==='imported'?'Importado':'Creado en Nuestro Hogar'} · v{b.schema_version}</em></div><div className="backup-list-actions"><button title="Descargar" onClick={()=>downloadStored(b)} disabled={busy==='download-'+b.id}><Download/></button><button title="Restaurar faltantes" onClick={()=>restoreBackup(b)} disabled={busy==='restore-'+b.id}><RefreshCw/></button><button className="danger" title="Eliminar respaldo" onClick={()=>deleteBackup(b)} disabled={busy==='delete-'+b.id}><Trash2/></button></div></article>)}</div>:<div className="control-empty small"><HardDrive/><span>Crea tu primer respaldo para conservar una fotografía completa del hogar.</span></div>}
+    {backups.length?<div className="backup-list">{backups.map(b=><article key={b.id}><span className="backup-list-icon"><ModuleIcon name="backups"/></span><div><strong>{b.name}</strong><small>{dateTime(b.created_at)} · {formatBytes(b.size_bytes)} · {Number(b.counts?.total_records||0)} registros</small><em>{b.source==='imported'?'Importado':'Creado en Nuestro Hogar'} · v{b.schema_version}</em></div><div className="backup-list-actions"><button title="Descargar" onClick={()=>downloadStored(b)} disabled={busy==='download-'+b.id}><Download/></button><button title="Restaurar faltantes" onClick={()=>restoreBackup(b)} disabled={busy==='restore-'+b.id}><RefreshCw/></button><button className="danger" title="Eliminar respaldo" onClick={()=>deleteBackup(b)} disabled={busy==='delete-'+b.id}><Trash2/></button></div></article>)}</div>:<div className="control-empty small"><ModuleIcon name="backups"/><span>Crea tu primer respaldo para conservar una fotografía completa del hogar.</span></div>}
    </section>
 
    <section className="backup-panel">
@@ -204,7 +205,7 @@ export default function BackupCenter({household}:{household:Household}){
    <span><ShieldCheck/></span><div><strong>Recuperación conservadora</strong><p>Restaurar un respaldo solo vuelve a insertar registros que ya no existen; nunca sobrescribe información actual. Los archivos físicos de la bóveda no viajan dentro del JSON: se respaldan sus metadatos. Si un archivo adjunto fue eliminado del almacenamiento, habrá que volver a subirlo.</p></div>
   </section>
 
-  {showCreate&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowCreate(false)}}><div className="finance-modal backup-modal"><div className="modal-head"><div><p className="eyebrow">RESPALDO MANUAL</p><h3>Crear fotografía del hogar</h3></div><button onClick={()=>setShowCreate(false)}><X/></button></div><div className="finance-form"><label>Nombre del respaldo<input value={backupName} onChange={e=>setBackupName(e.target.value)} placeholder="Ej. Antes de cierre de octubre"/></label><div className="backup-create-note"><Database/><span>Incluye finanzas, agenda, listas, documentos (metadatos), comidas, mantenimiento, planeación, cierres y configuraciones operativas.</span></div><button className="finance-primary" onClick={createBackup} disabled={busy==='create'}><HardDrive/>{busy==='create'?'Creando...':'Crear respaldo'}</button></div></div></div>}
+  {showCreate&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowCreate(false)}}><div className="finance-modal backup-modal"><div className="modal-head"><div><p className="eyebrow">RESPALDO MANUAL</p><h3>Crear fotografía del hogar</h3></div><button onClick={()=>setShowCreate(false)}><X/></button></div><div className="finance-form"><label>Nombre del respaldo<input value={backupName} onChange={e=>setBackupName(e.target.value)} placeholder="Ej. Antes de cierre de octubre"/></label><div className="backup-create-note"><Database/><span>Incluye finanzas, agenda, listas, documentos (metadatos), comidas, mantenimiento, planeación, cierres y configuraciones operativas.</span></div><button className="finance-primary" onClick={createBackup} disabled={busy==='create'}><ModuleIcon name="backups"/>{busy==='create'?'Creando...':'Crear respaldo'}</button></div></div></div>}
  </section>
 }
 
@@ -217,4 +218,4 @@ function formatBytes(value:number){if(value<1024)return value+' B';if(value<1024
 function relativeTime(value:string){const ms=Math.max(0,Date.now()-new Date(value).getTime()),m=Math.floor(ms/60000);if(m<1)return'ahora';if(m<60)return'hace '+m+' min';const h=Math.floor(m/60);if(h<24)return'hace '+h+' h';const d=Math.floor(h/24);return'hace '+d+' día'+(d===1?'':'s')}
 function daysRemaining(value:string){return Math.max(0,Math.ceil((new Date(value).getTime()-Date.now())/86400000))}
 function sourceLabel(t:string){return({transactions:'Movimiento financiero',events:'Evento',lists:'Lista',list_items:'Elemento de lista',household_documents:'Documento',pantry_items:'Producto de despensa',recipes:'Receta',maintenance_schedules:'Mantenimiento',household_planning_goals:'Objetivo de planeación'} as Record<string,string>)[t]||t.replace(/_/g,' ')}
-function recoveryIcon(t:string){if(t==='transactions')return <WalletCards/>;if(t==='events')return <CalendarDays/>;if(t==='household_documents')return <FileText/>;if(t==='pantry_items'||t==='recipes')return <Package/>;if(t==='maintenance_schedules')return <RefreshCw/>;return <ArchiveRestore/>}
+function recoveryIcon(t:string){if(t==='transactions')return <ModuleIcon name="finance"/>;if(t==='events')return <ModuleIcon name="calendar"/>;if(t==='household_documents')return <ModuleIcon name="documents"/>;if(t==='pantry_items'||t==='recipes')return <Package/>;if(t==='maintenance_schedules')return <RefreshCw/>;return <ArchiveRestore/>}
