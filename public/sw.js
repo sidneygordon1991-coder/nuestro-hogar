@@ -1,4 +1,4 @@
-const CACHE='nuestro-hogar-v6';
+const CACHE='nuestro-hogar-v7';
 const BASE='/nuestro-hogar/';
 const SHELL=[BASE,BASE+'manifest.webmanifest',BASE+'icon.svg',BASE+'icon-192.png',BASE+'icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)))});

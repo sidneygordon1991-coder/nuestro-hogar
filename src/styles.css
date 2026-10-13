@@ -221,3 +221,34 @@
  .global-command-panel .global-command-head {margin-bottom:16px;}
  .global-command-panel .global-command-head h3 {font-size:20px;line-height:1.3;}
 }
+
+/* Shared overlay contract: a child z-index cannot escape .content's stacking context. */
+.app {
+ --nh-nav-clearance:calc(112px + env(safe-area-inset-bottom));
+ padding-bottom:var(--nh-nav-clearance);
+}
+html {scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom));}
+.app>nav {bottom:calc(16px + env(safe-area-inset-bottom));}
+.app .content:has(.modal-backdrop) {z-index:100;}
+.app header:has(:is(.global-command-panel,.notification-panel,.app-menu-drawer)) {z-index:100;}
+.app:has(:is(.modal-backdrop,.global-command-panel,.notification-panel,.app-menu-drawer))>nav,
+.app:has(:is(.modal-backdrop,.global-command-panel,.notification-panel,.app-menu-drawer)) .pwa-install,
+.app:has(:is(.modal-backdrop,.global-command-panel,.notification-panel,.app-menu-drawer)) .pwa-update {
+ visibility:hidden;pointer-events:none;
+}
+body:has(.app :is(.modal-backdrop,.global-command-panel,.notification-panel,.app-menu-drawer)) {
+ overflow:hidden;
+}
+.app .modal-backdrop {
+ z-index:120;overflow-y:auto;overscroll-behavior:contain;
+ padding:12px;
+ padding:calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+}
+.app .finance-modal {
+ min-width:0;max-height:calc(100vh - 24px);
+ max-height:min(90dvh,calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+ overflow-y:auto;overscroll-behavior:contain;
+ padding-bottom:24px;scroll-padding-bottom:24px;
+}
+.app .finance-modal .finance-form {min-width:0;}
+.app .finance-modal .finance-primary {min-height:44px;flex-shrink:0;}
