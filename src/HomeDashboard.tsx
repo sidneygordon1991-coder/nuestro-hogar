@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,ClipboardCheck,Clock3,FileText,Gauge,HeartPulse,Home,ListChecks,Map as MapIcon,Package,PiggyBank,ReceiptText,Settings2,Target,TrendingUp,Users,Utensils,WalletCards,Wrench,Zap} from 'lucide-react';
+import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,ClipboardCheck,Clock3,FileText,Gauge,HardDrive,HeartPulse,Home,ListChecks,Map as MapIcon,Package,PiggyBank,ReceiptText,Settings2,Target,TrendingUp,Users,Utensils,WalletCards,Wrench,Zap} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -130,6 +130,7 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
     {can('documents')&&<button onClick={()=>onNavigate('documentos')}><span className="documents"><FileText/></span><div><strong>Documentos</strong><small>Bóveda, vencimientos y garantías</small></div><ChevronRight/></button>}
     {can('meals')&&<button onClick={()=>onNavigate('comidas')}><span className="meals"><Utensils/></span><div><strong>Comidas</strong><small>Plan semanal, recetas, despensa y compras</small></div><ChevronRight/></button>}
     {can('maintenance')&&<button onClick={()=>onNavigate('mantenimiento')}><span className="maintenance"><Wrench/></span><div><strong>Mantenimiento</strong><small>Casa, vehículos, servicios y garantías</small></div><ChevronRight/></button>}
+    {can('backups')&&<button onClick={()=>onNavigate('respaldos')}><span className="backups"><HardDrive/></span><div><strong>Respaldos</strong><small>Exportación, copias y recuperación</small></div><ChevronRight/></button>}
    </div>
   </section>
 
