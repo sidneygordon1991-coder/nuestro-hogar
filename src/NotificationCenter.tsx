@@ -43,11 +43,37 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
   await reg.showNotification(row.title,{body:row.body||undefined,icon:import.meta.env.BASE_URL+'icon.svg',badge:import.meta.env.BASE_URL+'icon.svg',tag:'nh-'+row.id,data:{url:import.meta.env.BASE_URL+'?tab='+(row.action_tab||'inicio')}});
  }
 
+ async function ensurePushSubscription(){
+  if(!('serviceWorker' in navigator)){throw new Error('Este navegador no admite Service Worker.')}
+  const reg=await navigator.serviceWorker.ready;
+  if(!('pushManager' in reg)){throw new Error('Este navegador no admite notificaciones push.')}
+  const {data:publicKey,error:keyError}=await supabase.rpc('get_web_push_public_key');
+  if(keyError||!publicKey)throw new Error(keyError?.message||'La clave de notificaciones aún no está disponible. Intenta de nuevo en unos segundos.');
+  let subscription=await reg.pushManager.getSubscription();
+  if(!subscription){
+   subscription=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(String(publicKey))});
+  }
+  const json=subscription.toJSON(),keys=json.keys;
+  if(!json.endpoint||!keys?.p256dh||!keys?.auth)throw new Error('No se pudo registrar este dispositivo.');
+  const {error}=await supabase.from('push_subscriptions').upsert({
+   household_id:household.id,user_id:userId,endpoint:json.endpoint,p256dh:keys.p256dh,auth:keys.auth,user_agent:navigator.userAgent,enabled:true,last_seen_at:new Date().toISOString()
+  },{onConflict:'endpoint'});
+  if(error)throw error;
+ }
+
  async function enableBrowser(){
   if(typeof Notification==='undefined'){setMessage('Este navegador no admite notificaciones del sistema.');return}
   const result=await Notification.requestPermission();
   if(result!=='granted'){setMessage('El permiso no fue concedido. Puedes habilitarlo desde la configuración del navegador.');return}
-  await updatePrefs({browser_notifications:true});setMessage('Notificaciones del dispositivo activadas.');
+  try{await ensurePushSubscription();await updatePrefs({browser_notifications:true});setMessage('Notificaciones push activadas. También llegarán con Nuestro Hogar cerrado.')}
+  catch(error:any){setMessage(error?.message||'No se pudo activar el dispositivo.')}
+ }
+
+ async function toggleDeviceNotifications(enabled:boolean){
+  if(!enabled){await updatePrefs({browser_notifications:false});setMessage('Notificaciones del dispositivo pausadas.');return}
+  if(typeof Notification==='undefined'||Notification.permission!=='granted'){await enableBrowser();return}
+  try{await ensurePushSubscription();await updatePrefs({browser_notifications:true});setMessage('Notificaciones push activadas.')}
+  catch(error:any){setMessage(error?.message||'No se pudo activar el dispositivo.')}
  }
 
  async function updatePrefs(patch:Partial<Preferences>){
@@ -77,14 +103,14 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
    <div className="notification-head"><div><p className="eyebrow">CENTRO DE ALERTAS</p><h3>Notificaciones</h3></div><div><button title="Configuración" onClick={()=>setSettings(v=>!v)}><Settings/></button><button title="Cerrar" onClick={()=>setOpen(false)}><X/></button></div></div>
    {message&&<div className="notification-message">{message}<button onClick={()=>setMessage('')}><X/></button></div>}
    {settings?<div className="notification-settings">
-    <div className="notification-device"><div><BellRing/><span><strong>Notificaciones del dispositivo</strong><small>{permission==='granted'?'Permitidas':permission==='denied'?'Bloqueadas por el navegador':'Aún no activadas'}</small></span></div>{permission==='granted'?<label className="switch"><input type="checkbox" checked={prefs.browser_notifications} onChange={e=>updatePrefs({browser_notifications:e.target.checked})}/><span/></label>:<button onClick={enableBrowser}>Activar</button>}</div>
+    <div className="notification-device"><div><BellRing/><span><strong>Notificaciones del dispositivo</strong><small>{permission==='granted'?'Permitidas':permission==='denied'?'Bloqueadas por el navegador':'Aún no activadas'}</small></span></div>{permission==='granted'?<label className="switch"><input type="checkbox" checked={prefs.browser_notifications} onChange={e=>toggleDeviceNotifications(e.target.checked)}/><span/></label>:<button onClick={enableBrowser}>Activar</button>}</div>
     <Preference label="Pagos y vencimientos" checked={prefs.payments} onChange={v=>updatePrefs({payments:v})}/>
     <Preference label="Eventos" checked={prefs.events} onChange={v=>updatePrefs({events:v})}/>
     <Preference label="Tareas" checked={prefs.tasks} onChange={v=>updatePrefs({tasks:v})}/>
     <Preference label="Cumpleaños" checked={prefs.birthdays} onChange={v=>updatePrefs({birthdays:v})}/>
     <Preference label="Presupuesto" checked={prefs.budget} onChange={v=>updatePrefs({budget:v})}/>
     <Preference label="Metas" checked={prefs.goals} onChange={v=>updatePrefs({goals:v})}/>
-    <p className="notification-note">El centro de alertas se actualiza automáticamente desde el servidor. Las notificaciones del dispositivo se muestran cuando el navegador/PWA mantiene una sesión activa.</p>
+    <p className="notification-note">El centro de alertas se actualiza desde el servidor. Con el permiso activado, este dispositivo puede recibir avisos push incluso cuando Nuestro Hogar está cerrado. En iPhone/iPad, instala primero la app en la pantalla de inicio.</p>
    </div>:<>
     <div className="notification-toolbar"><span>{unread?unread+' sin leer':'Todo al día'}</span><div><button disabled={!unread} onClick={markAll}><CheckCheck/> Marcar todo</button><button onClick={clearRead}><Trash2/> Limpiar leídas</button></div></div>
     <div className="notification-list">{items.map(row=><button className={'notification-item '+row.severity+' '+(!row.read_at?'unread':'')} key={row.id} onClick={()=>openNotification(row)}><span className="notification-type-icon">{notificationIcon(row.type)}</span><div><div><strong>{row.title}</strong>{!row.read_at&&<i/>}</div>{row.body&&<p>{row.body}</p>}<small>{relativeTime(row.created_at)}</small></div></button>)}</div>
@@ -97,3 +123,5 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
 function Preference({label,checked,onChange}:{label:string;checked:boolean;onChange:(v:boolean)=>void}){return <label className="notification-pref"><span>{label}</span><span className="switch"><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)}/><span/></span></label>}
 function notificationIcon(type:string){if(type==='payment')return <Clock3/>;if(type==='event')return <CalendarDays/>;if(type==='task')return <Check/>;if(type==='birthday')return <Users/>;if(type==='budget')return <WalletCards/>;if(type==='goal')return <Target/>;return <AlertTriangle/>}
 function relativeTime(value:string){const diff=Math.max(0,Date.now()-new Date(value).getTime()),minutes=Math.floor(diff/60000);if(minutes<1)return'Ahora';if(minutes<60)return'Hace '+minutes+' min';const hours=Math.floor(minutes/60);if(hours<24)return'Hace '+hours+' h';const days=Math.floor(hours/24);return'Hace '+days+' día'+(days===1?'':'s')}
+
+function urlBase64ToUint8Array(base64String:string){const padding='='.repeat((4-base64String.length%4)%4),base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/'),raw=window.atob(base64),output=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)output[i]=raw.charCodeAt(i);return output}
