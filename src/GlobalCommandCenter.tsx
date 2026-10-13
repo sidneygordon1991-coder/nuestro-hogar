@@ -184,10 +184,10 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
   <button className="global-search-trigger" onClick={openSearch} title="Buscar en Nuestro Hogar"><Search/><span>Buscar</span><kbd>⌘K</kbd></button>
   {hasQuickEdit&&<button className="global-add-trigger" onClick={openQuick} title="Agregar rápido"><Plus/></button>}
 
-  {mode&&<><button className="global-command-scrim" onClick={close} aria-label="Cerrar"/><section className={'global-command-panel '+mode}>
+  {mode&&<><button className="global-command-scrim" onClick={close} aria-label="Cerrar"/><section className={'global-command-panel global-command-panel--'+mode} role="dialog" aria-modal="true" aria-labelledby="global-command-title">
    <div className="global-command-head">
-    <div><p className="eyebrow">{mode==='search'?'BUSCADOR GLOBAL':'AGREGAR RÁPIDO'}</p><h3>{mode==='search'?'Encuentra cualquier cosa':'¿Qué quieres registrar?'}</h3></div>
-    <button onClick={close}><X/></button>
+    <div><p className="eyebrow">{mode==='search'?'BUSCADOR GLOBAL':'AGREGAR RÁPIDO'}</p><h3 id="global-command-title">{mode==='search'?'Encuentra cualquier cosa':'¿Qué quieres registrar?'}</h3></div>
+    <button onClick={close} aria-label="Cerrar ventana"><X/></button>
    </div>
 
    {message&&<div className="global-command-message"><Check/>{message}<button onClick={()=>setMessage('')}><X/></button></div>}
