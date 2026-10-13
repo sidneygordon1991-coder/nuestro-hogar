@@ -1,9 +1,9 @@
-import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import type {Session} from '@supabase/supabase-js';
+import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import HomeDashboard from './HomeDashboard';import ListsCenter from './ListsCenter';import type {Session} from '@supabase/supabase-js';
 
 type Household={id:string;name:string;invite_code:string};
 type ListRow={id:string;title:string};
 type EventRow={id:string;title:string;event_date:string;start_time:string|null};
-type Tx={id:string;description:string;amount:number;type:string;transaction_date:string};
+type Tx={id:string;description:string;amount:number;type:string;transaction_date:string;category_id:string|null};
 type FinanceHome={income:number;expense:number;saving:number;available:number;pending:number;projected:number;overdue:number;nextPayment:string|null;nextPaymentAmount:number;nextPaymentDate:string|null;goalName:string|null;goalProgress:number};
 
 const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
@@ -26,7 +26,7 @@ export default function App(){
   const [listR,eventR,txR,catR,allocR,contR,recR,occR,memberFinanceR,goalR,goalContR]=await Promise.all([
    supabase.from('lists').select('id,title').eq('household_id',id).order('created_at',{ascending:false}),
    supabase.from('events').select('id,title,event_date,start_time').eq('household_id',id).gte('event_date',today()).order('event_date').limit(6),
-   supabase.from('transactions').select('id,description,amount,type,transaction_date').eq('household_id',id).gte('transaction_date',period.start).lte('transaction_date',period.end).order('transaction_date',{ascending:false}),
+   supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id').eq('household_id',id).gte('transaction_date',period.start).lte('transaction_date',period.end).order('transaction_date',{ascending:false}),
    supabase.from('budget_categories').select('id,budget_group').eq('household_id',id),
    supabase.from('budget_allocations').select('category_id,planned_amount').eq('household_id',id).eq('month',period.month),
    supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id).gte('contribution_date',period.start).lte('contribution_date',period.end),
@@ -124,18 +124,15 @@ function Onboarding({onDone}:{onDone:()=>void}){
 }
 
 function Shell(p:any){
- const expense=p.txs.filter((x:Tx)=>x.type==='expense').reduce((a:number,b:Tx)=>a+Number(b.amount),0);
- const income=p.txs.filter((x:Tx)=>x.type==='income').reduce((a:number,b:Tx)=>a+Number(b.amount),0);
- const cards=[['Listas',p.lists.length+' listas','list'],['Calendario',p.events.length?'Próximo: '+p.events[0].title:'Sin eventos próximos','calendar'],['Finanzas',expense?money(expense)+' gastados':'Organiza el presupuesto del hogar','budget'],['Documentos','Próximamente','docs'],['Cumpleaños','Próximamente','birthday'],['Comidas','Próximamente','meal'],['Recetas','Próximamente','recipe'],['Mi familia','Hogar compartido','family']];
- return <div className="app"><header><div><button className="home-select"><span>{p.household.name}</span><ChevronDown size={18}/></button><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><button className="avatar">S</button></header>
- <main className="content">{p.tab==='inicio'&&<><section className="hero"><div><p className="eyebrow">RESUMEN DEL MES</p><h2>{income?money(Math.max(income-expense,0)):'Todo bajo control'}</h2><p>{income?'Disponible después de tus movimientos':'Empieza agregando tus finanzas, listas y eventos.'}</p></div><div className="hero-icon"><Home/></div></section><div className="section-title"><h3>Tu hogar</h3><button><Menu size={18}/></button></div><section className="grid">{cards.map(([a,b,c])=><button className="module" key={a} onClick={()=>{if(c==='list')p.setTab('listas');if(c==='calendar')p.setTab('calendario');if(c==='budget')p.setTab('presupuesto');if(c==='family')p.setTab('familia')}}><div><strong>{a}</strong><span>{b}</span></div><Icon kind={c}/></button>)}</section></>}
- {p.tab==='listas'&&<Lists household={p.household} lists={p.lists} refresh={p.onRefresh}/>}
+ return <div className="app"><header><div><div className="home-select-wrap"><select className="home-select" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><button className="avatar">S</button></header>
+ <main className="content">
+ {p.tab==='inicio'&&<HomeDashboard finance={p.financeHome} events={p.events} listCount={p.lists.length} onNavigate={p.setTab}/>}
+ {p.tab==='listas'&&<ListsCenter household={p.household} onChanged={p.onRefresh}/>}
  {p.tab==='calendario'&&<Events household={p.household} events={p.events} refresh={p.onRefresh}/>}
  {p.tab==='presupuesto'&&<Finance household={p.household}/>}
  {p.tab==='familia'&&<Family household={p.household}/>}
  </main><nav><button className={p.tab==='inicio'?'active':''} onClick={()=>p.setTab('inicio')}><Home/><span>Inicio</span></button><button className={p.tab==='calendario'?'active':''} onClick={()=>p.setTab('calendario')}><CalendarDays/><span>Calendario</span></button><button className="fab" onClick={()=>p.setTab('listas')}><Plus/></button><button className={p.tab==='presupuesto'?'active':''} onClick={()=>p.setTab('presupuesto')}><WalletCards/><span>Finanzas</span></button><button className={p.tab==='familia'?'active':''} onClick={()=>p.setTab('familia')}><Users/><span>Familia</span></button></nav></div>
 }
-
 function Icon({kind}:{kind:string}){const map:any={list:<CheckCircle2/>,calendar:<CalendarDays/>,budget:<WalletCards/>,family:<Users/>,docs:<ReceiptText/>,birthday:<CalendarDays/>,meal:<ShoppingCart/>,recipe:<ReceiptText/>};return <span className={'ico '+kind}>{map[kind]}</span>}
 
 function Page({title,subtitle,children}:{title:string;subtitle:string;children:any}){return <section><p className="eyebrow">NUESTRO HOGAR</p><h2 className="page-title">{title}</h2><p className="muted">{subtitle}</p>{children}</section>}
