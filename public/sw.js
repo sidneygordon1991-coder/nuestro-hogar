@@ -1,7 +1,7 @@
-const CACHE='nuestro-hogar-v2';
+const CACHE='nuestro-hogar-v3';
 const BASE='/nuestro-hogar/';
 const SHELL=[BASE,BASE+'manifest.webmanifest',BASE+'icon.svg'];
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()))});
+self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{
  const request=event.request;if(request.method!=='GET')return;
@@ -33,3 +33,5 @@ self.addEventListener('push',event=>{
  };
  event.waitUntil(self.registration.showNotification(title,options));
 });
+
+self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting()});
