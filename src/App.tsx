@@ -1,4 +1,4 @@
-import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import HomeDashboard from './HomeDashboard';import ListsCenter from './ListsCenter';import CalendarCenter from './CalendarCenter';import FamilyCenter from './FamilyCenter';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import type {Session} from '@supabase/supabase-js';
+import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import HomeDashboard from './HomeDashboard';import ListsCenter from './ListsCenter';import CalendarCenter from './CalendarCenter';import FamilyCenter from './FamilyCenter';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';
 
 type Household={id:string;name:string;invite_code:string};
 type ListRow={id:string;title:string};
@@ -15,7 +15,7 @@ const authRedirectUrl=()=>`${window.location.origin}${import.meta.env.BASE_URL}`
 export default function App(){
  const [session,setSession]=useState<Session|null>(null),[loading,setLoading]=useState(true),[recovery,setRecovery]=useState(()=>new URLSearchParams(window.location.hash.replace(/^#/,'')).get('type')==='recovery');
  const [households,setHouseholds]=useState<Household[]>([]),[household,setHousehold]=useState<Household|null>(null);
- const [tab,setTab]=useState('inicio'),[lists,setLists]=useState<ListRow[]>([]),[events,setEvents]=useState<EventRow[]>([]),[txs,setTxs]=useState<Tx[]>([]);
+ const [tab,setTab]=useState(()=>new URLSearchParams(window.location.search).get('tab')||'inicio'),[lists,setLists]=useState<ListRow[]>([]),[events,setEvents]=useState<EventRow[]>([]),[txs,setTxs]=useState<Tx[]>([]);
  const [financeHome,setFinanceHome]=useState<FinanceHome>({income:0,expense:0,saving:0,available:0,pending:0,projected:0,overdue:0,nextPayment:null,nextPaymentAmount:0,nextPaymentDate:null,goalName:null,goalProgress:0});
  useEffect(()=>{supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data}=supabase.auth.onAuthStateChange((event,s)=>{setSession(s);if(event==='PASSWORD_RECOVERY')setRecovery(true);if(event==='SIGNED_OUT')setRecovery(false)});return()=>data.subscription.unsubscribe()},[]);
  useEffect(()=>{if(session)loadHouseholds();else{setHouseholds([]);setHousehold(null)}},[session]);
@@ -124,7 +124,7 @@ function Onboarding({onDone}:{onDone:()=>void}){
 }
 
 function Shell(p:any){
- return <div className="app"><header><div><div className="home-select-wrap"><select className="home-select" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><ProfileAvatar/></header>
+ return <div className="app"><header><div><div className="home-select-wrap"><select className="home-select" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><div className="header-actions"><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar/></div></header>
  <main className="content">
  {p.tab==='inicio'&&<HomeDashboard finance={p.financeHome} events={p.events} listCount={p.lists.length} onNavigate={p.setTab}/>}
  {p.tab==='listas'&&<ListsCenter household={p.household} onChanged={p.onRefresh}/>}
