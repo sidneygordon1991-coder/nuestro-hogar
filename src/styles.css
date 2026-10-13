@@ -352,3 +352,38 @@ html[data-theme="light"] .notification-item p{font-size:11px}
 html[data-theme="light"] .notification-item small{font-size:10px}
 html[data-theme="light"] .projection-footer span{line-height:1.5}
 @media(max-width:560px){.projection-footer{grid-template-columns:1fr}.projection-footer span{text-align:left}.projection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Unified light theme component contract. Covers nested surfaces not inheriting parent backgrounds. */
+html[data-theme="light"] .app :is(
+ .budget-group-summary>div,.budget-mini,.budget-cat,.budget-editor,.budget-controls,
+ .recurring-row,.recurring-date,.recurring-summary-row,.recurring-kpis>div,
+ .net-worth-hero,.wealth-row,.wealth-list>div,.net-worth-chart,.net-worth-chart-summary,
+ .projection-grid>div,.projection-footer span,.projection-insight,
+ .maintenance-kpis>div,.maintenance-alert-row,.maintenance-asset-card,.maintenance-plan-card,
+ .family-audit-list>div,.notification-item,.notification-item.unread,
+ .notification-device,.notification-pref,.notification-settings,
+ .diagnostic-panel,.diagnostic-panel>div
+){background:#f7fafc!important;color:#213542!important;border-color:#d4e2e9!important}
+html[data-theme="light"] .app :is(
+ .budget-group-summary>div,.budget-mini,.budget-cat,.recurring-row,.recurring-kpis>div,
+ .net-worth-hero,.net-worth-kpis>div,.wealth-row,.net-worth-chart,
+ .projection-grid>div,.projection-footer span,.maintenance-kpis>div,
+ .maintenance-alert-row,.maintenance-asset-card,.maintenance-plan-card,
+ .family-audit-list>div,.notification-item,.diagnostic-panel
+) :is(h1,h2,h3,h4,strong,b){color:#1b3341!important;opacity:1!important}
+html[data-theme="light"] .app :is(
+ .budget-group-summary>div,.recurring-row,.net-worth-hero,.net-worth-kpis>div,
+ .projection-grid>div,.maintenance-kpis>div,.notification-item,.family-audit-list>div
+) :is(p,small,em,time){color:#526c7a!important;opacity:1!important}
+html[data-theme="light"] .app .net-worth-hero{background:linear-gradient(130deg,#eaf8f2,#f7fbfd)!important;border-color:#b7dbca!important}
+html[data-theme="light"] .app .net-worth-hero.negative{background:linear-gradient(130deg,#fff1f1,#fffafa)!important;border-color:#edc4c4!important}
+html[data-theme="light"] .app .net-worth-hero h3{color:#17644d!important}
+html[data-theme="light"] .app .net-worth-hero.negative h3{color:#ae3d48!important}
+html[data-theme="light"] .app .recurring-date.paid{background:#e4f6ec!important;color:#12724e!important}
+html[data-theme="light"] .app .recurring-date.overdue{background:#fff0ef!important;color:#b33c42!important}
+html[data-theme="light"] .app .projection-highlight{background:#e5f4fa!important}
+html[data-theme="light"] .app .notification-item.unread{background:#e9f5fb!important}
+html[data-theme="light"] .app .notification-toolbar button:not(:disabled){color:#235267}
+html[data-theme="light"] .app .finance-tabs button.active{background:#e5f3fb!important;color:#0b7196!important;border-color:#a5d4e6!important}
+html[data-theme="light"] .app :is(.recurring-date,.net-worth-icon,.maintenance-kpis>div>span,.notification-type-icon) svg{opacity:1}
+@media(max-width:560px){.app .finance-tabs{scroll-padding-inline:12px}.app .recurring-row{grid-template-columns:48px minmax(0,1fr);gap:9px}.app .recurring-main{min-width:0}}
