@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,Clock3,FileText,Gauge,HeartPulse,Home,ListChecks,PiggyBank,ReceiptText,Target,TrendingUp,Users,Utensils,WalletCards,Wrench} from 'lucide-react';
+import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,Clock3,FileText,Gauge,HeartPulse,Home,ListChecks,Package,PiggyBank,ReceiptText,Settings2,Target,TrendingUp,Users,Utensils,WalletCards,Wrench,Zap} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -119,6 +119,7 @@ export default function HomeDashboard({household,finance,listCount,onNavigate}:{
    <div className="control-section-head"><div><p className="eyebrow">TU HOGAR</p><h3>Accesos rápidos</h3></div></div>
    <div className="control-module-grid">
     <button onClick={()=>onNavigate('salud')}><span className="health"><HeartPulse/></span><div><strong>Salud del hogar</strong><small>Diagnóstico y recomendaciones automáticas</small></div><ChevronRight/></button>
+    <button onClick={()=>onNavigate('automatizaciones')}><span className="automations"><Zap/></span><div><strong>Automatizaciones</strong><small>Reglas, umbrales y acciones automáticas</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('presupuesto')}><span className="finance"><WalletCards/></span><div><strong>Finanzas</strong><small>Presupuesto, movimientos y comparación</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('calendario')}><span className="calendar"><CalendarDays/></span><div><strong>Agenda</strong><small>Eventos, pagos y cumpleaños</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('listas')}><span className="lists"><ListChecks/></span><div><strong>Listas</strong><small>{listCount} lista{listCount===1?'':'s'} compartida{listCount===1?'':'s'}</small></div><ChevronRight/></button>
@@ -126,7 +127,6 @@ export default function HomeDashboard({household,finance,listCount,onNavigate}:{
     <button onClick={()=>onNavigate('documentos')}><span className="documents"><FileText/></span><div><strong>Documentos</strong><small>Bóveda, vencimientos y garantías</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('comidas')}><span className="meals"><Utensils/></span><div><strong>Comidas</strong><small>Plan semanal, recetas, despensa y compras</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('mantenimiento')}><span className="maintenance"><Wrench/></span><div><strong>Mantenimiento</strong><small>Casa, vehículos, servicios y garantías</small></div><ChevronRight/></button>
-    <button onClick={()=>onNavigate('salud')}><span className="health"><Gauge/></span><div><strong>Estado del hogar</strong><small>Índice, cobertura y recomendaciones</small></div><ChevronRight/></button>
    </div>
   </section>
 
@@ -138,7 +138,7 @@ function AgendaRow({item,onNavigate,compact=false}:{item:AgendaItem;onNavigate:(
  return <button className={'agenda-home-row '+(compact?'compact ':'')+item.kind} onClick={()=>onNavigate(item.tab)}><span className="agenda-home-icon">{agendaIcon(item.kind)}</span><div><strong>{item.title}</strong><small>{compact?formatDate(item.date)+' · ':''}{item.time?item.time+' · ':''}{item.subtitle}</small></div><ChevronRight/></button>
 }
 
-function attentionIcon(type:string){if(type==='payment')return <Clock3/>;if(type==='task')return <ListChecks/>;if(type==='event')return <CalendarDays/>;if(type==='birthday')return <Users/>;if(type==='budget')return <AlertTriangle/>;if(type==='goal')return <Target/>;if(type==='document')return <FileText/>;if(type==='maintenance')return <Wrench/>;return <Bell/>}
+function attentionIcon(type:string){if(type==='payment')return <Clock3/>;if(type==='task')return <ListChecks/>;if(type==='event')return <CalendarDays/>;if(type==='birthday')return <Users/>;if(type==='budget')return <AlertTriangle/>;if(type==='goal')return <Target/>;if(type==='document')return <FileText/>;if(type==='maintenance')return <Wrench/>;if(type==='pantry')return <Package/>;return <Bell/>}
 function agendaIcon(kind:AgendaItem['kind']){if(kind==='payment')return <Clock3/>;if(kind==='task')return <ListChecks/>;if(kind==='birthday')return <Users/>;return <CalendarDays/>}
 function formatDate(value:string){const date=new Date(value+'T12:00');return date.toLocaleDateString('es-GT',{weekday:'short',day:'numeric'}).replace('.','')}
 function greetingLabel(){const h=new Date().getHours();return h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches'}
