@@ -37,7 +37,7 @@ const iso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.get
 const addDays=(d:Date,n:number)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const startOfWeek=(d=new Date())=>{const x=new Date(d);x.setHours(0,0,0,0);const day=x.getDay()||7;x.setDate(x.getDate()-day+1);return x};
 const fmtQty=(n:number)=>Number.isInteger(n)?String(n):Number(n.toFixed(2)).toString();
-const fmtDate=(value:string)=>new Date(value+'T12:00').toLocaleDateString('es-GT',{weekday:'short',day:'numeric',month:'short'}).replace(/\\./g,'');
+const fmtDate=(value:string)=>new Date(value+'T12:00').toLocaleDateString('es-GT',{weekday:'short',day:'numeric',month:'short'}).replace('.','');
 const pantryCategoryLabel=(id:PantryCategory)=>pantryCategories.find(x=>x.id===id)?.label||'Otros';
 const pantryLocationLabel=(id:PantryLocation)=>pantryLocations.find(x=>x.id===id)?.label||'Otro';
 const mealTypeLabel=(id:MealType)=>mealTypes.find(x=>x.id===id)?.label||'Comida';
