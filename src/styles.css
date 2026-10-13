@@ -250,3 +250,35 @@ html[data-theme="light"] .home-control .control-finance-icon.expense{background:
 }
 html[data-theme="light"] .home-control .control-hero::before{opacity:.22}
 @media(max-width:560px){.home-control .control-hero::before{width:175px;height:175px;right:-18px;top:-13px}}
+
+
+/* Home dashboard: match the selected theme (actual control-* components). */
+html[data-theme="light"] .home-control .control-hero{
+ background:linear-gradient(135deg,#fff 0%,#f3f9fd 100%);border-color:#d3e2eb;color:#20313c;
+ box-shadow:0 8px 28px #2d587010;
+}
+html[data-theme="light"] .home-control .control-hero.attention{background:linear-gradient(135deg,#fffaf3,#fff)}
+html[data-theme="light"] .home-control .control-hero.risk{background:linear-gradient(135deg,#fff6f6,#fff)}
+html[data-theme="light"] .home-control .control-hero-copy h2{color:#172b38}
+html[data-theme="light"] .home-control .control-hero-copy>p:last-of-type{color:#617684}
+html[data-theme="light"] .home-control .control-hero-tags span{background:#edf6fa;border-color:#d4e4ec;color:#4c6878}
+html[data-theme="light"] .home-control .control-money{background:#f0f7fb;color:#193240;border-color:#cbdfe9}
+html[data-theme="light"] .home-control .control-money small{color:#5b7280}
+html[data-theme="light"] .home-control .control-money strong{color:#182d3a}
+html[data-theme="light"] .home-control .control-finance-strip>button{background:#fff;color:#20313c;border-color:#d7e4eb;box-shadow:0 5px 20px #315a7110}
+html[data-theme="light"] .home-control .control-finance-strip strong{color:#20313c}
+html[data-theme="light"] .home-control .control-finance-strip small,
+html[data-theme="light"] .home-control .control-finance-strip em{color:#647986}
+html[data-theme="light"] .home-control :is(.attention-row,.today-row,.week-upcoming,.control-clear,.control-empty){background:#f6fafc;color:#253a46;border-color:#d9e5eb}
+html[data-theme="light"] .home-control :is(.attention-row,.today-row,.week-upcoming) :is(strong,b){color:#20313c}
+html[data-theme="light"] .home-control .control-section-head h3{color:#1d3441}
+/* Subtle, theme-aware house watermark: vector image, no network requests. */
+.home-control .control-hero{position:relative;isolation:isolate}
+.home-control .control-hero::before{
+ content:"";position:absolute;right:-12px;bottom:-16px;width:180px;height:180px;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Cg fill='none' stroke='%236e9eb2' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 88 90 35l62 53M45 79v68h90V79M75 147v-43h30v43M68 68h10m24 0h10'/%3E%3Cpath d='M24 157c19-22 30-22 44-17m89 18c-18-23-27-27-43-20' stroke-width='3'/%3E%3C/g%3E%3C/svg%3E");
+ background-position:center;background-repeat:no-repeat;background-size:contain;
+ opacity:.075;pointer-events:none;z-index:-1;
+}
+html[data-theme="light"] .home-control .control-hero::before{opacity:.20}
+@media(max-width:520px){.home-control .control-hero::before{width:125px;height:125px;right:0;bottom:0;opacity:.045}html[data-theme="light"] .home-control .control-hero::before{opacity:.11}}
