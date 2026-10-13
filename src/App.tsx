@@ -119,7 +119,7 @@ function Onboarding({onDone}:{onDone:()=>void}){
 function Shell(p:any){
  return <div className="app"><header><div><div className="home-select-wrap"><select className="home-select" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><div className="header-actions"><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar/></div></header>
  <main className="content">
- {p.tab==='inicio'&&<HomeDashboard finance={p.financeHome} events={p.events} listCount={p.lists.length} onNavigate={p.setTab}/>}
+ {p.tab==='inicio'&&<HomeDashboard household={p.household} finance={p.financeHome} listCount={p.lists.length} onNavigate={p.setTab}/>}
  {p.tab==='listas'&&<ListsCenter household={p.household} onChanged={p.onRefresh}/>}
  {p.tab==='calendario'&&<CalendarCenter household={p.household} onChanged={p.onRefresh} onNavigate={p.setTab}/>}
  {p.tab==='presupuesto'&&<Finance household={p.household}/>}
