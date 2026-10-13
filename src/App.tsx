@@ -1,10 +1,12 @@
-import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import HomeDashboard from './HomeDashboard';import ListsCenter from './ListsCenter';import CalendarCenter from './CalendarCenter';import FamilyCenter from './FamilyCenter';import DocumentVault from './DocumentVault';import MealsCenter from './MealsCenter';import MaintenanceCenter from './MaintenanceCenter';import GlobalCommandCenter from './GlobalCommandCenter';import HouseholdHealthCenter from './HouseholdHealthCenter';import AutomationCenter from './AutomationCenter';import MonthlyCloseCenter from './MonthlyCloseCenter';import PlanningCenter from './PlanningCenter';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';
+import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Clock3,Home,LogOut,Menu,Plus,ReceiptText,ShieldOff,ShoppingCart,Target,TrendingUp,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import HomeDashboard from './HomeDashboard';import ListsCenter from './ListsCenter';import CalendarCenter from './CalendarCenter';import FamilyCenter from './FamilyCenter';import DocumentVault from './DocumentVault';import MealsCenter from './MealsCenter';import MaintenanceCenter from './MaintenanceCenter';import GlobalCommandCenter from './GlobalCommandCenter';import HouseholdHealthCenter from './HouseholdHealthCenter';import AutomationCenter from './AutomationCenter';import MonthlyCloseCenter from './MonthlyCloseCenter';import PlanningCenter from './PlanningCenter';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';
 
 type Household={id:string;name:string;invite_code:string};
 type ListRow={id:string;title:string};
 type EventRow={id:string;title:string;event_date:string;start_time:string|null};
 type Tx={id:string;description:string;amount:number;type:string;transaction_date:string;category_id:string|null};
 type FinanceHome={income:number;expense:number;saving:number;available:number;pending:number;projected:number;overdue:number;nextPayment:string|null;nextPaymentAmount:number;nextPaymentDate:string|null;goalName:string|null;goalProgress:number};
+type AccessLevel='none'|'view'|'edit';
+type HouseholdAccess={role:string;can_manage_members:boolean;can_view_audit:boolean;modules:Record<string,AccessLevel>};
 
 const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
 const localIso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
@@ -17,10 +19,13 @@ export default function App(){
  const [households,setHouseholds]=useState<Household[]>([]),[household,setHousehold]=useState<Household|null>(null);
  const [tab,setTab]=useState(()=>new URLSearchParams(window.location.search).get('tab')||'inicio'),[lists,setLists]=useState<ListRow[]>([]),[events,setEvents]=useState<EventRow[]>([]),[txs,setTxs]=useState<Tx[]>([]);
  const [financeHome,setFinanceHome]=useState<FinanceHome>({income:0,expense:0,saving:0,available:0,pending:0,projected:0,overdue:0,nextPayment:null,nextPaymentAmount:0,nextPaymentDate:null,goalName:null,goalProgress:0});
+ const [access,setAccess]=useState<HouseholdAccess|null>(null);
  useEffect(()=>{supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data}=supabase.auth.onAuthStateChange((event,s)=>{setSession(s);if(event==='PASSWORD_RECOVERY')setRecovery(true);if(event==='SIGNED_OUT')setRecovery(false)});return()=>data.subscription.unsubscribe()},[]);
- useEffect(()=>{if(session)loadHouseholds();else{setHouseholds([]);setHousehold(null)}},[session]);
- useEffect(()=>{if(household)loadData(household.id)},[household,tab]);
+ useEffect(()=>{if(session)loadHouseholds();else{setHouseholds([]);setHousehold(null);setAccess(null)}},[session]);
+ useEffect(()=>{if(household){setAccess(null);loadAccess(household.id);loadData(household.id)}},[household]);
+ useEffect(()=>{if(household)loadData(household.id)},[tab]);
  async function loadHouseholds(){const {data,error}=await supabase.from('household_members').select('household_id, households(id,name,invite_code)');if(error)return;const rows=(data||[]).map((r:any)=>r.households).filter(Boolean);setHouseholds(rows);if(rows[0])setHousehold(rows[0])}
+ async function loadAccess(id:string){const {data,error}=await supabase.rpc('get_my_household_access',{p_household_id:id});if(error){setAccess(null);return}setAccess(data as HouseholdAccess)}
  async function loadData(id:string){
   const period=currentMonth();
   const [listR,eventR,txR,catR,allocR,contR,recR,occR,memberFinanceR,goalR,goalContR]=await Promise.all([
@@ -70,7 +75,8 @@ export default function App(){
  if(recovery)return <UpdatePassword onDone={()=>{setRecovery(false);window.history.replaceState({},'',authRedirectUrl())}}/>;
  if(!session)return <Auth/>;
  if(!household)return <Onboarding onDone={loadHouseholds}/>;
- return <Shell household={household} households={households} tab={tab} setTab={setTab} onSwitch={setHousehold} onRefresh={()=>loadData(household.id)} lists={lists} events={events} txs={txs} financeHome={financeHome}/>;
+ if(!access)return <div className="center"><div className="loader"/></div>;
+ return <Shell household={household} households={households} tab={tab} setTab={setTab} onSwitch={setHousehold} onRefresh={()=>loadData(household.id)} onAccessChanged={()=>loadAccess(household.id)} lists={lists} events={events} txs={txs} financeHome={financeHome} access={access}/>;
 }
 
 function Auth(){
@@ -117,15 +123,22 @@ function Onboarding({onDone}:{onDone:()=>void}){
 }
 
 function Shell(p:any){
- return <div className="app"><header><div><div className="home-select-wrap"><select className="home-select" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><div className="header-actions"><GlobalCommandCenter household={p.household} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar/></div></header>
+ const module=tabModule(p.tab),denied=module&&p.access?.modules?.[module]==='none';
+ return <div className="app"><header><div><div className="home-select-wrap"><select className="home-select" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><div className="header-actions"><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar/></div></header>
  <main className="content">
- {p.tab==='inicio'&&<HomeDashboard household={p.household} finance={p.financeHome} listCount={p.lists.length} onNavigate={p.setTab}/>}
+ {denied?<AccessDenied role={p.access.role} onHome={()=>p.setTab('inicio')}/>:<>
+ {p.tab==='inicio'&&<HomeDashboard household={p.household} finance={p.financeHome} listCount={p.lists.length} access={p.access.modules} onNavigate={p.setTab}/>}
  {p.tab==='listas'&&<ListsCenter household={p.household} onChanged={p.onRefresh}/>}
  {p.tab==='calendario'&&<CalendarCenter household={p.household} onChanged={p.onRefresh} onNavigate={p.setTab}/>}
  {p.tab==='presupuesto'&&<Finance household={p.household}/>}
- {p.tab==='familia'&&<FamilyCenter household={p.household} onChanged={p.onRefresh}/>} {p.tab==='documentos'&&<DocumentVault household={p.household}/>} {p.tab==='comidas'&&<MealsCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='mantenimiento'&&<MaintenanceCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='salud'&&<HouseholdHealthCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='automatizaciones'&&<AutomationCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='cierre'&&<MonthlyCloseCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='planeacion'&&<PlanningCenter household={p.household} onNavigate={p.setTab}/>} 
- </main><PwaInstallPrompt/><nav><button className={p.tab==='inicio'?'active':''} onClick={()=>p.setTab('inicio')}><Home/><span>Inicio</span></button><button className={p.tab==='calendario'?'active':''} onClick={()=>p.setTab('calendario')}><CalendarDays/><span>Calendario</span></button><button className="fab" onClick={()=>window.dispatchEvent(new CustomEvent('nh:quick-add'))} aria-label="Agregar rápido"><Plus/></button><button className={p.tab==='presupuesto'?'active':''} onClick={()=>p.setTab('presupuesto')}><WalletCards/><span>Finanzas</span></button><button className={p.tab==='familia'?'active':''} onClick={()=>p.setTab('familia')}><Users/><span>Familia</span></button></nav></div>
+ {p.tab==='familia'&&<FamilyCenter household={p.household} onChanged={()=>{p.onRefresh();p.onAccessChanged?.()}}/>} {p.tab==='documentos'&&<DocumentVault household={p.household}/>} {p.tab==='comidas'&&<MealsCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='mantenimiento'&&<MaintenanceCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='salud'&&<HouseholdHealthCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='automatizaciones'&&<AutomationCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='cierre'&&<MonthlyCloseCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='planeacion'&&<PlanningCenter household={p.household} onNavigate={p.setTab}/>}
+ </>}
+ </main><PwaInstallPrompt/><nav><button className={p.tab==='inicio'?'active':''} onClick={()=>p.setTab('inicio')}><Home/><span>Inicio</span></button><button disabled={p.access.modules.calendar==='none'} className={p.tab==='calendario'?'active':''} onClick={()=>p.setTab('calendario')}><CalendarDays/><span>Calendario</span></button><button className="fab" onClick={()=>window.dispatchEvent(new CustomEvent('nh:quick-add'))} aria-label="Agregar rápido"><Plus/></button><button disabled={p.access.modules.finance==='none'} className={p.tab==='presupuesto'?'active':''} onClick={()=>p.setTab('presupuesto')}><WalletCards/><span>Finanzas</span></button><button className={p.tab==='familia'?'active':''} onClick={()=>p.setTab('familia')}><Users/><span>Familia</span></button></nav></div>
 }
+
+function AccessDenied({role,onHome}:{role:string;onHome:()=>void}){return <section className="access-denied"><span><ShieldOff/></span><h2>Módulo restringido</h2><p>Tu rol de {role==='teen'?'Adolescente':role==='guest'?'Invitado':role==='admin'?'Administrador':role==='owner'?'Propietario':'Adulto'} no tiene acceso a esta sección. Un administrador del hogar puede cambiar el permiso desde Familia.</p><button onClick={onHome}>Volver a Inicio</button></section>}
+function tabModule(tab:string){return({listas:'lists',calendario:'calendar',presupuesto:'finance',documentos:'documents',comidas:'meals',mantenimiento:'maintenance',planeacion:'planning',salud:'health',cierre:'monthly_close',automatizaciones:'automations'} as Record<string,string>)[tab]||null}
+
 function Icon({kind}:{kind:string}){const map:any={list:<CheckCircle2/>,calendar:<CalendarDays/>,budget:<WalletCards/>,family:<Users/>,docs:<ReceiptText/>,birthday:<CalendarDays/>,meal:<ShoppingCart/>,recipe:<ReceiptText/>};return <span className={'ico '+kind}>{map[kind]}</span>}
 
 function Page({title,subtitle,children}:{title:string;subtitle:string;children:any}){return <section><p className="eyebrow">NUESTRO HOGAR</p><h2 className="page-title">{title}</h2><p className="muted">{subtitle}</p>{children}</section>}
