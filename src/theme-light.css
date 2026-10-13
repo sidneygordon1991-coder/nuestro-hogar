@@ -253,3 +253,43 @@ html[data-theme="light"] .auth .muted {color:var(--nh-muted);}
 @media(prefers-reduced-motion:reduce) {
  html[data-theme="light"] .app *,html[data-theme="dark"] .app * {transition-duration:.001ms!important;}
 }
+
+/* Fine-grained audit: nested controls in the remaining core modules. */
+html[data-theme="light"] .app :is(
+ .document-empty,.maintenance-asset-data>div,.maintenance-plan-details>div,
+ .maintenance-plan-actions button,.maintenance-history>article,
+ .family-role-select select,.family-responsibility-editor button,
+ .family-permission-table-head,.family-permission-row,
+ .global-search-trigger,.global-add-trigger,.global-command-head>button,
+ .global-result-group-head b,.global-quick-form,
+ .transaction-action,.home-snapshot>button
+) {background:var(--nh-subtle)!important;color:var(--nh-text)!important;border-color:var(--nh-border)!important;}
+html[data-theme="light"] .app :is(
+ .document-empty strong,.maintenance-history>article strong,
+ .family-permission-table-head strong,.family-permission-row strong,
+ .global-quick-form strong,.home-snapshot>button strong
+) {color:var(--nh-text)!important;}
+html[data-theme="light"] .app :is(
+ .document-empty,.family-role-select,.family-role-select small,
+ .family-responsibility-editor>span,.global-result-group-head,
+ .home-snapshot>button small,.maintenance-asset-data>div small,
+ .maintenance-plan-details>div small,.maintenance-history>article small
+) {color:var(--nh-muted)!important;}
+html[data-theme="light"] .app :is(.family-leave,.family-remove-member) {
+ background:#fff0f2!important;color:#a72d40!important;border-color:#efc5cb!important;
+}
+html[data-theme="light"] .app .recurring-actions .skip {
+ background:#edf4f7!important;color:#516979!important;border-color:#cadce6!important;
+}
+html[data-theme="light"] .app .global-command-scrim {
+ background:#112a3c7a!important;
+}
+/* Keep icon and amount colors visible in nested controls. */
+html[data-theme="light"] .app :is(
+ .global-add-trigger svg,.global-search-trigger svg,.transaction-action.edit svg,
+ .document-empty>svg,.home-snapshot>button>svg
+) {color:var(--nh-accent)!important;}
+html[data-theme="light"] .app :is(
+ .family-permission-row button,.global-quick-form button,
+ .maintenance-plan-actions button,.home-snapshot>button
+):focus-visible {outline:2px solid var(--nh-accent);outline-offset:2px;}
