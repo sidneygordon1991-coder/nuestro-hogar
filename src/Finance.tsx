@@ -1,9 +1,10 @@
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {ArrowDownLeft,ArrowLeft,ArrowRight,ArrowUpRight,CalendarClock,Check,ChevronRight,CreditCard,Landmark,PiggyBank,Plus,ReceiptText,Target,Users,WalletCards,X} from 'lucide-react';
+import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowUpRight,CalendarClock,Check,ChevronRight,Copy,CreditCard,Landmark,PiggyBank,Plus,ReceiptText,Target,TrendingUp,Users,WalletCards,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
-type Category={id:string;name:string;icon:string};
+type BudgetGroup='fixed'|'variable'|'saving';
+type Category={id:string;name:string;icon:string;budget_group:BudgetGroup};
 type Tx={id:string;description:string;amount:number;type:'income'|'expense';transaction_date:string;category_id:string|null;paid_by:string|null;account_id:string|null;is_shared:boolean;notes:string|null};
 type Allocation={id:string;category_id:string;planned_amount:number;month:string};
 type Goal={id:string;name:string;target_amount:number;target_date:string|null;icon:string;active:boolean};
@@ -36,6 +37,7 @@ export default function Finance({household}:{household:Household}){
  const [members,setMembers]=useState<Member[]>([]),[splits,setSplits]=useState<Split[]>([]),[currentUser,setCurrentUser]=useState('');
  const [showTxForm,setShowTxForm]=useState(false),[showGoalForm,setShowGoalForm]=useState(false),[showAccountForm,setShowAccountForm]=useState(false);
  const [budgetDraft,setBudgetDraft]=useState<Record<string,string>>({});
+ const [categoryGroupDraft,setCategoryGroupDraft]=useState<Record<string,BudgetGroup>>({});
  const [splitMethod,setSplitMethod]=useState<SplitMethod>('equal');
  const [memberFinance,setMemberFinance]=useState<Record<string,MemberFinanceDraft>>({});
  const [categoryRules,setCategoryRules]=useState<Record<string,CategoryRuleDraft>>({});
@@ -49,7 +51,7 @@ export default function Finance({household}:{household:Household}){
   const bounds=monthBounds(month),m=monthDate(month);
   const userPromise=supabase.auth.getUser();
   const [catR,txR,allocR,goalR,contR,recR,accR,accTxR,memberR,financeSettingsR,memberFinanceR,categorySettingsR,categoryMemberR,userR]=await Promise.all([
-   supabase.from('budget_categories').select('id,name,icon').eq('household_id',household.id).order('created_at'),
+   supabase.from('budget_categories').select('id,name,icon,budget_group').eq('household_id',household.id).order('created_at'),
    supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,account_id,is_shared,notes').eq('household_id',household.id).gte('transaction_date',bounds.start).lte('transaction_date',bounds.end).order('transaction_date',{ascending:false}).order('created_at',{ascending:false}),
    supabase.from('budget_allocations').select('id,category_id,planned_amount,month').eq('household_id',household.id).eq('month',m),
    supabase.from('savings_goals').select('id,name,target_amount,target_date,icon,active').eq('household_id',household.id).eq('active',true).order('created_at'),
@@ -102,7 +104,13 @@ export default function Finance({household}:{household:Household}){
   setAccounts((accR.data||[]) as unknown as Account[]);setAccountTxs((accTxR.data||[]) as unknown as any[]);setMembers(memberData);setSplits((splitR.data||[]) as unknown as Split[]);
   setSplitMethod(((financeSettingsR.data as any)?.split_method||'equal') as SplitMethod);setMemberFinance(financeDraft);setCategoryRules(categoryRuleDraft);setCategoryCustom(categoryCustomDraft);
   setCurrentUser(userR.data.user?.id||'');
-  const draft:Record<string,string>={};for(const c of (catR.data||[]) as Category[]){const a=((allocR.data||[]) as any[]).find(x=>x.category_id===c.id);draft[c.id]=a?String(Number(a.planned_amount)):'0'}setBudgetDraft(draft);
+  const draft:Record<string,string>={};const groupDraft:Record<string,BudgetGroup>={};
+  for(const c of (catR.data||[]) as Category[]){
+   const a=((allocR.data||[]) as any[]).find(x=>x.category_id===c.id);
+   draft[c.id]=a?String(Number(a.planned_amount)):'0';
+   groupDraft[c.id]=(c.budget_group||'variable') as BudgetGroup;
+  }
+  setBudgetDraft(draft);setCategoryGroupDraft(groupDraft);
   const errors=[catR.error,txR.error,allocR.error,goalR.error,contR.error,recR.error,accR.error,memberR.error,financeSettingsR.error,memberFinanceR.error,categorySettingsR.error,categoryMemberR.error,occurrenceR.error].filter(Boolean);
   if(errors.length)setMessage('No se pudo cargar toda la información financiera.');
   setLoading(false);
