@@ -14,7 +14,7 @@ const monthEnd=(d:Date)=>new Date(d.getFullYear(),d.getMonth()+1,0);
 const addDays=(d:Date,n:number)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const categoryLabel=(c:string)=>({family:'Familia',appointment:'Cita',task:'Tarea',birthday:'Cumpleaños',social:'Social',health:'Salud',school:'Estudios',maintenance:'Mantenimiento',other:'Otro'} as Record<string,string>)[c]||'Otro';
 
-export default function CalendarCenter({household,onChanged,onNavigate}:{household:Household;onChanged?:()=>void;onNavigate?:(tab:string)=>void}){
+export default function CalendarCenter({household,onChanged,onNavigate,readOnly=false}:{household:Household;onChanged?:()=>void;onNavigate?:(tab:string)=>void;readOnly?:boolean}){
  const [month,setMonth]=useState(()=>monthStart(new Date())),[events,setEvents]=useState<EventRow[]>([]),[members,setMembers]=useState<Member[]>([]),[agendaExtra,setAgendaExtra]=useState<AgendaItem[]>([]);
  const [selectedDay,setSelectedDay]=useState<string|null>(null),[editing,setEditing]=useState<EventRow|null>(null),[showForm,setShowForm]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
 
@@ -49,6 +49,7 @@ export default function CalendarCenter({household,onChanged,onNavigate}:{househo
  const calendarDays=useMemo(()=>{const first=monthStart(month),last=monthEnd(month),leading=(first.getDay()+6)%7;const cells:(Date|null)[]=Array(leading).fill(null);for(let d=1;d<=last.getDate();d++)cells.push(new Date(month.getFullYear(),month.getMonth(),d));while(cells.length%7)cells.push(null);return cells},[month]);
 
  async function saveEvent(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);setMessage('');const f=new FormData(e.currentTarget),allDay=f.get('all_day')==='on';
   const payload={household_id:household.id,title:String(f.get('title')).trim(),description:String(f.get('description')||'').trim()||null,event_date:String(f.get('date')),start_time:allDay?null:String(f.get('start_time')||'')||null,end_time:allDay?null:String(f.get('end_time')||'')||null,location:String(f.get('location')||'').trim()||null,category:String(f.get('category')||'family'),assigned_to:String(f.get('assigned_to')||'')||null,all_day:allDay,recurrence:String(f.get('recurrence')||'none'),recurrence_until:String(f.get('recurrence_until')||'')||null,reminder_minutes:String(f.get('reminder_minutes')||'')?Number(f.get('reminder_minutes')):null};
   const result=editing?await supabase.from('events').update(payload).eq('id',editing.id).eq('household_id',household.id):await supabase.from('events').insert(payload);
@@ -56,15 +57,16 @@ export default function CalendarCenter({household,onChanged,onNavigate}:{househo
  }
 
  async function deleteEvent(event:EventRow){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!window.confirm('¿Eliminar este evento?'))return;setBusy(true);const {error}=await supabase.from('events').delete().eq('id',event.id).eq('household_id',household.id);setBusy(false);if(error)setMessage(error.message);else{setEditing(null);setShowForm(false);await load(false);onChanged?.()}
  }
 
- function openEdit(event:EventRow){setEditing(event);setShowForm(true)}
- function newEvent(date?:string){setEditing(null);if(date)setSelectedDay(date);setShowForm(true)}
+ function openEdit(event:EventRow){if(readOnly)return;setEditing(event);setShowForm(true)}
+ function newEvent(date?:string){if(readOnly)return;setEditing(null);if(date)setSelectedDay(date);setShowForm(true)}
  function shiftMonth(n:number){setSelectedDay(null);setMonth(d=>new Date(d.getFullYear(),d.getMonth()+n,1))}
 
  return <section className="calendar-v2">
-  <div className="finance-top"><div><p className="eyebrow">AGENDA FAMILIAR</p><h2 className="page-title">Calendario</h2><p className="muted">Eventos, tareas, cumpleaños y pagos en un mismo lugar.</p></div><button className="finance-new" onClick={()=>newEvent()}><Plus/> Evento</button></div>
+  <div className="finance-top"><div><p className="eyebrow">AGENDA FAMILIAR</p><h2 className="page-title">Calendario</h2><p className="muted">Eventos, tareas, cumpleaños y pagos en un mismo lugar.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>newEvent()}><Plus/> Evento</button>}</div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
   <div className="calendar-layout">
@@ -76,17 +78,17 @@ export default function CalendarCenter({household,onChanged,onNavigate}:{househo
    </div>
 
    <div className="agenda-panel">
-    <div className="agenda-head"><div><p className="eyebrow">{selectedDay?'DÍA SELECCIONADO':'MES COMPLETO'}</p><h3>{selectedDay?new Date(selectedDay+'T12:00').toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'}):'Agenda'}</h3></div>{selectedDay&&<button onClick={()=>newEvent(selectedDay)}><Plus/> Agregar</button>}</div>
+    <div className="agenda-head"><div><p className="eyebrow">{selectedDay?'DÍA SELECCIONADO':'MES COMPLETO'}</p><h3>{selectedDay?new Date(selectedDay+'T12:00').toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'}):'Agenda'}</h3></div>{selectedDay&&!readOnly&&<button onClick={()=>newEvent(selectedDay)}><Plus/> Agregar</button>}</div>
     <div className="agenda-list">{visibleAgenda.map(item=><article className={'agenda-item '+item.source} key={item.id} onClick={()=>item.source==='event'&&item.event&&(item.event.event_type==='maintenance'?onNavigate?.('mantenimiento'):openEdit(item.event))}>
       <span className="agenda-date"><strong>{new Date(item.date+'T12:00').getDate()}</strong><small>{new Date(item.date+'T12:00').toLocaleDateString('es-GT',{month:'short'})}</small></span>
       <div className="agenda-copy"><div><strong>{item.title}</strong><span className={'agenda-kind '+item.source}>{item.source==='event'?categoryLabel(item.category):item.source==='task'?'Tarea':item.source==='payment'?'Pago':'Cumpleaños'}</span></div><small>{item.time&&<><Clock3/> {item.time}</>} {item.subtitle}</small></div>
-      {item.source==='event'&&(item.event?.event_type==='maintenance'?<Wrench/>:<Pencil/>)}{item.source==='payment'&&<button className="agenda-open" onClick={e=>{e.stopPropagation();onNavigate?.('presupuesto')}}><ReceiptText/></button>}{item.source==='task'&&item.completed&&<Check className="agenda-check"/>}
+      {item.source==='event'&&(item.event?.event_type==='maintenance'?<Wrench/>:readOnly?null:<Pencil/>)}{item.source==='payment'&&<button className="agenda-open" onClick={e=>{e.stopPropagation();onNavigate?.('presupuesto')}}><ReceiptText/></button>}{item.source==='task'&&item.completed&&<Check className="agenda-check"/>}
     </article>)}</div>
     {!visibleAgenda.length&&<div className="calendar-empty"><CalendarDays/><strong>Sin actividades</strong><span>No hay elementos para mostrar en este periodo.</span></div>}
    </div>
   </div>
 
-  {showForm&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setShowForm(false);setEditing(null)}}}><div className="finance-modal calendar-modal"><div className="modal-head"><h3>{editing?'Editar evento':'Nuevo evento'}</h3><button onClick={()=>{setShowForm(false);setEditing(null)}}><X/></button></div><form className="finance-form" onSubmit={saveEvent}>
+  {showForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setShowForm(false);setEditing(null)}}}><div className="finance-modal calendar-modal"><div className="modal-head"><h3>{editing?'Editar evento':'Nuevo evento'}</h3><button onClick={()=>{setShowForm(false);setEditing(null)}}><X/></button></div><form className="finance-form" onSubmit={saveEvent}>
    <label>Título<input name="title" defaultValue={editing?.title||''} placeholder="Ej. Cena familiar" required/></label>
    <div className="two"><label>Categoría<select name="category" defaultValue={editing?.category||'family'}><option value="family">Familia</option><option value="appointment">Cita</option><option value="task">Tarea</option><option value="social">Social</option><option value="health">Salud</option><option value="school">Estudios</option><option value="maintenance">Mantenimiento</option><option value="other">Otro</option></select></label><label>Responsable<select name="assigned_to" defaultValue={editing?.assigned_to||''}><option value="">Todos / sin asignar</option>{members.map(m=><option value={m.user_id} key={m.user_id}>{m.full_name}</option>)}</select></label></div>
    <label>Fecha<input name="date" type="date" defaultValue={editing?.event_date||selectedDay||iso(new Date())} required/></label>
