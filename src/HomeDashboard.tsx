@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,Clock3,FileText,Home,ListChecks,PiggyBank,ReceiptText,Target,TrendingUp,Users,WalletCards} from 'lucide-react';
+import {AlertTriangle,Bell,CalendarDays,CheckCircle2,ChevronRight,Clock3,FileText,Home,ListChecks,PiggyBank,ReceiptText,Target,TrendingUp,Users,Utensils,WalletCards} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -123,6 +123,7 @@ export default function HomeDashboard({household,finance,listCount,onNavigate}:{
     <button onClick={()=>onNavigate('listas')}><span className="lists"><ListChecks/></span><div><strong>Listas</strong><small>{listCount} lista{listCount===1?'':'s'} compartida{listCount===1?'':'s'}</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('familia')}><span className="family"><Users/></span><div><strong>Familia</strong><small>Perfiles y hogar compartido</small></div><ChevronRight/></button>
     <button onClick={()=>onNavigate('documentos')}><span className="documents"><FileText/></span><div><strong>Documentos</strong><small>Bóveda, vencimientos y garantías</small></div><ChevronRight/></button>
+    <button onClick={()=>onNavigate('comidas')}><span className="meals"><Utensils/></span><div><strong>Comidas</strong><small>Plan semanal, recetas, despensa y compras</small></div><ChevronRight/></button>
    </div>
   </section>
 
