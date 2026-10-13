@@ -148,7 +148,7 @@ export default function FamilyCenter({household,onChanged}:{household:Household;
   </section>
 
   {myAccess.can_manage_members?<div className="invite-v2">
-   <div><p className="eyebrow">INVITAR A ALGUIEN</p><h3>Comparte tu hogar</h3><p>Quien use el código ingresará inicialmente como Adulto para mantener el comportamiento actual. Después puedes cambiar su rol o personalizar permisos aquí.</p></div>
+   <div><p className="eyebrow">INVITAR A ALGUIEN</p><h3>Comparte tu hogar</h3><p>Quien use el código ingresará inicialmente como Invitado con acceso mínimo. Después puedes asignarle el rol y los permisos adecuados aquí.</p></div>
    <div className="invite-code-v2"><span>{household.invite_code}</span><button onClick={copyInvite}>{copied?<Check/>:<Copy/>}{copied?'Copiado':'Copiar'}</button></div>
   </div>:<div className="family-limited-note"><Shield/><div><strong>Invitaciones administradas</strong><span>Solo el propietario o un administrador puede compartir el código y cambiar permisos.</span></div></div>}
 
