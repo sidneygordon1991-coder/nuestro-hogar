@@ -1,4 +1,4 @@
-import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import type {Session} from '@supabase/supabase-js';
+import {FormEvent,useEffect,useMemo,useState} from 'react';import {CalendarDays,CheckCircle2,ChevronDown,Home,LogOut,Menu,Plus,ReceiptText,ShoppingCart,Users,WalletCards} from 'lucide-react';import {supabase} from './lib/supabase';import Finance from './Finance';import type {Session} from '@supabase/supabase-js';
 
 type Household={id:string;name:string;invite_code:string};
 type ListRow={id:string;title:string};
@@ -71,12 +71,12 @@ function Onboarding({onDone}:{onDone:()=>void}){
 function Shell(p:any){
  const expense=p.txs.filter((x:Tx)=>x.type==='expense').reduce((a:number,b:Tx)=>a+Number(b.amount),0);
  const income=p.txs.filter((x:Tx)=>x.type==='income').reduce((a:number,b:Tx)=>a+Number(b.amount),0);
- const cards=[['Listas',p.lists.length+' listas','list'],['Calendario',p.events.length?'Próximo: '+p.events[0].title:'Sin eventos próximos','calendar'],['Presupuesto',expense?money(expense)+' gastados':'Registra tu primer gasto','budget'],['Documentos','Próximamente','docs'],['Cumpleaños','Próximamente','birthday'],['Comidas','Próximamente','meal'],['Recetas','Próximamente','recipe'],['Mi familia','Hogar compartido','family']];
+ const cards=[['Listas',p.lists.length+' listas','list'],['Calendario',p.events.length?'Próximo: '+p.events[0].title:'Sin eventos próximos','calendar'],['Finanzas',expense?money(expense)+' gastados':'Organiza el presupuesto del hogar','budget'],['Documentos','Próximamente','docs'],['Cumpleaños','Próximamente','birthday'],['Comidas','Próximamente','meal'],['Recetas','Próximamente','recipe'],['Mi familia','Hogar compartido','family']];
  return <div className="app"><header><div><button className="home-select"><span>{p.household.name}</span><ChevronDown size={18}/></button><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><button className="avatar">S</button></header>
  <main className="content">{p.tab==='inicio'&&<><section className="hero"><div><p className="eyebrow">RESUMEN DEL MES</p><h2>{income?money(Math.max(income-expense,0)):'Todo bajo control'}</h2><p>{income?'Disponible después de tus movimientos':'Empieza agregando tus finanzas, listas y eventos.'}</p></div><div className="hero-icon"><Home/></div></section><div className="section-title"><h3>Tu hogar</h3><button><Menu size={18}/></button></div><section className="grid">{cards.map(([a,b,c])=><button className="module" key={a} onClick={()=>{if(c==='list')p.setTab('listas');if(c==='calendar')p.setTab('calendario');if(c==='budget')p.setTab('presupuesto');if(c==='family')p.setTab('familia')}}><div><strong>{a}</strong><span>{b}</span></div><Icon kind={c}/></button>)}</section></>}
  {p.tab==='listas'&&<Lists household={p.household} lists={p.lists} refresh={p.onRefresh}/>}
  {p.tab==='calendario'&&<Events household={p.household} events={p.events} refresh={p.onRefresh}/>}
- {p.tab==='presupuesto'&&<Budget household={p.household} txs={p.txs} refresh={p.onRefresh}/>}
+ {p.tab==='presupuesto'&&<Finance household={p.household}/>}
  {p.tab==='familia'&&<Family household={p.household}/>}
  </main><nav><button className={p.tab==='inicio'?'active':''} onClick={()=>p.setTab('inicio')}><Home/><span>Inicio</span></button><button className={p.tab==='calendario'?'active':''} onClick={()=>p.setTab('calendario')}><CalendarDays/><span>Calendario</span></button><button className="fab" onClick={()=>p.setTab('listas')}><Plus/></button><button className={p.tab==='presupuesto'?'active':''} onClick={()=>p.setTab('presupuesto')}><WalletCards/><span>Finanzas</span></button><button className={p.tab==='familia'?'active':''} onClick={()=>p.setTab('familia')}><Users/><span>Familia</span></button></nav></div>
 }
