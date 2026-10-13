@@ -7,6 +7,7 @@ type FinanceHome={income:number;expense:number;saving:number;available:number;pe
 type Attention={id:string;type:string;severity:'info'|'warning'|'danger'|'success';title:string;body:string|null;action_tab:string|null;created_at:string};
 type AgendaItem={id:string;kind:'event'|'task'|'payment'|'birthday';title:string;date:string;time:string|null;subtitle:string;tab:string};
 type EventSource={id:string;title:string;event_date:string;start_time:string|null;location:string|null;event_type:string|null;recurrence:'none'|'weekly'|'monthly'|'yearly';recurrence_until:string|null};
+type SetupState={profile:boolean;finance:boolean;lists:boolean;family:boolean;backup:boolean};
 
 const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
 const iso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
@@ -18,6 +19,7 @@ const severityRank=(s:string)=>s==='danger'?0:s==='warning'?1:s==='success'?2:3;
 export default function HomeDashboard({household,finance,listCount,access,onNavigate}:{household:Household;finance:FinanceHome;listCount:number;access?:Record<string,'none'|'view'|'edit'>;onNavigate:(tab:string)=>void}){
  const can=(module:string)=>!access||access[module]!=='none';
  const [attention,setAttention]=useState<Attention[]>([]),[agenda,setAgenda]=useState<AgendaItem[]>([]),[firstName,setFirstName]=useState(''),[loading,setLoading]=useState(true);
+ const [setup,setSetup]=useState<SetupState>({profile:false,finance:false,lists:false,family:false,backup:false});
 
  useEffect(()=>{let channel:any,active=true;(async()=>{
   await load();
@@ -37,18 +39,27 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
   if(!user){setLoading(false);return}
   await supabase.rpc('refresh_my_notifications',{p_household_id:household.id});
   const today=iso(),weekEnd=iso(endOfWeek());
-  const [notificationR,taskR,eventR,occR,recR,memberR,profileR]=await Promise.all([
+  const [notificationR,taskR,eventR,occR,recR,memberR,profileR,accountR,backupR]=await Promise.all([
    supabase.from('notifications').select('id,type,severity,title,body,action_tab,created_at').eq('household_id',household.id).eq('user_id',user.id).is('read_at',null).neq('type','system').order('created_at',{ascending:false}).limit(20),
    supabase.from('list_items').select('id,text,due_date,assigned_to,completed').eq('household_id',household.id).eq('completed',false).gte('due_date',today).lte('due_date',weekEnd),
    supabase.from('events').select('id,title,event_date,start_time,location,event_type,recurrence,recurrence_until').eq('household_id',household.id).lte('event_date',weekEnd),
    supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status').eq('household_id',household.id).eq('status','pending').gte('due_date',today).lte('due_date',weekEnd),
    supabase.from('recurring_transactions').select('id,description,amount,type').eq('household_id',household.id).eq('active',true),
    supabase.from('household_members').select('user_id').eq('household_id',household.id),
-   supabase.from('profiles').select('id,full_name,birth_date').eq('id',user.id).maybeSingle()
+   supabase.from('profiles').select('id,full_name,birth_date,relationship').eq('id',user.id).maybeSingle(),
+   can('finance')?supabase.from('finance_accounts').select('id').eq('household_id',household.id).eq('active',true).limit(1):Promise.resolve({data:[] as any[]}),
+   can('backups')?supabase.from('household_backups').select('id').eq('household_id',household.id).limit(1):Promise.resolve({data:[] as any[]})
   ]);
   const memberIds=(memberR.data||[]).map((m:any)=>m.user_id);
   const birthdaysR=memberIds.length?await supabase.from('profiles').select('id,full_name,birth_date').in('id',memberIds):{data:[] as any[]};
   setFirstName(String(profileR.data?.full_name||user.user_metadata?.full_name||'').trim().split(/\s+/)[0]||'');
+  setSetup({
+   profile:Boolean(String(profileR.data?.full_name||'').trim()&&String(profileR.data?.relationship||'').trim()),
+   finance:!can('finance')||Boolean(accountR.data?.length),
+   lists:!can('lists')||listCount>0,
+   family:(memberR.data||[]).length>1,
+   backup:!can('backups')||Boolean(backupR.data?.length)
+  });
 
   const rows=((notificationR.data||[]) as Attention[]).sort((a,b)=>severityRank(a.severity)-severityRank(b.severity)||new Date(b.created_at).getTime()-new Date(a.created_at).getTime());
   setAttention(rows);
@@ -85,6 +96,14 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
  const greeting=greetingLabel();
  const statusTitle=urgent.length?urgent.length+' asunto'+(urgent.length===1?'':'s')+' requieren atención':'Tu hogar está al día';
  const statusCopy=urgent.length?'Prioricé primero vencimientos, presupuesto y pendientes cercanos.':'No hay alertas urgentes. Puedes revisar lo programado para hoy y esta semana.';
+ const setupSteps=[
+  {key:'profile',done:setup.profile,title:'Completa tu perfil',detail:'Nombre, relación y datos básicos',tab:'familia',show:true},
+  {key:'finance',done:setup.finance,title:'Agrega una cuenta',detail:'Efectivo, banco o tarjeta para empezar',tab:'presupuesto',show:can('finance')},
+  {key:'lists',done:setup.lists,title:'Crea tu primera lista',detail:'Compras o tareas compartidas',tab:'listas',show:can('lists')},
+  {key:'family',done:setup.family,title:'Invita a otra persona',detail:'Convierte el espacio en un hogar compartido',tab:'familia',show:true},
+  {key:'backup',done:setup.backup,title:'Crea un respaldo',detail:'Protege la configuración inicial',tab:'respaldos',show:can('backups')}
+ ].filter(x=>x.show);
+ const setupCompleted=setupSteps.filter(x=>x.done).length,showSetup=setupSteps.length>0&&setupCompleted<setupSteps.length;
 
  return <section className="home-dashboard home-control">
   <section className={'control-hero '+(urgent.length?'attention ':'')+(finance.projected<0?'risk':'')}>
@@ -115,6 +134,12 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
     {laterItems.length?<div className="week-upcoming">{laterItems.map(item=><AgendaRow key={item.id} item={item} onNavigate={onNavigate} compact/>)}</div>:<div className="control-empty small"><CheckCircle2/><span>No hay más compromisos esta semana.</span></div>}
    </section>
   </div>
+
+  {showSetup&&<section className="control-section home-setup-section">
+   <div className="control-section-head"><div><p className="eyebrow">PUESTA EN MARCHA</p><h3>Termina de preparar tu hogar</h3></div><span className="home-setup-count">{setupCompleted}/{setupSteps.length}</span></div>
+   <div className="home-setup-progress"><span style={{width:Math.round(setupCompleted/setupSteps.length*100)+'%'}}/></div>
+   <div className="home-setup-list">{setupSteps.map(step=><button key={step.key} className={step.done?'done':''} onClick={()=>!step.done&&onNavigate(step.tab)} disabled={step.done}><span>{step.done?<CheckCircle2/>:<span className="home-setup-number">{setupSteps.indexOf(step)+1}</span>}</span><div><strong>{step.title}</strong><small>{step.done?'Listo':step.detail}</small></div>{!step.done&&<ChevronRight/>}</button>)}</div>
+  </section>}
 
   <section className="control-section quick-access-section">
    <div className="control-section-head"><div><p className="eyebrow">TU HOGAR</p><h3>Accesos rápidos</h3></div></div>
