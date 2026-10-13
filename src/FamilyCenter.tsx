@@ -198,6 +198,6 @@ function defaultAccessForRole(role:string,module:ModuleKey):AccessLevel{
  return'none'
 }
 function auditAction(action:string){return action==='create'?'creó':action==='update'?'actualizó':action==='delete'?'eliminó':action==='role_change'?'cambió un rol':action==='access_change'?'cambió accesos':'quitó un integrante'}
-function auditEntity(module:string,entity:string,label:string|null){const moduleName=moduleDefs.find(x=>x.key===module as ModuleKey)?.label||module==='family'?'Familia':module;const clean=entity.replaceAll('_',' ');return moduleName+' · '+(label||clean)}
+function auditEntity(module:string,entity:string,label:string|null){const moduleName=moduleDefs.find(x=>x.key===module as ModuleKey)?.label||(module==='family'?'Familia':module);const clean=entity.replace(/_/g,' ');return moduleName+' · '+(label||clean)}
 function auditIcon(action:string){return action==='delete'||action==='member_remove'?<Trash2/>:action==='role_change'||action==='access_change'?<Shield/>:<Check/>}
 function relativeTime(value:string){const diff=Math.max(0,Date.now()-new Date(value).getTime()),minutes=Math.floor(diff/60000);if(minutes<1)return'Ahora';if(minutes<60)return'Hace '+minutes+' min';const hours=Math.floor(minutes/60);if(hours<24)return'Hace '+hours+' h';const days=Math.floor(hours/24);return'Hace '+days+' día'+(days===1?'':'s')}
