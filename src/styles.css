@@ -180,3 +180,32 @@ html[data-theme="light"] .home-select-label{color:#17232c}
  .app header>div:first-child{min-width:0}
 }
 @media(max-width:390px){.home-select-label{font-size:16px;padding-right:20px}}
+
+
+/* Unified daytime theme — neutral surfaces, legible content and preserved semantic accents. */
+html[data-theme="light"]{
+  --day-surface:#ffffff;--day-subtle:#f1f6f9;--day-border:#d8e3ea;
+  --day-text:#20313c;--day-muted:#607481;--day-accent:#137fa7;
+  color-scheme:light;
+}
+html[data-theme="light"] :is(.auth-card,.module,.hero,.invite,.empty,.finance-kpi,.finance-panel,.finance-tabs button,.month-switch,.month-switch button,.finance-v2 .panel,.finance-v2 .row,.finance-message,.finance div,.row,.panel,.control-section,.diagnostic-panel,.backup-panel,.planning-roadmap-panel,.planning-goals-panel,.planning-side-panel,.family-access-panel,.family-role-guide,.family-audit-panel,.home-hero,.home-summary-card,.home-kpi,.home-priority,.home-panel,.home-setup-section,.home-setup-list>button,.stack>.row,.app-menu-drawer,.app-menu-trigger,.app-menu-head>button,.theme-segment button){
+ background:var(--day-surface);border-color:var(--day-border);color:var(--day-text);
+}
+html[data-theme="light"] :is(.hero,.invite,.home-hero,.home-setup-section){background:linear-gradient(135deg,#ffffff,#f0f7fb)}
+html[data-theme="light"] :is(.page-title,.section-title h3,.panel-title h3,.panel-heading strong,.module strong,.row strong,.finance-kpi strong,.finance-panel strong,.home-kpi strong,.home-summary-card strong,.home-priority strong,.auth h1,.app-menu-head h2){color:var(--day-text)}
+html[data-theme="light"] :is(.muted,.module span:not(.ico),.row small,.finance-kpi small,.finance span,.panel-heading small,.panel-title small,.home-kpi small,.home-summary-card small,.app-menu-groups em,.app-menu-theme small){color:var(--day-muted)}
+html[data-theme="light"] :is(.ico,.rowicon,.datebox,.finance-kpi>span,.moneydot,.home-kpi-icon){background:var(--day-subtle)}
+html[data-theme="light"] :is(.month-switch,.finance-tabs button,.app-menu-groups section button,.theme-segment,.quick button:not(.primary)){border-color:var(--day-border)}
+html[data-theme="light"] :is(.finance-tabs button.active,.theme-segment button.active,.app-menu-groups section button.active){background:#e4f4fb;border-color:#a9d7e9;color:#126f94}
+html[data-theme="light"] :is(input,select,textarea){background:#fff;color:var(--day-text);border-color:#bdcfd9}
+html[data-theme="light"] :is(input,textarea)::placeholder{color:#748995}
+html[data-theme="light"] :is(input,select,textarea):focus-visible{outline:2px solid #268eb8;outline-offset:1px}
+html[data-theme="light"] :is(.auth-card,.panel,.finance-panel,.module,.home-panel){box-shadow:0 5px 24px #315a7110}
+html[data-theme="light"] :is(.app-menu-scrim){background:#10233070}
+html[data-theme="light"] :is(.empty){border-color:#c3d5df;color:var(--day-muted)}
+html[data-theme="light"] :is(.invite button,.logout){background:#f3f8fb;color:var(--day-text);border-color:var(--day-border)}
+html[data-theme="light"] :is(.section-title button,.panel-title button,.link){color:var(--day-accent)!important}
+html[data-theme="light"] :is(nav button.active,.finance-tabs button.active){color:var(--day-accent)}
+html[data-theme="light"] :is(.status,.moneydot.expense,.moneydot.income,.finance-kpi.good,.finance-kpi.warn,.finance-kpi.bad,.finance-kpi.save){background-color:transparent}
+html[data-theme="light"] :is(.primary,.finance-new,.finance-primary,.mini-add,nav .fab){background:#55bfe8;color:#071b26}
+@media(prefers-reduced-motion:reduce){html[data-theme="light"] *,html[data-theme="dark"] *{scroll-behavior:auto}}
