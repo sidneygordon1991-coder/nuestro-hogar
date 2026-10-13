@@ -42,7 +42,7 @@ const pantryCategoryLabel=(id:PantryCategory)=>pantryCategories.find(x=>x.id===i
 const pantryLocationLabel=(id:PantryLocation)=>pantryLocations.find(x=>x.id===id)?.label||'Otro';
 const mealTypeLabel=(id:MealType)=>mealTypes.find(x=>x.id===id)?.label||'Comida';
 
-export default function MealsCenter({household,onNavigate}:{household:Household;onNavigate?:(tab:string)=>void}){
+export default function MealsCenter({household,onNavigate,readOnly=false}:{household:Household;onNavigate?:(tab:string)=>void;readOnly?:boolean}){
  const [tab,setTab]=useState<'planner'|'recipes'|'pantry'>('planner');
  const [week,setWeek]=useState(()=>startOfWeek(new Date()));
  const [pantry,setPantry]=useState<PantryItem[]>([]),[recipes,setRecipes]=useState<Recipe[]>([]),[ingredients,setIngredients]=useState<Ingredient[]>([]),[meals,setMeals]=useState<MealPlan[]>([]);
@@ -96,10 +96,11 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
   return Math.round(available/required.length*100);
  }
 
- function startPantry(item:PantryItem|null=null){setEditingPantry(item);setShowPantryForm(true)}
+ function startPantry(item:PantryItem|null=null){if(readOnly)return;setEditingPantry(item);setShowPantryForm(true)}
  function closePantry(){setEditingPantry(null);setShowPantryForm(false)}
 
  async function savePantry(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const payload={household_id:household.id,name:String(f.get('name')||'').trim(),category:String(f.get('category')||'other'),quantity:Number(f.get('quantity')||0),unit:String(f.get('unit')||'unidad').trim()||'unidad',minimum_quantity:Number(f.get('minimum_quantity')||0),location:String(f.get('location')||'pantry'),expires_on:String(f.get('expires_on')||'')||null,notes:String(f.get('notes')||'').trim()||null,updated_at:new Date().toISOString()};
   const result=editingPantry?await supabase.from('pantry_items').update(payload).eq('id',editingPantry.id).eq('household_id',household.id):await supabase.from('pantry_items').insert(payload);
@@ -108,18 +109,20 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
  }
 
  async function changePantry(item:PantryItem,delta:number){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   const next=Math.max(0,Number(item.quantity)+delta);
   const {error}=await supabase.from('pantry_items').update({quantity:next,updated_at:new Date().toISOString()}).eq('id',item.id).eq('household_id',household.id);
   if(error)setMessage(error.message);else setPantry(current=>current.map(x=>x.id===item.id?{...x,quantity:next}:x));
  }
 
  async function archivePantry(item:PantryItem){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!window.confirm('¿Quitar este producto de la despensa?'))return;
   const {error}=await supabase.from('pantry_items').update({active:false,updated_at:new Date().toISOString()}).eq('id',item.id).eq('household_id',household.id);
   if(error)setMessage(error.message);else await load(false);
  }
 
- function startRecipe(recipe:Recipe|null=null){
+ function startRecipe(recipe:Recipe|null=null){if(readOnly)return;
   setEditingRecipe(recipe);
   if(recipe){
    const drafts=ingredientsFor(recipe.id).map(i=>({ingredient_name:i.ingredient_name,quantity:String(Number(i.quantity)),unit:i.unit,pantry_item_id:i.pantry_item_id||'',optional:i.optional}));
@@ -130,6 +133,7 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
  function closeRecipe(){setEditingRecipe(null);setShowRecipeForm(false);setIngredientDrafts([blankIngredient()])}
 
  async function saveRecipe(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const payload={household_id:household.id,name:String(f.get('name')||'').trim(),description:String(f.get('description')||'').trim()||null,servings:Number(f.get('servings')||2),prep_minutes:Number(f.get('prep_minutes')||0),cook_minutes:Number(f.get('cook_minutes')||0),instructions:String(f.get('instructions')||'').trim()||null,notes:String(f.get('notes')||'').trim()||null,updated_at:new Date().toISOString()};
   let recipeId=editingRecipe?.id||'';
@@ -148,13 +152,15 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
  }
 
  async function archiveRecipe(recipe:Recipe){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(!window.confirm('¿Archivar esta receta? Los planes anteriores se conservarán.'))return;
   const {error}=await supabase.from('recipes').update({active:false,updated_at:new Date().toISOString()}).eq('id',recipe.id).eq('household_id',household.id);
   if(error)setMessage(error.message);else await load(false);
  }
 
- function openPlan(date:string,type:MealType,recipeId=''){setPlanning({date,type,recipeId});setPlanRecipeId(recipeId)}
+ function openPlan(date:string,type:MealType,recipeId=''){if(readOnly)return;setPlanning({date,type,recipeId});setPlanRecipeId(recipeId)}
  async function savePlan(e:FormEvent<HTMLFormElement>){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();if(!planning)return;setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const recipeId=String(f.get('recipe_id')||'')||null,customTitle=String(f.get('custom_title')||'').trim()||null;
   if(!recipeId&&!customTitle){setBusy(false);setMessage('Selecciona una receta o escribe una comida.');return}
@@ -165,17 +171,20 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
  }
 
  async function deleteMeal(meal:MealPlan){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   const {error}=await supabase.from('meal_plan_entries').delete().eq('id',meal.id).eq('household_id',household.id);
   if(error)setMessage(error.message);else await load(false);
  }
 
  async function completeMeal(meal:MealPlan){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   if(meal.status==='prepared')return;
   setBusy(true);const {error}=await supabase.rpc('complete_meal_plan',{p_entry_id:meal.id});setBusy(false);
   setMessage(error?error.message:'Comida marcada como preparada y despensa actualizada.');if(!error)await load(false);
  }
 
  async function ensureShoppingList(){
+  if(readOnly)throw new Error('Modo solo lectura.');
   const {data:existing}=await supabase.from('lists').select('id,title').eq('household_id',household.id).eq('list_type','shopping').order('created_at').limit(1).maybeSingle();
   if(existing?.id)return existing.id as string;
   const {data,error}=await supabase.from('lists').insert({household_id:household.id,title:'Supermercado',list_type:'shopping'}).select('id').single();
@@ -184,6 +193,7 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
  }
 
  async function addRecipeMissingToShopping(recipe:Recipe,servings?:number|null){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   setBusy(true);setMessage('');
   try{
    const listId=await ensureShoppingList(),ratio=(servings||recipe.servings)/recipe.servings;
@@ -203,6 +213,7 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
  }
 
  async function addPantryToShopping(item:PantryItem){
+  if(readOnly){setMessage('Modo solo lectura.');return}
   setBusy(true);setMessage('');
   try{
    const listId=await ensureShoppingList();
@@ -221,7 +232,7 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
  if(loading)return <div className="finance-loading"><div className="loader"/></div>;
 
  return <section className="meals-center">
-  <div className="finance-top"><div><p className="eyebrow">COCINA Y HOGAR</p><h2 className="page-title">Comidas</h2><p className="muted">Plan semanal, recetas, despensa y compras conectadas entre sí.</p></div><button className="finance-new" onClick={()=>tab==='planner'?openPlan(today,'dinner'):tab==='recipes'?startRecipe():startPantry()}><Plus/>{tab==='planner'?'Planificar':tab==='recipes'?'Receta':'Producto'}</button></div>
+  <div className="finance-top"><div><p className="eyebrow">COCINA Y HOGAR</p><h2 className="page-title">Comidas</h2><p className="muted">Plan semanal, recetas, despensa y compras conectadas entre sí.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>tab==='planner'?openPlan(today,'dinner'):tab==='recipes'?startRecipe():startPantry()}><Plus/>{tab==='planner'?'Planificar':tab==='recipes'?'Receta':'Producto'}</button>}</div>
 
   <div className="meals-tabs"><button className={tab==='planner'?'active':''} onClick={()=>setTab('planner')}><CalendarDays/> Plan semanal</button><button className={tab==='recipes'?'active':''} onClick={()=>setTab('recipes')}><Utensils/> Recetas</button><button className={tab==='pantry'?'active':''} onClick={()=>setTab('pantry')}><Package/> Despensa</button></div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
@@ -230,7 +241,7 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
    <div className="meal-week-head"><button onClick={()=>setWeek(w=>addDays(w,-7))}><ChevronLeft/></button><div><small>SEMANA</small><strong>{fmtDate(iso(week))} — {fmtDate(iso(addDays(week,6)))}</strong></div><button onClick={()=>setWeek(w=>addDays(w,7))}><ChevronRight/></button></div>
    <div className="meal-overview-kpis"><div><span><CalendarDays/></span><small>Comidas planificadas</small><strong>{meals.filter(m=>m.status==='planned').length}</strong></div><div><span><CheckCircle2/></span><small>Preparadas</small><strong>{meals.filter(m=>m.status==='prepared').length}</strong></div><div><span><ShoppingCart/></span><small>Stock bajo</small><strong>{lowStock.length}</strong></div><div><span><Clock3/></span><small>Vencen en 7 días</small><strong>{expiringSoon.length}</strong></div></div>
 
-   <div className="meal-week-grid">{weekDays.map(day=>{const date=iso(day),isToday=date===today;return <article className={'meal-day '+(isToday?'today':'')} key={date}><div className="meal-day-head"><small>{day.toLocaleDateString('es-GT',{weekday:'short'}).replace('.','')}</small><strong>{day.getDate()}</strong><span>{day.toLocaleDateString('es-GT',{month:'short'}).replace('.','')}</span></div><div className="meal-slots">{mealTypes.map(mt=>{const meal=mealAt(date,mt.id),recipe=meal?.recipe_id?recipeById(meal.recipe_id):null;return <div className={'meal-slot '+(meal?.status||'empty')} key={mt.id}><div className="meal-slot-title"><span>{mt.label}</span>{meal&&meal.status==='prepared'&&<Check/>}</div>{meal?<><strong>{recipe?.name||meal.custom_title}</strong>{recipe&&<small>{coverage(recipe.id,meal.servings)}% disponible · {meal.servings||recipe.servings} porciones</small>}<div className="meal-slot-actions">{recipe&&meal.status==='planned'&&<button title="Agregar faltantes" onClick={()=>addRecipeMissingToShopping(recipe,meal.servings)}><ShoppingCart/></button>}{meal.status==='planned'&&<button title="Marcar preparada" onClick={()=>completeMeal(meal)}><Check/></button>}<button title="Quitar" onClick={()=>deleteMeal(meal)}><Trash2/></button></div></>:<button className="meal-add-slot" onClick={()=>openPlan(date,mt.id)}><Plus/> Agregar</button>}</div>})}</div></article>})}</div>
+   <div className="meal-week-grid">{weekDays.map(day=>{const date=iso(day),isToday=date===today;return <article className={'meal-day '+(isToday?'today':'')} key={date}><div className="meal-day-head"><small>{day.toLocaleDateString('es-GT',{weekday:'short'}).replace('.','')}</small><strong>{day.getDate()}</strong><span>{day.toLocaleDateString('es-GT',{month:'short'}).replace('.','')}</span></div><div className="meal-slots">{mealTypes.map(mt=>{const meal=mealAt(date,mt.id),recipe=meal?.recipe_id?recipeById(meal.recipe_id):null;return <div className={'meal-slot '+(meal?.status||'empty')} key={mt.id}><div className="meal-slot-title"><span>{mt.label}</span>{meal&&meal.status==='prepared'&&<Check/>}</div>{meal?<><strong>{recipe?.name||meal.custom_title}</strong>{recipe&&<small>{coverage(recipe.id,meal.servings)}% disponible · {meal.servings||recipe.servings} porciones</small>}<div className="meal-slot-actions">{!readOnly&&recipe&&meal.status==='planned'&&<button title="Agregar faltantes" onClick={()=>addRecipeMissingToShopping(recipe,meal.servings)}><ShoppingCart/></button>}{!readOnly&&meal.status==='planned'&&<button title="Marcar preparada" onClick={()=>completeMeal(meal)}><Check/></button>}{!readOnly&&<button title="Quitar" onClick={()=>deleteMeal(meal)}><Trash2/></button>}</div></>:{!readOnly&&<button className="meal-add-slot" onClick={()=>openPlan(date,mt.id)}><Plus/> Agregar</button>}}</div>})}</div></article>})}</div>
 
    <div className="meal-smart-row">
     <div className="meal-smart-card"><span><ShoppingCart/></span><div><strong>{lowStock.length?lowStock.length+' producto'+(lowStock.length===1?'':'s')+' con stock bajo':'Despensa abastecida'}</strong><small>{lowStock.length?'Agrega reposiciones directamente a Supermercado.':'No hay productos por debajo del mínimo configurado.'}</small></div><button onClick={()=>setTab('pantry')}>Revisar <ChevronRight/></button></div>
@@ -239,19 +250,19 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
   </>}
 
   {tab==='recipes'&&<>
-   <div className="meal-search-row"><label><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar recetas"/></label><button onClick={()=>startRecipe()}><Plus/> Nueva receta</button></div>
-   <div className="recipe-grid">{recipeFiltered.map(recipe=>{const cov=coverage(recipe.id),ings=ingredientsFor(recipe.id);return <article className="recipe-card" key={recipe.id}><div className="recipe-card-head"><span><Utensils/></span><div><strong>{recipe.name}</strong><small>{recipe.prep_minutes+recipe.cook_minutes} min · {recipe.servings} porciones</small></div><b className={cov>=80?'good':cov>=50?'watch':'bad'}>{cov}%</b></div>{recipe.description&&<p>{recipe.description}</p>}<div className="recipe-stock"><div><span>Ingredientes disponibles</span><strong>{cov}%</strong></div><div className="progress"><span style={{width:cov+'%'}}/></div><small>{ings.filter(i=>!i.optional).length} ingrediente{ings.filter(i=>!i.optional).length===1?'':'s'} requeridos</small></div><div className="recipe-actions"><button onClick={()=>{openPlan(today,'dinner',recipe.id);setTab('planner')}}><CalendarDays/> Planificar</button><button onClick={()=>addRecipeMissingToShopping(recipe)}><ShoppingCart/> Faltantes</button><button onClick={()=>startRecipe(recipe)}><Utensils/> Editar</button><button className="danger" onClick={()=>archiveRecipe(recipe)}><Trash2/></button></div></article>})}</div>
-   {!recipeFiltered.length&&<div className="document-empty"><Utensils/><strong>{recipes.length?'No encontramos recetas':'Aún no hay recetas'}</strong><span>{recipes.length?'Prueba con otra búsqueda.':'Crea una receta y vincula sus ingredientes con la despensa.'}</span>{!recipes.length&&<button onClick={()=>startRecipe()}><Plus/> Crear primera receta</button>}</div>}
+   <div className="meal-search-row"><label><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar recetas"/></label>{!readOnly&&<button onClick={()=>startRecipe()}><Plus/> Nueva receta</button>}</div>
+   <div className="recipe-grid">{recipeFiltered.map(recipe=>{const cov=coverage(recipe.id),ings=ingredientsFor(recipe.id);return <article className="recipe-card" key={recipe.id}><div className="recipe-card-head"><span><Utensils/></span><div><strong>{recipe.name}</strong><small>{recipe.prep_minutes+recipe.cook_minutes} min · {recipe.servings} porciones</small></div><b className={cov>=80?'good':cov>=50?'watch':'bad'}>{cov}%</b></div>{recipe.description&&<p>{recipe.description}</p>}<div className="recipe-stock"><div><span>Ingredientes disponibles</span><strong>{cov}%</strong></div><div className="progress"><span style={{width:cov+'%'}}/></div><small>{ings.filter(i=>!i.optional).length} ingrediente{ings.filter(i=>!i.optional).length===1?'':'s'} requeridos</small></div>{!readOnly&&<div className="recipe-actions"><button onClick={()=>{openPlan(today,'dinner',recipe.id);setTab('planner')}}><CalendarDays/> Planificar</button><button onClick={()=>addRecipeMissingToShopping(recipe)}><ShoppingCart/> Faltantes</button><button onClick={()=>startRecipe(recipe)}><Utensils/> Editar</button><button className="danger" onClick={()=>archiveRecipe(recipe)}><Trash2/></button></div>}</article>})}</div>
+   {!recipeFiltered.length&&<div className="document-empty"><Utensils/><strong>{recipes.length?'No encontramos recetas':'Aún no hay recetas'}</strong><span>{recipes.length?'Prueba con otra búsqueda.':'Crea una receta y vincula sus ingredientes con la despensa.'}</span>{!recipes.length&&!readOnly&&<button onClick={()=>startRecipe()}><Plus/> Crear primera receta</button>}</div>}
   </>}
 
   {tab==='pantry'&&<>
-   <div className="meal-search-row"><label><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar en despensa"/></label><button onClick={()=>startPantry()}><Plus/> Producto</button></div>
+   <div className="meal-search-row"><label><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar en despensa"/></label>{!readOnly&&<button onClick={()=>startPantry()}><Plus/> Producto</button>}</div>
    {(lowStock.length>0||expiringSoon.length>0)&&<div className="pantry-alerts">{lowStock.length>0&&<div><ShoppingCart/><strong>{lowStock.length} con stock bajo</strong><span>Conviene reponerlos pronto.</span></div>}{expiringSoon.length>0&&<div><Clock3/><strong>{expiringSoon.length} por vencer</strong><span>Úsalos antes de comprar más.</span></div>}</div>}
-   <div className="pantry-grid">{pantryFiltered.map(item=>{const low=Number(item.quantity)<=Number(item.minimum_quantity),expired=Boolean(item.expires_on&&item.expires_on<today);return <article className={'pantry-card '+(low?'low ':'')+(expired?'expired':'')} key={item.id}><div className="pantry-card-head"><span><Package/></span><div><small>{pantryCategoryLabel(item.category)} · {pantryLocationLabel(item.location)}</small><strong>{item.name}</strong></div><button onClick={()=>startPantry(item)}><Utensils/></button></div><div className="pantry-quantity"><button onClick={()=>changePantry(item,-1)}><Minus/></button><div><strong>{fmtQty(Number(item.quantity))}</strong><span>{item.unit}</span></div><button onClick={()=>changePantry(item,1)}><Plus/></button></div><div className="pantry-meta"><span>Mínimo <b>{fmtQty(Number(item.minimum_quantity))} {item.unit}</b></span><span>{item.expires_on?'Vence '+fmtDate(item.expires_on):'Sin vencimiento'}</span></div>{low&&<button className="pantry-buy" onClick={()=>addPantryToShopping(item)}><ShoppingCart/> Agregar a Supermercado</button>}<div className="pantry-card-actions"><button onClick={()=>startPantry(item)}>Editar</button><button className="danger" onClick={()=>archivePantry(item)}><Trash2/> Quitar</button></div></article>})}</div>
-   {!pantryFiltered.length&&<div className="document-empty"><Package/><strong>{pantry.length?'No encontramos productos':'Despensa vacía'}</strong><span>{pantry.length?'Prueba con otra búsqueda.':'Registra lo que ya tienen en casa para evitar compras duplicadas.'}</span>{!pantry.length&&<button onClick={()=>startPantry()}><Plus/> Agregar primer producto</button>}</div>}
+   <div className="pantry-grid">{pantryFiltered.map(item=>{const low=Number(item.quantity)<=Number(item.minimum_quantity),expired=Boolean(item.expires_on&&item.expires_on<today);return <article className={'pantry-card '+(low?'low ':'')+(expired?'expired':'')} key={item.id}><div className="pantry-card-head"><span><Package/></span><div><small>{pantryCategoryLabel(item.category)} · {pantryLocationLabel(item.location)}</small><strong>{item.name}</strong></div>{!readOnly&&<button onClick={()=>startPantry(item)}><Utensils/></button>}</div><div className="pantry-quantity">{!readOnly&&<button onClick={()=>changePantry(item,-1)}><Minus/></button>}<div><strong>{fmtQty(Number(item.quantity))}</strong><span>{item.unit}</span></div>{!readOnly&&<button onClick={()=>changePantry(item,1)}><Plus/></button>}</div><div className="pantry-meta"><span>Mínimo <b>{fmtQty(Number(item.minimum_quantity))} {item.unit}</b></span><span>{item.expires_on?'Vence '+fmtDate(item.expires_on):'Sin vencimiento'}</span></div>{low&&!readOnly&&<button className="pantry-buy" onClick={()=>addPantryToShopping(item)}><ShoppingCart/> Agregar a Supermercado</button>}{!readOnly&&<div className="pantry-card-actions"><button onClick={()=>startPantry(item)}>Editar</button><button className="danger" onClick={()=>archivePantry(item)}><Trash2/> Quitar</button></div>}</article>})}</div>
+   {!pantryFiltered.length&&<div className="document-empty"><Package/><strong>{pantry.length?'No encontramos productos':'Despensa vacía'}</strong><span>{pantry.length?'Prueba con otra búsqueda.':'Registra lo que ya tienen en casa para evitar compras duplicadas.'}</span>{!pantry.length&&!readOnly&&<button onClick={()=>startPantry()}><Plus/> Agregar primer producto</button>}</div>}
   </>}
 
-  {showPantryForm&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closePantry()}}><div className="finance-modal"><div className="modal-head"><h3>{editingPantry?'Editar producto':'Nuevo producto'}</h3><button onClick={closePantry}><X/></button></div><form className="finance-form" onSubmit={savePantry}>
+  {showPantryForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closePantry()}}><div className="finance-modal"><div className="modal-head"><h3>{editingPantry?'Editar producto':'Nuevo producto'}</h3><button onClick={closePantry}><X/></button></div><form className="finance-form" onSubmit={savePantry}>
    <label>Producto<input name="name" defaultValue={editingPantry?.name||''} placeholder="Ej. Arroz" required/></label>
    <div className="two"><label>Categoría<select name="category" defaultValue={editingPantry?.category||'other'}>{pantryCategories.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label><label>Ubicación<select name="location" defaultValue={editingPantry?.location||'pantry'}>{pantryLocations.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label></div>
    <div className="three"><label>Cantidad<input name="quantity" type="number" min="0" step=".01" defaultValue={editingPantry?Number(editingPantry.quantity):1}/></label><label>Unidad<input name="unit" defaultValue={editingPantry?.unit||'unidad'} placeholder="kg, lb, unidad"/></label><label>Mínimo<input name="minimum_quantity" type="number" min="0" step=".01" defaultValue={editingPantry?Number(editingPantry.minimum_quantity):0}/></label></div>
@@ -260,7 +271,7 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
    <button className="finance-primary" disabled={busy}><Check/>{busy?'Guardando...':'Guardar producto'}</button>
   </form></div></div>}
 
-  {showRecipeForm&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeRecipe()}}><div className="finance-modal recipe-modal"><div className="modal-head"><h3>{editingRecipe?'Editar receta':'Nueva receta'}</h3><button onClick={closeRecipe}><X/></button></div><form className="finance-form" onSubmit={saveRecipe}>
+  {showRecipeForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeRecipe()}}><div className="finance-modal recipe-modal"><div className="modal-head"><h3>{editingRecipe?'Editar receta':'Nueva receta'}</h3><button onClick={closeRecipe}><X/></button></div><form className="finance-form" onSubmit={saveRecipe}>
    <label>Nombre<input name="name" defaultValue={editingRecipe?.name||''} placeholder="Ej. Pollo parmesano" required/></label>
    <label>Descripción<input name="description" defaultValue={editingRecipe?.description||''} placeholder="Descripción corta"/></label>
    <div className="three"><label>Porciones<input name="servings" type="number" min="1" max="100" defaultValue={editingRecipe?.servings||2}/></label><label>Preparación min<input name="prep_minutes" type="number" min="0" defaultValue={editingRecipe?.prep_minutes||0}/></label><label>Cocción min<input name="cook_minutes" type="number" min="0" defaultValue={editingRecipe?.cook_minutes||0}/></label></div>
@@ -270,7 +281,7 @@ export default function MealsCenter({household,onNavigate}:{household:Household;
    <button className="finance-primary" disabled={busy}><Check/>{busy?'Guardando...':editingRecipe?'Guardar receta':'Crear receta'}</button>
   </form></div></div>}
 
-  {planning&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setPlanning(null)}}><div className="finance-modal"><div className="modal-head"><div><p className="eyebrow">{mealTypeLabel(planning.type)} · {fmtDate(planning.date)}</p><h3>Planificar comida</h3></div><button onClick={()=>setPlanning(null)}><X/></button></div><form className="finance-form" onSubmit={savePlan}>
+  {planning&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setPlanning(null)}}><div className="finance-modal"><div className="modal-head"><div><p className="eyebrow">{mealTypeLabel(planning.type)} · {fmtDate(planning.date)}</p><h3>Planificar comida</h3></div><button onClick={()=>setPlanning(null)}><X/></button></div><form className="finance-form" onSubmit={savePlan}>
    <label>Receta<select name="recipe_id" value={planRecipeId} onChange={e=>setPlanRecipeId(e.target.value)}><option value="">Comida libre / sin receta</option>{recipes.map(r=><option key={r.id} value={r.id}>{r.name} · {coverage(r.id)}% disponible</option>)}</select></label>
    {!planRecipeId&&<label>Nombre de la comida<input name="custom_title" placeholder="Ej. Cena fuera de casa" required/></label>}
    <div className="two"><label>Porciones<input name="servings" type="number" min="1" defaultValue={recipeById(planRecipeId)?.servings||2}/></label><label>Fecha<input value={planning.date} disabled/></label></div>
