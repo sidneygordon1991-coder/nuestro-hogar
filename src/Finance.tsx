@@ -535,6 +535,7 @@ export default function Finance({household}:{household:Household}){
    <button className={tab==='comparison'?'active':''} onClick={()=>setTab('comparison')}>Comparación</button>
    <button className={tab==='contributions'?'active':''} onClick={()=>setTab('contributions')}>Aportes</button>
    <button className={tab==='goals'?'active':''} onClick={()=>setTab('goals')}>Metas</button>
+   <button className={tab==='networth'?'active':''} onClick={()=>setTab('networth')}>Patrimonio</button>
    <button className={tab==='accounts'?'active':''} onClick={()=>setTab('accounts')}>Cuentas</button>
   </div>
 
@@ -731,11 +732,63 @@ export default function Finance({household}:{household:Household}){
    </div>
   </div>}
 
-  {tab==='accounts'&&<div className="finance-panel">
-   <div className="panel-title"><div><h3>Cuentas y medios</h3><small>Efectivo, banco, ahorro o tarjeta.</small></div><button className="mini-add" onClick={()=>setShowAccountForm(true)}><Plus size={16}/> Cuenta</button></div>
-   <div className="account-grid">{accountBalances.map(a=><div className="account-card" key={a.id}><span className="account-icon">{a.account_type==='credit'?<CreditCard/>:<Landmark/>}</span><div><small>{accountTypeName(a.account_type)}</small><strong>{a.name}</strong><b>{currency(a.balance)}</b></div><em>{a.is_shared?'Compartida':'Personal'}</em></div>)}</div>
-   {!accounts.length&&<EmptyFinance text="Agrega una cuenta para saber desde dónde sale y entra el dinero."/>}
-  </div>}
+  {tab==='networth'&&<>
+   <div className={'net-worth-hero '+(patrimony.netWorth<0?'negative':'')}>
+    <div><p className="eyebrow">PATRIMONIO NETO</p><h3>{currency(patrimony.netWorth)}</h3><p>Activos y cuentas menos deudas. Se actualiza automáticamente con movimientos y transferencias.</p></div>
+    <span className="net-worth-icon"><CircleDollarSign/></span>
+   </div>
+   <div className="net-worth-kpis">
+    <div><span className="asset"><TrendingUp/></span><small>Activos totales</small><strong>{currency(patrimony.totalAssets)}</strong><em>{currency(patrimony.liquidAssets)} líquidos</em></div>
+    <div><span className="liability"><TrendingDown/></span><small>Deudas</small><strong>{currency(patrimony.liabilities)}</strong><em>{patrimony.debtRatio.toFixed(1)}% de activos</em></div>
+    <div><span className="credit"><Gauge/></span><small>Uso de crédito</small><strong>{patrimony.creditLimit?Math.round(patrimony.creditUtilization)+'%':'—'}</strong><em>{patrimony.creditLimit?currency(patrimony.creditUsed)+' de '+currency(patrimony.creditLimit):'Sin límites configurados'}</em></div>
+    <div><span className="manual"><Gem/></span><small>Bienes registrados</small><strong>{currency(patrimony.manualAssets)}</strong><em>{assets.length} activo{assets.length===1?'':'s'}</em></div>
+   </div>
+
+   <div className="finance-panel">
+    <div className="panel-title"><div><h3>Evolución del patrimonio</h3><small>Se guarda una fotografía diaria para construir el histórico real.</small></div><BarChart3 size={18}/></div>
+    <NetWorthChart data={netWorthSnapshots}/>
+   </div>
+
+   <div className="finance-columns patrimony-columns">
+    <div className="finance-panel">
+     <div className="panel-title"><div><h3>Activos financieros</h3><small>Cuentas, efectivo, ahorro e inversiones.</small></div><button onClick={()=>{setEditingAccount(null);setShowAccountForm(true)}}><Plus size={15}/> Cuenta</button></div>
+     <div className="wealth-list">{accountBalances.filter(a=>a.account_class==='asset').map(a=><div className="wealth-row" key={a.id}><span>{accountIcon(a.account_type)}</span><div><strong>{a.name}</strong><small>{a.institution||accountTypeName(a.account_type)} · {a.is_shared?'Compartida':'Personal'}</small></div><b>{currency(a.balance)}</b></div>)}</div>
+     {!accountBalances.some(a=>a.account_class==='asset')&&<EmptyFinance text="Agrega una cuenta o inversión para comenzar a medir tus activos."/>}
+    </div>
+    <div className="finance-panel">
+     <div className="panel-title"><div><h3>Deudas y tarjetas</h3><small>Saldo pendiente, utilización y próximas fechas.</small></div><button onClick={()=>{setEditingAccount(null);setShowAccountForm(true)}}><Plus size={15}/> Deuda</button></div>
+     <div className="wealth-list">{accountBalances.filter(a=>a.account_class==='liability').map(a=><div className="debt-summary-row" key={a.id}><div className="wealth-row"><span>{accountIcon(a.account_type)}</span><div><strong>{a.name}</strong><small>{a.institution||accountTypeName(a.account_type)}{a.payment_due_day?' · paga día '+a.payment_due_day:''}</small></div><b>{currency(Math.max(0,a.balance))}</b></div>{a.account_type==='credit'&&a.credit_limit?<div className="debt-utilization"><div><span>Utilización</span><strong>{Math.round(Math.max(0,a.balance)/Number(a.credit_limit)*100)}%</strong></div><Progress value={Math.max(0,a.balance)/Number(a.credit_limit)*100}/><small>{currency(Math.max(0,Number(a.credit_limit)-Math.max(0,a.balance)))} disponible</small></div>:null}</div>)}</div>
+     {!accountBalances.some(a=>a.account_class==='liability')&&<EmptyFinance text="Agrega tarjetas, préstamos o hipotecas para ver tu deuda total."/>}
+    </div>
+   </div>
+
+   <div className="finance-panel">
+    <div className="panel-title"><div><h3>Bienes y otros activos</h3><small>Casa, vehículo, inversiones externas y objetos de valor.</small></div><button className="mini-add" onClick={()=>{setEditingAsset(null);setShowAssetForm(true)}}><Plus size={15}/> Activo</button></div>
+    <div className="asset-grid">{assets.map(asset=><article className="asset-card" key={asset.id}><span className={'asset-type-icon '+asset.asset_type}>{assetIcon(asset.asset_type)}</span><div><small>{assetTypeName(asset.asset_type)}</small><strong>{asset.name}</strong><b>{currency(Number(asset.estimated_value))}</b><em>{asset.is_shared?'Del hogar':memberName(asset.owner_user_id)}</em></div><div className="asset-actions"><button onClick={()=>{setEditingAsset(asset);setShowAssetForm(true)}}><Pencil/></button><button onClick={()=>deleteAsset(asset)}><Trash2/></button></div></article>)}</div>
+    {!assets.length&&<EmptyFinance text="Registra bienes para tener una visión completa del patrimonio del hogar."/>}
+   </div>
+  </>}
+
+  {tab==='accounts'&&<>
+   <div className="account-toolbar">
+    <div><p className="eyebrow">CUENTAS Y DEUDAS</p><h3>Dinero, crédito y transferencias</h3><p>Los pagos entre cuentas no se contabilizan como gasto doble.</p></div>
+    <div><button className="secondary-action" onClick={()=>setShowTransferForm(true)} disabled={accounts.length<2}><ArrowRightLeft/> Transferir / pagar deuda</button><button className="finance-new" onClick={()=>{setEditingAccount(null);setShowAccountForm(true)}}><Plus/> Cuenta</button></div>
+   </div>
+   <div className="account-grid advanced">{accountBalances.map(a=><article className={'account-card advanced '+a.account_class} key={a.id}>
+    <span className="account-icon">{accountIcon(a.account_type)}</span>
+    <div className="account-card-copy"><small>{accountTypeName(a.account_type)}{a.institution?' · '+a.institution:''}</small><strong>{a.name}</strong><b>{currency(a.account_class==='liability'?Math.max(0,a.balance):a.balance)}</b><em>{a.is_shared?'Compartida':'Personal'}{a.owner_user_id?' · '+memberName(a.owner_user_id):''}</em></div>
+    <div className="account-card-actions"><button title="Editar" onClick={()=>{setEditingAccount(a);setShowAccountForm(true)}}><Pencil/></button><button title="Archivar" onClick={()=>archiveAccount(a)}><Trash2/></button></div>
+    {a.account_class==='liability'&&<div className="account-debt-details">{a.credit_limit?<div><span>Límite</span><b>{currency(Number(a.credit_limit))}</b></div>:null}{a.statement_day?<div><span>Corte</span><b>Día {a.statement_day}</b></div>:null}{a.payment_due_day?<div><span>Pago</span><b>Día {a.payment_due_day}</b></div>:null}{a.minimum_payment?<div><span>Mínimo</span><b>{currency(Number(a.minimum_payment))}</b></div>:null}{a.apr!=null?<div><span>Tasa</span><b>{Number(a.apr).toFixed(2)}%</b></div>:null}</div>}
+    {a.account_type==='credit'&&a.credit_limit?<div className="account-utilization"><div><span>Utilización</span><b>{Math.round(Math.max(0,a.balance)/Number(a.credit_limit)*100)}%</b></div><Progress value={Math.max(0,a.balance)/Number(a.credit_limit)*100}/></div>:null}
+   </article>)}</div>
+   {!accounts.length&&<EmptyFinance text="Agrega cuentas, tarjetas o préstamos para controlar de dónde sale el dinero y cuánto debes."/>}
+
+   <div className="finance-panel transfer-history">
+    <div className="panel-title"><div><h3>Transferencias y pagos de deuda</h3><small>Mover dinero entre cuentas no altera tus ingresos o gastos.</small></div><button onClick={()=>setShowTransferForm(true)} disabled={accounts.length<2}><Plus size={15}/> Registrar</button></div>
+    <div>{transfers.slice(0,10).map(t=><div className="transfer-row" key={t.id}><span><ArrowRightLeft/></span><div><strong>{accountName(t.from_account_id)} → {accountName(t.to_account_id)}</strong><small>{t.description||'Transferencia'} · {new Date(t.transfer_date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'})}</small></div><b>{currency(Number(t.amount))}</b><button onClick={()=>deleteTransfer(t)}><Trash2/></button></div>)}</div>
+    {!transfers.length&&<EmptyFinance text="Aquí aparecerán pagos de tarjeta, préstamos y transferencias entre cuentas."/>}
+   </div>
+  </>}
 
   {showTxForm&&<Modal title="Nuevo movimiento" close={()=>setShowTxForm(false)}><form className="finance-form" onSubmit={addTransaction}>
    <div className="two"><label>Tipo<select name="type" defaultValue="expense"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label><label>Monto<input name="amount" type="number" min=".01" step=".01" placeholder="0.00" required/></label></div>
