@@ -1,0 +1,37 @@
+.monthly-income-plan{min-width:0}
+.monthly-income-heading{display:flex;align-items:flex-start;gap:14px;margin-bottom:22px}
+.monthly-income-heading>span,.monthly-income-person-head>span{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:15px;background:var(--nh-accent-soft);color:var(--nh-accent)}
+.monthly-income-heading>div,.monthly-income-person-head>div{min-width:0;overflow-wrap:anywhere}
+.monthly-income-heading h3{margin:4px 0 8px;font-size:23px;letter-spacing:-.6px}
+.monthly-income-heading>div>p:last-child,.monthly-income-hint{font-size:12px;line-height:1.65;color:var(--nh-muted);margin:0}
+.monthly-income-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
+.monthly-income-totals>div{padding:17px;border:1px solid var(--nh-border);border-radius:16px;background:var(--nh-subtle);min-width:0}
+.monthly-income-totals small,.monthly-income-totals strong,.monthly-income-totals span{display:block;overflow-wrap:anywhere}
+.monthly-income-totals small,.monthly-income-totals span{font-size:11px;color:var(--nh-muted)}
+.monthly-income-totals strong{font-size:26px;letter-spacing:-.8px;margin:8px 0}
+.monthly-income-totals .received strong{color:var(--nh-success)}
+.monthly-income-people{display:grid;gap:12px;margin:20px 0}
+.monthly-income-person{min-width:0;padding:18px;border:1px solid var(--nh-border);border-radius:17px;background:var(--nh-subtle)}
+.monthly-income-person-head{display:flex;gap:11px;align-items:center;margin-bottom:17px}
+.monthly-income-person-head>span{width:36px;height:36px;border-radius:12px;font-weight:750}
+.monthly-income-person-head strong{display:block;font-size:14px}
+.monthly-income-person-head small{display:block;margin-top:4px;font-size:11px;color:var(--nh-muted)}
+.monthly-income-person-values{display:grid;grid-template-columns:minmax(0,1.1fr) repeat(2,minmax(0,1fr));gap:18px;align-items:center}
+.monthly-income-person-values>*,.monthly-income-person-values input{min-width:0}
+.monthly-income-person-values label,.monthly-income-person-values small{display:grid;gap:7px;font-size:11px;color:var(--nh-muted)}
+.monthly-income-person-values strong{display:block;font-size:18px;margin-top:7px;overflow-wrap:anywhere}
+.monthly-income-person-values input{width:100%;box-sizing:border-box;border:1px solid var(--nh-border);border-radius:11px;padding:11px;background:var(--nh-page);color:var(--nh-text);font:inherit;font-size:15px}
+.monthly-income-person-values input:disabled{opacity:.8}
+.monthly-income-person progress{appearance:none;width:100%;height:6px;margin:18px 0 0;border:0;border-radius:8px;overflow:hidden;background:var(--nh-track);accent-color:var(--nh-success)}
+.monthly-income-person progress::-webkit-progress-bar{background:var(--nh-track)}
+.monthly-income-person progress::-webkit-progress-value{background:var(--nh-success);border-radius:8px}
+.monthly-income-person progress::-moz-progress-bar{background:var(--nh-success)}
+.monthly-income-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:16px 0}
+.monthly-income-actions button{white-space:normal;text-align:center}
+.monthly-income-actions small{font-size:11px;line-height:1.5;color:var(--nh-muted);flex:1;min-width:170px}
+.monthly-income-alert{padding:13px;border-radius:12px;color:var(--nh-warning);background:var(--nh-warning-soft);font-size:12px;line-height:1.6;overflow-wrap:anywhere;margin:15px 0}
+.monthly-income-alert button,.monthly-income-movements{display:flex;align-items:center;gap:7px;border:1px solid var(--nh-border);border-radius:10px;background:var(--nh-page);color:var(--nh-accent);padding:10px 12px;font-size:12px;margin-top:12px}
+.monthly-income-saved{padding:12px;background:var(--nh-success-soft);color:var(--nh-success);border-radius:12px;font-size:12px}
+.monthly-income-hint{margin:12px 0}
+@media(max-width:600px){.monthly-income-heading{gap:11px}.monthly-income-heading h3{font-size:21px}.monthly-income-totals{grid-template-columns:minmax(0,1fr);gap:8px}.monthly-income-totals>div{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px;padding:13px}.monthly-income-totals strong{grid-column:2;grid-row:1/3;font-size:22px;margin:0;max-width:170px}.monthly-income-totals span{grid-column:1}.monthly-income-person{padding:14px}.monthly-income-person-values{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.monthly-income-person-values>label{grid-column:1/-1}.monthly-income-actions button{width:100%;justify-content:center}.monthly-income-movements{width:100%;justify-content:center}}
+@media(max-width:360px){.monthly-income-totals>div{display:block}.monthly-income-totals strong{max-width:100%;margin:6px 0}}
