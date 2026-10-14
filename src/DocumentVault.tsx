@@ -2,6 +2,7 @@ import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,BadgeCheck,CalendarClock,Car,ExternalLink,GraduationCap,LockKeyhole,Paperclip,Pencil,Plus,Search,ShieldCheck,Trash2,Upload,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {checkHouseholdUpload,platformError} from './lib/platform';
 
 type Household={id:string;name:string;invite_code:string};
 type Member={user_id:string;full_name:string};
@@ -78,6 +79,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
   let originalFilename=editing?.original_filename||null,mimeType=editing?.mime_type||null,fileSize=editing?.file_size||null;
   let newUpload:string|null=null;
   if(file&&file.size){
+   try{await checkHouseholdUpload(supabase,household.id,file.size)}catch(error){setBusy(false);setMessage(platformError(error));return}
    const safeName=file.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]+/g,'-').slice(-100)||'archivo';
    const path=requestedScope==='private'
     ?`${household.id}/private/${userId}/${id}/${Date.now()}-${safeName}`

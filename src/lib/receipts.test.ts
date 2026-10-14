@@ -15,7 +15,7 @@ function fakeClient({failUpload=false,failMetadata=false,ambiguousMetadata=false
   insert,select:()=>{const query={eq:(field:string,id:string)=>{if(field==='id')lookupId=id;return query},maybeSingle:async()=>({data:records.get(lookupId)||null,error:null})};return query}
  }});
  const storageFrom=vi.fn(()=>({upload,remove}));
- return {client:{from,storage:{from:storageFrom}} as unknown as SupabaseClient,records,tables,upload,remove,insert,storageFrom};
+ return {client:{from,rpc:async()=>({data:{status:'active',used_bytes:0,quota_bytes:100000000},error:null}),storage:{from:storageFrom}} as unknown as SupabaseClient,records,tables,upload,remove,insert,storageFrom};
 }
 describe('receipt validation',()=>{
  it('accepts PDF and supported photo signatures including an empty browser MIME',async()=>{

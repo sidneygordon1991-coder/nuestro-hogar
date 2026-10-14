@@ -1,6 +1,6 @@
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
-import {ChevronRight,Monitor,Menu,Moon,Settings2,Sun,X} from 'lucide-react';
+import {ChevronRight,Monitor,Menu,Moon,Settings2,ShieldCheck,Sun,X} from 'lucide-react';
 
 type AccessLevel='none'|'view'|'edit';
 type Theme='system'|'dark'|'light';
@@ -31,9 +31,9 @@ const groups:{label:string;items:Item[]}[]=[
  ]}
 ];
 
-export default function AppMenu({currentTab,access,onNavigate}:{currentTab:string;access:Record<string,AccessLevel>;onNavigate:(tab:string)=>void}){
+export default function AppMenu({currentTab,access,onNavigate,isMaster=false}:{currentTab:string;access:Record<string,AccessLevel>;onNavigate:(tab:string)=>void;isMaster?:boolean}){
  const [open,setOpen]=useState(false),[theme,setTheme]=useState<Theme>(()=>readThemePreference());
- const available=useMemo(()=>groups.map(group=>({...group,items:group.items.filter(item=>!item.module||access[item.module]!=='none')})).filter(group=>group.items.length),[access]);
+ const available=useMemo(()=>groups.map(group=>group.label==='Administración'&&isMaster?{...group,items:[...group.items,{tab:'master',label:'Panel master',description:'Familias y almacenamiento',icon:<ShieldCheck/>} as Item]}:group).map(group=>({...group,items:group.items.filter(item=>!item.module||access[item.module]!=='none')})).filter(group=>group.items.length),[access,isMaster]);
 
  useEffect(()=>{
   if(!open)return;

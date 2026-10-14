@@ -1,6 +1,9 @@
 import ModuleIcon from './ModuleIcon';
+import HouseholdStorageNote from './HouseholdStorageNote';
+import './master.css';
 import {FormEvent,lazy,Suspense,useEffect,useMemo,useState} from 'react';import {CheckCircle2,ChevronDown,Sun,Moon,Eye,LogOut,Plus,ReceiptText,ShieldOff,ShoppingCart} from 'lucide-react';import {supabase} from './lib/supabase';import HomeDashboard from './HomeDashboard';import GlobalCommandCenter from './GlobalCommandCenter';import {AppErrorBoundary,ClientErrorReporter} from './AppDiagnostics';import AppMenu,{toggleTheme,useEffectiveTheme} from './AppMenu';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import PwaUpdatePrompt from './PwaUpdatePrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';import {validateStrongPassword} from './lib/authSecurity';
 
+const MasterPanel=lazy(()=>import('./MasterPanel'));
 const Finance=lazy(()=>import('./Finance'));
 const ListsCenter=lazy(()=>import('./ListsCenter'));
 const CalendarCenter=lazy(()=>import('./CalendarCenter'));
@@ -35,6 +38,9 @@ export default function App(){
  const [tab,setTabState]=useState(()=>normalizeTab(new URLSearchParams(window.location.search).get('tab'))),[lists,setLists]=useState<ListRow[]>([]),[events,setEvents]=useState<EventRow[]>([]),[txs,setTxs]=useState<Tx[]>([]);
  const [financeHome,setFinanceHome]=useState<FinanceHome>({income:0,expense:0,saving:0,available:0,pending:0,projected:0,overdue:0,nextPayment:null,nextPaymentAmount:0,nextPaymentDate:null,goalName:null,goalProgress:0});
  const [access,setAccess]=useState<HouseholdAccess|null>(null);
+ const [masterUserId,setMasterUserId]=useState(''),[masterLoading,setMasterLoading]=useState(true);
+ const isMaster=Boolean(session&&masterUserId===session.user.id);
+ useEffect(()=>{let live=true;setMasterUserId('');setMasterLoading(true);if(!session){setMasterLoading(false);return}supabase.rpc('get_my_platform_access').then(({data,error})=>{if(live){setMasterUserId(!error&&data===true?session.user.id:'');setMasterLoading(false)}});return()=>{live=false}},[session?.user.id]);
  useEffect(()=>{supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data}=supabase.auth.onAuthStateChange((event,s)=>{setSession(s);if(event==='PASSWORD_RECOVERY')setRecovery(true);if(event==='SIGNED_OUT')setRecovery(false)});return()=>data.subscription.unsubscribe()},[]);
  useEffect(()=>{if(session)loadHouseholds();else{setHouseholds([]);setHousehold(null);setAccess(null)}},[session]);
  useEffect(()=>{const pop=()=>setTabState(normalizeTab(new URLSearchParams(window.location.search).get('tab')));window.addEventListener('popstate',pop);return()=>window.removeEventListener('popstate',pop)},[]);
@@ -99,9 +105,10 @@ export default function App(){
  if(loading)return <div className="center"><div className="loader"/></div>;
  if(recovery)return <UpdatePassword onDone={()=>{setRecovery(false);window.history.replaceState({},'',authRedirectUrl())}}/>;
  if(!session)return <Auth/>;
+ if(tab==='master')return <div className="app master-standalone"><MasterHeader onBack={()=>setTab('inicio')}/><main className="content" id="main-content">{masterLoading?<ModuleFallback/>:isMaster?<AppErrorBoundary householdId={household?.id||''}><Suspense fallback={<ModuleFallback/>}><MasterPanel onChanged={()=>{if(household){loadAccess(household.id);loadData(household.id)}}}/></Suspense></AppErrorBoundary>:<section className="access-denied"><ShieldOff/><h2>Acceso master requerido</h2><p>Tu cuenta no está autorizada para la administración global.</p><button onClick={()=>setTab('inicio')}>Volver a Inicio</button></section>}</main><PwaUpdatePrompt/></div>;
  if(!household)return <Onboarding onDone={loadHouseholds}/>;
  if(!access)return <div className="center"><div className="loader"/></div>;
- return <AppErrorBoundary householdId={household.id}><ClientErrorReporter householdId={household.id}/><Shell household={household} households={households} tab={tab} setTab={setTab} onSwitch={setHousehold} onRefresh={()=>loadData(household.id)} onAccessChanged={()=>loadAccess(household.id)} onHouseholdRenamed={(name:string)=>{setHousehold(current=>current?{...current,name}:current);setHouseholds(current=>current.map(h=>h.id===household.id?{...h,name}:h))}} lists={lists} events={events} txs={txs} financeHome={financeHome} access={access}/></AppErrorBoundary>;
+ return <AppErrorBoundary householdId={household.id}><ClientErrorReporter householdId={household.id}/><Shell isMaster={isMaster} household={household} households={households} tab={tab} setTab={setTab} onSwitch={setHousehold} onRefresh={()=>loadData(household.id)} onAccessChanged={()=>loadAccess(household.id)} onHouseholdRenamed={(name:string)=>{setHousehold(current=>current?{...current,name}:current);setHouseholds(current=>current.map(h=>h.id===household.id?{...h,name}:h))}} lists={lists} events={events} txs={txs} financeHome={financeHome} access={access}/></AppErrorBoundary>;
 }
 
 function Auth(){
@@ -147,12 +154,18 @@ function Onboarding({onDone}:{onDone:()=>void}){
  return <main className="auth"><section className="auth-card wide"><p className="eyebrow">BIENVENIDO</p><h1>{join?'Únete a un hogar':'Crea tu hogar'}</h1><p className="muted">{join?'Ingresa el código de invitación que te compartieron.':'Este será el espacio privado para compartir con tu familia.'}</p><form onSubmit={go}><input name="value" placeholder={join?'Código de invitación':'Ej. Nuestro Hogar'} required/><button disabled={busy}>{join?'Unirme':'Crear hogar'}</button></form>{msg&&<p className="status">{msg}</p>}<button className="link" onClick={()=>setJoin(!join)}>{join?'Prefiero crear un hogar':'Ya tengo un código de invitación'}</button></section></main>
 }
 
+function MasterHeader({onBack}:{onBack:()=>void}){
+ const theme=useEffectiveTheme();
+ return <header><div><button className="primary compact" onClick={onBack}>Volver al hogar</button><strong>Nuestro Hogar</strong></div><div className="header-actions"><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={theme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={theme==='dark'}><Sun className="theme-sun" size={18}/><Moon className="theme-moon" size={18}/></button><ProfileAvatar/></div></header>;
+}
+
 function Shell(p:any){
  const effectiveTheme=useEffectiveTheme();
  const module=tabModule(p.tab),level=module?p.access?.modules?.[module]:null,denied=level==='none';
  useEffect(()=>{const url=new URL(window.location.href);if(url.searchParams.get('quick')!=='1')return;const timer=window.setTimeout(()=>window.dispatchEvent(new CustomEvent('nh:quick-add')),180);url.searchParams.delete('quick');window.history.replaceState({},'',url);return()=>window.clearTimeout(timer)},[p.household.id]);
- return <div className="app"><a className="skip-link" href="#main-content">Saltar al contenido</a><header><div><div className="home-select-wrap"><span className="home-select-label" aria-hidden="true">{p.household.name}</span><select className="home-select" aria-label="Cambiar de familia" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={effectiveTheme==='dark'} title={effectiveTheme==='light'?'Tema de día · cambiar a noche':'Tema de noche · cambiar a día'}><Sun className="theme-sun" size={18}/><Moon className="theme-moon" size={18}/></button><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><div className="header-actions"><AppMenu currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar/></div></header>
+ return <div className="app"><a className="skip-link" href="#main-content">Saltar al contenido</a><header><div><div className="home-select-wrap"><span className="home-select-label" aria-hidden="true">{p.household.name}</span><select className="home-select" aria-label="Cambiar de familia" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={effectiveTheme==='dark'} title={effectiveTheme==='light'?'Tema de día · cambiar a noche':'Tema de noche · cambiar a día'}><Sun className="theme-sun" size={18}/><Moon className="theme-moon" size={18}/></button><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><div className="header-actions"><AppMenu isMaster={p.isMaster} currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar/></div></header>
  <main className="content" id="main-content" tabIndex={-1}>
+ <HouseholdStorageNote householdId={p.household.id} version={p.tab+JSON.stringify(p.access.modules)}/>
  {level==='view'&&<div className="module-readonly-banner"><Eye/><div><strong>Modo solo lectura</strong><span>Puedes consultar esta sección, pero los cambios están bloqueados por los permisos de tu rol.</span></div></div>}
  {denied?<AccessDenied role={p.access.role} onHome={()=>p.setTab('inicio')}/>:<Suspense fallback={<ModuleFallback/>}>
  {p.tab==='inicio'&&<HomeDashboard household={p.household} finance={p.financeHome} listCount={p.lists.length} access={p.access.modules} onNavigate={p.setTab}/>}
@@ -166,7 +179,7 @@ function Shell(p:any){
 
 function AccessDenied({role,onHome}:{role:string;onHome:()=>void}){return <section className="access-denied"><span><ShieldOff/></span><h2>Módulo restringido</h2><p>Tu rol de {role==='teen'?'Adolescente':role==='guest'?'Invitado':role==='admin'?'Administrador':role==='owner'?'Propietario':'Adulto'} no tiene acceso a esta sección. Un administrador del hogar puede cambiar el permiso desde Familia.</p><button onClick={onHome}>Volver a Inicio</button></section>}
 function tabModule(tab:string){return({listas:'lists',calendario:'calendar',presupuesto:'finance',documentos:'documents',comidas:'meals',mantenimiento:'maintenance',planeacion:'planning',salud:'health',cierre:'monthly_close',automatizaciones:'automations',respaldos:'backups',diagnostico:'diagnostics'} as Record<string,string>)[tab]||null}
-const VALID_TABS=new Set(['inicio','listas','calendario','presupuesto','familia','documentos','comidas','mantenimiento','salud','automatizaciones','cierre','planeacion','respaldos','diagnostico']);
+const VALID_TABS=new Set(['inicio','listas','calendario','presupuesto','familia','documentos','comidas','mantenimiento','salud','automatizaciones','cierre','planeacion','respaldos','diagnostico','master']);
 function normalizeTab(tab:string|null){return tab&&VALID_TABS.has(tab)?tab:'inicio'}
 function ModuleFallback(){return <div className="module-loading" role="status" aria-live="polite"><div className="loader"/><span>Cargando módulo…</span></div>}
 

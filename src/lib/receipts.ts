@@ -1,3 +1,4 @@
+import {checkHouseholdUpload} from './platform';
 import type {SupabaseClient} from '@supabase/supabase-js';
 export const RECEIPT_BUCKET='finance-receipts';
 export const MAX_RECEIPT_BYTES=15*1024*1024;
@@ -47,6 +48,7 @@ export async function uploadReceipts(client:SupabaseClient,householdId:string,tr
    if(lookupError)throw lookupError;
    if(existing){saved.push(existing as Receipt);continue}
    if(identity.attempted){const {error:cleanupError}=await client.storage.from(RECEIPT_BUCKET).remove([path]);if(cleanupError)throw cleanupError;}
+   await checkHouseholdUpload(client,householdId,file.size);
    identity.attempted=true;
    const {error:uploadError}=await client.storage.from(RECEIPT_BUCKET).upload(path,file,{upsert:false,contentType:format.mime,cacheControl:'300'});
    if(uploadError)throw uploadError;uploaded=true;
