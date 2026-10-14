@@ -105,9 +105,17 @@
 
 .module-readonly-banner{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px;align-items:center;border:1px solid var(--nh-border);background:var(--nh-blue-soft);border-radius:11px;padding:8px 10px;margin-bottom:10px;color:var(--nh-blue)}.module-readonly-banner>svg{width:16px}.module-readonly-banner strong,.module-readonly-banner span{display:block}.module-readonly-banner strong{font-size:11px;color:var(--nh-blue)}.module-readonly-banner span{font-size:11px;color:var(--nh-muted);margin-top:1px}nav button:disabled{opacity:.32;cursor:not-allowed}
 
+/* A long invite must not expand the implicit grid track of the whole family page. */
+.family-v3{grid-template-columns:minmax(0,1fr)}
+.family-v3>*{min-width:0}
+.family-v3 .invite-code-v2{display:grid;grid-template-columns:minmax(0,1fr) auto;min-width:0;max-width:100%}
+.family-v3 .invite-code-v2>span{min-width:0;overflow-wrap:anywhere}
+
 /* Family invite security */
 .invite-code-v2>div{display:flex;gap:6px}.invite-code-v2 .invite-rotate{background:var(--nh-raised);color:var(--nh-muted);border:1px solid var(--nh-border)}.invite-code-v2 .invite-rotate:hover{color:var(--nh-text);border-color:var(--nh-border)}.invite-code-v2 .invite-rotate:disabled{opacity:.5}
 @media(max-width:520px){.invite-code-v2{align-items:flex-start;gap:7px}.invite-code-v2>div{display:grid;grid-template-columns:1fr 1fr;width:100%}.invite-code-v2>div button{justify-content:center}}
+@media(max-width:840px){.family-v3 .invite-code-v2{width:100%;justify-self:stretch}}
+@media(max-width:520px){.family-v3 .invite-code-v2{grid-template-columns:minmax(0,1fr);gap:12px}.family-v3 .invite-code-v2>div{grid-template-columns:repeat(2,minmax(0,1fr))}.family-v3 .invite-code-v2>span{padding:4px 6px}}
 
 /* Global render error recovery */
 .error-boundary-page{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--nh-page);color:var(--nh-text)}.error-boundary-page section{width:min(100%,520px);border:1px solid var(--nh-border);background:var(--nh-surface);border-radius:20px;padding:24px;text-align:center}.error-boundary-page section>span{width:52px;height:52px;border-radius:16px;background:var(--nh-danger-soft);color:var(--nh-danger);display:grid;place-items:center;margin:0 auto 12px}.error-boundary-page section>span svg{width:23px}.error-boundary-page h1{font-size:24px;margin:3px 0 8px}.error-boundary-page p:not(.eyebrow){font-size:12px;color:var(--nh-muted);line-height:1.55}.error-boundary-page button{display:inline-flex;align-items:center;gap:6px;margin-top:10px;border:1px solid var(--nh-border);background:var(--nh-accent-soft);color:var(--nh-accent);border-radius:10px;padding:9px 12px;font-size:11px;font-weight:900}.error-boundary-page button svg{width:14px}
