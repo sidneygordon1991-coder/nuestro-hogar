@@ -2,8 +2,7 @@ import {useDialogFocus} from './lib/useDialogFocus';
 import DesktopRail from './DesktopRail';
 import {appearanceKey,readAppearance,type Appearance} from './lib/appearance';
 import ModuleIcon from './ModuleIcon';
-import GoogleSignIn from './GoogleSignIn';
-import AuthVisual from './AuthVisual';
+import EmailAuth from './EmailAuth';
 import MasterSecurityGate from './MasterSecurityGate';
 import HouseholdWelcome from './HouseholdWelcome';
 import './sharing.css';
@@ -122,30 +121,7 @@ export default function App(){
  return <AppErrorBoundary householdId={household.id}><ClientErrorReporter householdId={household.id}/><Shell userId={session.user.id} isMaster={isMaster} household={household} households={households} tab={tab} setTab={setTab} onSwitch={setHousehold} onRefresh={()=>loadData(household.id)} onAccessChanged={()=>loadAccess(household.id)} onHouseholdRenamed={(name:string)=>{setHousehold(current=>current?{...current,name}:current);setHouseholds(current=>current.map(h=>h.id===household.id?{...h,name}:h))}} lists={lists} events={events} txs={txs} financeHome={financeHome} access={access}/></AppErrorBoundary>;
 }
 
-function Auth(){
- const [mode,setMode]=useState<'login'|'signup'|'reset'>('login'),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[pendingEmail,setPendingEmail]=useState('');
- useEffect(()=>{const hash=new URLSearchParams(window.location.hash.replace(/^#/,''));
-   const error=hash.get('error_description');
-   if(error)setMsg(decodeURIComponent(error.replace(/\+/g,' ')));
- },[]);
- async function submit(e:FormEvent<HTMLFormElement>){
-  e.preventDefault();setBusy(true);setMsg('');
-  const f=new FormData(e.currentTarget),email=String(f.get('email')),password=String(f.get('password')||''),full_name=String(f.get('name')||'');
-  if(mode==='reset'){
-   const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:authRedirectUrl()});
-   setBusy(false);
-   setMsg(error?error.message:'Te enviamos un enlace para crear una nueva contraseña. Revisa también Spam o Promociones.');
-   return;
-  }
-  const res=mode==='login'?await supabase.auth.signInWithPassword({email,password}):await supabase.auth.signUp({email,password,options:{data:{full_name},emailRedirectTo:authRedirectUrl()}});
-  setBusy(false);
-  if(res.error)setMsg(res.error.message);
-  else if(mode==='signup'&&!res.data.session){setPendingEmail(email);setMsg('Revisa tu correo para confirmar la cuenta. El enlace abrirá esta misma aplicación.')}
- }
- async function resend(){if(!pendingEmail)return;setBusy(true);const {error}=await supabase.auth.resend({type:'signup',email:pendingEmail,options:{emailRedirectTo:authRedirectUrl()}});setBusy(false);setMsg(error?error.message:'Correo de confirmación reenviado. Usa el enlace más reciente.')}
- const effectiveTheme=useEffectiveTheme();
- return <main className="auth auth-premium"><div className="auth-layout"><AuthVisual/><div className="auth-entry"><button type="button" className="auth-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='dark'?'Activar tema claro':'Activar tema oscuro'}>{effectiveTheme==='dark'?<Sun size={18}/>:<Moon size={18}/>}</button><section className="auth-card"><p className="eyebrow">TU VIDA, MEJOR ORGANIZADA</p><h1>{mode==='reset'?'Recupera tu acceso':mode==='signup'?'Comienza en casa':'Bienvenido a casa'}</h1><p className="muted">{mode==='reset'?'Te enviaremos un enlace seguro para crear una nueva contraseña.':mode==='signup'?'Crea tu cuenta y construye un espacio para tu familia.':'Tus planes, tus metas y tu familia. Todo empieza aquí.'}</p>{mode!=='reset'&&<><GoogleSignIn/><p className="auth-divider">o continúa con tu correo</p></>}<form onSubmit={submit}>{mode==='signup'&&<label>Tu nombre<input name="name" autoComplete="name" placeholder="Nombre completo" required/></label>}<label>Correo electrónico<input name="email" type="email" autoComplete="email" placeholder="tu@correo.com" required/></label>{mode!=='reset'&&<label>Contraseña<input name="password" type="password" minLength={mode==='signup'?10:6} autoComplete={mode==='signup'?'new-password':'current-password'} placeholder={mode==='signup'?'Al menos 10 caracteres':'Tu contraseña'} required/></label>}<button disabled={busy}>{busy?'Procesando...':mode==='login'?'Entrar':mode==='signup'?'Crear cuenta':'Enviar enlace de recuperación'}{!busy&&<span aria-hidden="true">↗</span>}</button></form>{msg&&<p className="status" role="status">{msg}</p>}{pendingEmail&&<button className="link" disabled={busy} onClick={resend}>Reenviar correo de confirmación</button>}{mode==='login'&&<button className="link" onClick={()=>{setMode('reset');setMsg('')}}>¿Olvidaste tu contraseña?</button>}<div className="auth-switch"><button className="link" onClick={()=>{setMode(mode==='login'?'signup':'login');setMsg('');setPendingEmail('')}}>{mode==='login'?'¿Primera vez? Crear cuenta':mode==='signup'?'Ya tengo cuenta':'Volver a iniciar sesión'}</button></div><p className="auth-private-note"><ModuleIcon name="family" size={18}/> Cada familia tiene su propio espacio.</p></section><p className="auth-entry-footer">Nuestro Hogar · Conecta lo que importa</p></div></div></main>
-}
+function Auth(){return <EmailAuth/>}
 
 function UpdatePassword({onDone}:{onDone:()=>void}){
  const [busy,setBusy]=useState(false),[msg,setMsg]=useState('');

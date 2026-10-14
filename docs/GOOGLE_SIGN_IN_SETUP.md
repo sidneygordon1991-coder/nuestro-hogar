@@ -1,6 +1,8 @@
-# Activar el ingreso con Google
+# Referencia anterior: ingreso con Google
 
-El botón, la comprobación de disponibilidad y el retorno a la aplicación están implementados. Google seguirá pendiente hasta crear un cliente OAuth y conectarlo a Supabase. La cuenta con correo existente se conserva para que el propietario pueda entrar mientras termina esta configuración.
+**Decisión actual:** la app utiliza correo verificado mediante un enlace. Google no se ofrece en el login y esta configuración ya no es necesaria. Consulta `EMAIL_SIGN_IN_SETUP.md`. Los pasos siguientes se conservan únicamente como referencia si se decide reintroducir Google.
+
+Para reintroducir Google habría que volver a implementar su botón y configurar el proveedor. El acceso actual se mantiene mediante correo.
 
 ## 1. Google Cloud
 
