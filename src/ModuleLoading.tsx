@@ -1,0 +1,1 @@
+export default function ModuleLoading({label='Cargando tu espacio'}:{label?:string}){return <div className="studio-skeleton" role="status" aria-label={label}><span/><i/><div><b/><b/><b/></div><i/><i/></div>}

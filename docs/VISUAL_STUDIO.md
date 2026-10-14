@@ -1,0 +1,11 @@
+# Nuestro Hogar: experiencia visual
+
+Inicio presenta el balance real del mes, ingresos/gastos/ahorro, agenda de siete días, una meta destacada y módulos favoritos. Los espacios adicionales y el checklist inicial se despliegan bajo demanda. La prioridad local "Mis planes" coloca la agenda primero. La navegación lateral aparece desde 1100 px; en móvil se conserva el menú inferior y Agregar rápido.
+
+Finanzas utiliza gráficos SVG con importes reales: categorías que abren sus gastos, una evolución mensual con selección de mes y series que se pueden mostrar u ocultar. Las líneas unen los totales de cada mes; no representan estimaciones diarias. El mes en curso contiene los movimientos registrados hasta la fecha. La vista de movimientos permite buscar, filtrar tipo y categoría sin modificar los registros. Disponible sigue siendo ingresos menos gastos menos ahorro; la proyección del plan se presenta por separado y se puede desplegar.
+
+Las preferencias de apariencia se guardan en el navegador por cuenta y hogar: color de acento, prioridad inicial, hasta seis favoritos y portada opcional. Las fotos de recetas también son personales y locales a la cuenta, hogar y receta. Se identifican como "este dispositivo"; no se sincronizan con otros integrantes, no consumen Supabase Storage y no forman parte del respaldo ZIP del hogar. Al borrar los datos del navegador se eliminan estas preferencias y fotografías locales. Las imágenes se preparan en el dispositivo y la interfaz informa si no hay espacio para guardarlas. Los registros compartidos, permisos, documentos y comprobantes continúan en Supabase.
+
+Las vistas previas de imágenes de la bóveda se solicitan al pulsar Vista previa, usan la sesión y políticas de Storage existentes y duran 120 segundos. No se convierte el bucket en público ni se guardan URLs firmadas en las preferencias. Los PDF y otros documentos conservan la acción Abrir.
+
+El diseño utiliza el catálogo vectorial del proyecto, una ilustración original de la casa, fichas de activos, estados vacíos, foco de teclado y transiciones que respetan movimiento reducido. Los formularios compartidos mantienen su guardado y ahora admiten Escape y navegación de foco. La sugerencia de instalación es compacta, se puede cerrar para la sesión y las instrucciones permanecen en el menú y la barra lateral.

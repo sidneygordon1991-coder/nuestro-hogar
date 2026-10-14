@@ -1,3 +1,4 @@
+import ModuleLoading from './ModuleLoading';
 import FileBackupPanel from './FileBackupPanel';
 import ModuleIcon from './ModuleIcon';
 import {ChangeEvent,useEffect,useMemo,useRef,useState} from 'react';
@@ -153,7 +154,7 @@ export default function BackupCenter({household}:{household:Household}){
  const totalRecords=useMemo(()=>backups.reduce((sum,b)=>sum+Number(b.counts?.total_records||0),0),[backups]);
  const newest=backups[0];
 
- if(loading)return <div className="finance-loading"><div className="loader"/></div>;
+ if(loading)return <ModuleLoading/>;
 
  return <section className="backup-center">
   <div className="backup-top"><div><p className="eyebrow">SEGURIDAD DE DATOS</p><h2 className="page-title">Respaldos y recuperación</h2><p className="muted">Exporta tu información, conserva fotografías completas y recupera eliminaciones accidentales.</p></div><button className="backup-primary" onClick={()=>setShowCreate(true)}><ModuleIcon name="backups"/> Crear respaldo</button></div>

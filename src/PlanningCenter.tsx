@@ -1,3 +1,4 @@
+import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
 
 import {FormEvent,useEffect,useMemo,useState} from 'react';
@@ -126,7 +127,7 @@ export default function PlanningCenter({household,onNavigate,readOnly=false}:{ho
   setMessage(error?error.message:'Paso eliminado.');if(!error)await load(false);
  }
 
- if(loading)return <div className="finance-loading"><div className="loader"/></div>;
+ if(loading)return <ModuleLoading/>;
  const summary=plan?.summary||{active:0,at_risk:0,due_soon:0,completed:0,monthly_required:0};
 
  return <section className="planning-center">

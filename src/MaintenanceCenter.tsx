@@ -1,3 +1,5 @@
+import ModuleLoading from './ModuleLoading';
+import AssetIllustration from './AssetIllustration';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,Building2,CalendarClock,Car,Check,CheckCircle2,ChevronRight,Gauge,History,Plus,ReceiptText,ShieldCheck,Trash2,X} from 'lucide-react';
@@ -121,7 +123,7 @@ export default function MaintenanceCenter({household,onNavigate,readOnly=false}:
   setMessage(error?error.message:'Kilometraje actualizado.');if(!error){await supabase.rpc('refresh_my_notifications',{p_household_id:household.id});await load(false)}
  }
 
- if(loading)return <div className="finance-loading"><div className="loader"/></div>;
+ if(loading)return <ModuleLoading/>;
 
  return <section className="maintenance-center">
   <div className="finance-top"><div><p className="eyebrow">CASA Y VEHÍCULOS</p><h2 className="page-title">Mantenimiento</h2><p className="muted">Servicios, reparaciones, seguros, garantías y kilometraje conectados con Agenda, Documentos y Alertas.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>startSchedule()}><Plus/> Plan</button>}</div>
@@ -159,7 +161,7 @@ export default function MaintenanceCenter({household,onNavigate,readOnly=false}:
 
   {tab==='assets'&&<>
    <div className="maintenance-section-head"><div><p className="eyebrow">ACTIVOS</p><h3>Casa, vehículos y equipos</h3><p>Estos mismos activos también forman parte del patrimonio financiero.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>startAsset()}><Plus/> Activo</button>}</div>
-   <div className="maintenance-assets-grid">{assets.map(asset=><article className="maintenance-asset-card" key={asset.id}><div className="maintenance-asset-head"><span>{assetIcon(asset.asset_type)}</span><div><small>{assetTypeName(asset.asset_type)}</small><strong>{asset.name}</strong><p>{[asset.brand,asset.model,asset.asset_year].filter(Boolean).join(' · ')||'Sin detalles técnicos'}</p></div>{!readOnly&&<button onClick={()=>startAsset(asset)}><ModuleIcon name="maintenance"/></button>}</div><div className="maintenance-asset-data">{asset.license_plate&&<div><span>Placa</span><b>{asset.license_plate}</b></div>}{asset.current_mileage!=null&&<div><span>Kilometraje</span><b>{fmtKm(asset.current_mileage)}</b></div>}{asset.warranty_expires_on&&<div><span>Garantía</span><b>{fmtDate(asset.warranty_expires_on)}</b></div>}<div><span>Planes</span><b>{schedules.filter(s=>s.asset_id===asset.id).length}</b></div></div>{!readOnly&&asset.asset_type==='vehicle'&&<button className="maintenance-mileage-button" onClick={()=>updateMileage(asset)}><Gauge/> Actualizar kilometraje</button>}</article>)}</div>
+   <div className="maintenance-assets-grid">{assets.map(asset=><article className="maintenance-asset-card" key={asset.id}><AssetIllustration kind={asset.asset_type}/><div className="maintenance-asset-head"><span>{assetIcon(asset.asset_type)}</span><div><small>{assetTypeName(asset.asset_type)}</small><strong>{asset.name}</strong><p>{[asset.brand,asset.model,asset.asset_year].filter(Boolean).join(' · ')||'Sin detalles técnicos'}</p></div>{!readOnly&&<button onClick={()=>startAsset(asset)}><ModuleIcon name="maintenance"/></button>}</div><div className="maintenance-asset-data">{asset.license_plate&&<div><span>Placa</span><b>{asset.license_plate}</b></div>}{asset.current_mileage!=null&&<div><span>Kilometraje</span><b>{fmtKm(asset.current_mileage)}</b></div>}{asset.warranty_expires_on&&<div><span>Garantía</span><b>{fmtDate(asset.warranty_expires_on)}</b></div>}<div><span>Planes</span><b>{schedules.filter(s=>s.asset_id===asset.id).length}</b></div></div>{!readOnly&&asset.asset_type==='vehicle'&&<button className="maintenance-mileage-button" onClick={()=>updateMileage(asset)}><Gauge/> Actualizar kilometraje</button>}</article>)}</div>
    {!assets.length&&<div className="document-empty"><Building2/><strong>Sin activos registrados</strong><span>{readOnly?'No hay activos disponibles para consultar.':'Agrega primero tu vivienda, vehículo o equipo principal.'}</span>{!readOnly&&<button onClick={()=>startAsset()}><Plus/> Agregar activo</button>}</div>}
   </>}
 

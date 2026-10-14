@@ -1,3 +1,4 @@
+import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useState,type CSSProperties} from 'react';
 import {AlertTriangle,CheckCircle2,ChevronRight,Gauge,Package,RefreshCw,Sparkles,TrendingUp} from 'lucide-react';
@@ -43,7 +44,7 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
   if(showLoader)setLoading(false);
  }
 
- if(loading)return <div className="finance-loading"><div className="loader"/></div>;
+ if(loading)return <ModuleLoading/>;
  if(!snapshot)return <section className="household-health-center"><div className="document-empty"><AlertTriangle/><strong>No se pudo calcular el estado del hogar</strong><span>{message||'Intenta actualizar nuevamente.'}</span><button onClick={()=>load()}><RefreshCw/> Reintentar</button></div></section>;
 
  const m=snapshot.metrics||{};

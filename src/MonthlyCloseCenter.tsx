@@ -1,3 +1,4 @@
+import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,ArrowDownRight,ArrowUpRight,CalendarCheck2,Check,CheckCircle2,ChevronLeft,ChevronRight,Copy,Download,Minus,Plus,ReceiptText,RefreshCw,Sparkles,Target,TrendingUp} from 'lucide-react';
@@ -111,7 +112,7 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
   try{await navigator.clipboard.writeText(lines.join('\n'));setMessage('Resumen copiado al portapapeles.')}catch{setMessage('No se pudo copiar automáticamente en este dispositivo.')}
  }
 
- if(loading)return <div className="finance-loading"><div className="loader"/></div>;
+ if(loading)return <ModuleLoading/>;
  if(!snapshot)return <section className="monthly-close-center"><div className="document-empty"><ModuleIcon name="monthly_close"/><strong>No pudimos preparar el cierre</strong><span>{message||'Intenta nuevamente.'}</span><button onClick={()=>load()}><RefreshCw/> Reintentar</button></div></section>;
 
  const f=snapshot.financial,p=snapshot.previous,c=snapshot.changes,o=snapshot.operations;

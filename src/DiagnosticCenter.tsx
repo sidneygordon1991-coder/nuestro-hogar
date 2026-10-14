@@ -1,3 +1,4 @@
+import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,BellRing,Bug,Check,CheckCircle2,ChevronRight,Clock3,Cloud,Database,History,MonitorSmartphone,RefreshCw,Server,ShieldCheck,Wifi,WifiOff} from 'lucide-react';
@@ -97,7 +98,7 @@ export default function DiagnosticCenter({household,onNavigate}:{household:House
  const issues=useMemo(()=>checks.filter(c=>c.status!=='ok').sort((a,b)=>rankState(a.status)-rankState(b.status)),[checks]);
  const healthyChecks=checks.filter(c=>c.status==='ok').length;
 
- if(loading)return <div className="finance-loading"><div className="loader"/></div>;
+ if(loading)return <ModuleLoading/>;
  if(!result)return <section className="diagnostic-center"><div className="document-empty"><ModuleIcon name="diagnostics"/><strong>No pudimos ejecutar el diagnóstico</strong><span>{message||'Intenta nuevamente.'}</span><button onClick={()=>runDiagnostics(true)}><RefreshCw/> Reintentar</button></div></section>;
 
  return <section className="diagnostic-center">

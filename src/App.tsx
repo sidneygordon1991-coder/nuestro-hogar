@@ -1,3 +1,6 @@
+import {useDialogFocus} from './lib/useDialogFocus';
+import DesktopRail from './DesktopRail';
+import {appearanceKey,readAppearance,type Appearance} from './lib/appearance';
 import ModuleIcon from './ModuleIcon';
 import GoogleSignIn from './GoogleSignIn';
 import AuthVisual from './AuthVisual';
@@ -6,8 +9,10 @@ import HouseholdWelcome from './HouseholdWelcome';
 import './sharing.css';
 import HouseholdStorageNote from './HouseholdStorageNote';
 import './master.css';
-import {FormEvent,lazy,Suspense,useEffect,useMemo,useState} from 'react';import {CheckCircle2,ChevronDown,Sun,Moon,Eye,LogOut,Plus,ReceiptText,ShieldOff,ShoppingCart} from 'lucide-react';import {supabase} from './lib/supabase';import HomeDashboard from './HomeDashboard';import GlobalCommandCenter from './GlobalCommandCenter';import {AppErrorBoundary,ClientErrorReporter} from './AppDiagnostics';import AppMenu,{toggleTheme,useEffectiveTheme} from './AppMenu';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import PwaUpdatePrompt from './PwaUpdatePrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';import {validateStrongPassword} from './lib/authSecurity';
+import {FormEvent,lazy,Suspense,useEffect,useMemo,useState} from 'react';import {CheckCircle2,ChevronDown,Sun,Moon,Eye,LogOut,Plus,ReceiptText,ShieldOff,ShoppingCart,Palette} from 'lucide-react';import {supabase} from './lib/supabase';import GlobalCommandCenter from './GlobalCommandCenter';import {AppErrorBoundary,ClientErrorReporter} from './AppDiagnostics';import AppMenu,{toggleTheme,useEffectiveTheme} from './AppMenu';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import PwaUpdatePrompt from './PwaUpdatePrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';import {validateStrongPassword} from './lib/authSecurity';
 
+const HomeDashboard=lazy(()=>import('./HomeDashboard'));
+const AppearanceDialog=lazy(()=>import('./AppearancePanel'));
 const MasterPanel=lazy(()=>import('./MasterPanel'));
 const Finance=lazy(()=>import('./Finance'));
 const ListsCenter=lazy(()=>import('./ListsCenter'));
@@ -38,6 +43,7 @@ const currentMonth=()=>{const d=new Date(),start=new Date(d.getFullYear(),d.getM
 const authRedirectUrl=()=>`${window.location.origin}${import.meta.env.BASE_URL}`;
 
 export default function App(){
+ useDialogFocus();
  const [session,setSession]=useState<Session|null>(null),[loading,setLoading]=useState(true),[recovery,setRecovery]=useState(()=>new URLSearchParams(window.location.hash.replace(/^#/,'')).get('type')==='recovery');
  const [households,setHouseholds]=useState<Household[]>([]),[household,setHousehold]=useState<Household|null>(null);
  const [tab,setTabState]=useState(()=>normalizeTab(new URLSearchParams(window.location.search).get('tab'))),[lists,setLists]=useState<ListRow[]>([]),[events,setEvents]=useState<EventRow[]>([]),[txs,setTxs]=useState<Tx[]>([]);
@@ -110,10 +116,10 @@ export default function App(){
  if(loading)return <div className="center"><div className="loader"/></div>;
  if(recovery)return <UpdatePassword onDone={()=>{setRecovery(false);window.history.replaceState({},'',authRedirectUrl())}}/>;
  if(!session)return <Auth/>;
- if(tab==='master')return <div className="app master-standalone"><MasterHeader onBack={()=>setTab('inicio')}/><main className="content" id="main-content">{masterLoading?<ModuleFallback/>:isMaster?<AppErrorBoundary householdId={household?.id||''}><Suspense fallback={<ModuleFallback/>}><MasterSecurityGate><MasterPanel onChanged={()=>{if(household){loadAccess(household.id);loadData(household.id)}}}/></MasterSecurityGate></Suspense></AppErrorBoundary>:<section className="access-denied"><ShieldOff/><h2>Acceso master requerido</h2><p>Tu cuenta no está autorizada para la administración global.</p><button onClick={()=>setTab('inicio')}>Volver a Inicio</button></section>}</main><PwaUpdatePrompt/></div>;
+ if(tab==='master')return <div className="app master-standalone"><MasterHeader onBack={()=>setTab('inicio')} onProfile={()=>setTab('familia')}/><main className="content" id="main-content">{masterLoading?<ModuleFallback/>:isMaster?<AppErrorBoundary householdId={household?.id||''}><Suspense fallback={<ModuleFallback/>}><MasterSecurityGate><MasterPanel onChanged={()=>{if(household){loadAccess(household.id);loadData(household.id)}}}/></MasterSecurityGate></Suspense></AppErrorBoundary>:<section className="access-denied"><ShieldOff/><h2>Acceso master requerido</h2><p>Tu cuenta no está autorizada para la administración global.</p><button onClick={()=>setTab('inicio')}>Volver a Inicio</button></section>}</main><PwaUpdatePrompt/></div>;
  if(!household)return <Onboarding onDone={loadHouseholds}/>;
  if(!access)return <div className="center"><div className="loader"/></div>;
- return <AppErrorBoundary householdId={household.id}><ClientErrorReporter householdId={household.id}/><Shell isMaster={isMaster} household={household} households={households} tab={tab} setTab={setTab} onSwitch={setHousehold} onRefresh={()=>loadData(household.id)} onAccessChanged={()=>loadAccess(household.id)} onHouseholdRenamed={(name:string)=>{setHousehold(current=>current?{...current,name}:current);setHouseholds(current=>current.map(h=>h.id===household.id?{...h,name}:h))}} lists={lists} events={events} txs={txs} financeHome={financeHome} access={access}/></AppErrorBoundary>;
+ return <AppErrorBoundary householdId={household.id}><ClientErrorReporter householdId={household.id}/><Shell userId={session.user.id} isMaster={isMaster} household={household} households={households} tab={tab} setTab={setTab} onSwitch={setHousehold} onRefresh={()=>loadData(household.id)} onAccessChanged={()=>loadAccess(household.id)} onHouseholdRenamed={(name:string)=>{setHousehold(current=>current?{...current,name}:current);setHouseholds(current=>current.map(h=>h.id===household.id?{...h,name}:h))}} lists={lists} events={events} txs={txs} financeHome={financeHome} access={access}/></AppErrorBoundary>;
 }
 
 function Auth(){
@@ -160,27 +166,32 @@ function Onboarding({onDone}:{onDone:()=>void}){
  return <main className="auth"><section className="auth-card wide"><p className="eyebrow">BIENVENIDO</p><h1>{join?'Únete a un hogar':'Crea tu hogar'}</h1><p className="muted">{join?'Ingresa el código de invitación que te compartieron.':'Este será el espacio privado para compartir con tu familia.'}</p><form onSubmit={go}><input name="value" placeholder={join?'Código de invitación':'Ej. Nuestro Hogar'} required/><button disabled={busy}>{join?'Unirme':'Crear hogar'}</button></form>{msg&&<p className="status">{msg}</p>}<button className="link" onClick={()=>setJoin(!join)}>{join?'Prefiero crear un hogar':'Ya tengo un código de invitación'}</button></section></main>
 }
 
-function MasterHeader({onBack}:{onBack:()=>void}){
+function MasterHeader({onBack,onProfile}:{onBack:()=>void;onProfile:()=>void}){
  const theme=useEffectiveTheme();
- return <header><div><button className="primary compact" onClick={onBack}>Volver al hogar</button><strong>Nuestro Hogar</strong></div><div className="header-actions"><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={theme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={theme==='dark'}><Sun className="theme-sun" size={18}/><Moon className="theme-moon" size={18}/></button><ProfileAvatar/></div></header>;
+ return <header><div><button className="primary compact" onClick={onBack}>Volver al hogar</button><strong>Nuestro Hogar</strong></div><div className="header-actions"><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={theme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={theme==='dark'}><Sun className="theme-sun" size={18}/><Moon className="theme-moon" size={18}/></button><ProfileAvatar onClick={onProfile}/></div></header>;
 }
 
 function Shell(p:any){
  const effectiveTheme=useEffectiveTheme();
+ const preferenceKey=appearanceKey(p.userId,p.household.id);
+ const [appearanceOpen,setAppearanceOpen]=useState(false),[savedAppearance,setSavedAppearance]=useState(()=>({key:preferenceKey,value:readAppearance(preferenceKey)}));
+ const appearance=savedAppearance.key===preferenceKey?savedAppearance.value:readAppearance(preferenceKey);
+ function saveAppearance(value:Appearance){localStorage.setItem(preferenceKey,JSON.stringify(value));setSavedAppearance({key:preferenceKey,value});window.dispatchEvent(new CustomEvent('nh:appearance-saved'))}
+
  const module=tabModule(p.tab),level=module?p.access?.modules?.[module]:null,denied=level==='none';
  useEffect(()=>{const url=new URL(window.location.href);if(url.searchParams.get('quick')!=='1')return;const timer=window.setTimeout(()=>window.dispatchEvent(new CustomEvent('nh:quick-add')),180);url.searchParams.delete('quick');window.history.replaceState({},'',url);return()=>window.clearTimeout(timer)},[p.household.id]);
- return <div className="app"><a className="skip-link" href="#main-content">Saltar al contenido</a><header><div><div className="home-select-wrap"><span className="home-select-label" aria-hidden="true">{p.household.name}</span><select className="home-select" aria-label="Cambiar de familia" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={effectiveTheme==='dark'} title={effectiveTheme==='light'?'Tema de día · cambiar a noche':'Tema de noche · cambiar a día'}><Sun className="theme-sun" size={18}/><Moon className="theme-moon" size={18}/></button><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><div className="header-actions"><AppMenu isMaster={p.isMaster} currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar/></div></header>
+ return <div className="app app-studio" data-accent={appearance.accent} data-module={p.tab}><DesktopRail currentTab={p.tab} access={p.access.modules} isMaster={p.isMaster} onNavigate={p.setTab} onAppearance={()=>setAppearanceOpen(true)}/><a className="skip-link" href="#main-content">Saltar al contenido</a><header><div><div className="home-select-wrap"><span className="home-select-label" aria-hidden="true">{p.household.name}</span><select className="home-select" aria-label="Cambiar de familia" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={effectiveTheme==='dark'} title={effectiveTheme==='light'?'Tema de día · cambiar a noche':'Tema de noche · cambiar a día'}><Sun className="theme-sun" size={18}/><Moon className="theme-moon" size={18}/></button><p>{new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</p></div><div className="header-actions"><button type="button" className="appearance-trigger" aria-label="Personalizar mi espacio" onClick={()=>setAppearanceOpen(true)}><Palette size={18}/></button><AppMenu isMaster={p.isMaster} currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar onClick={()=>p.setTab('familia')}/></div></header>
  <main className="content" id="main-content" tabIndex={-1}>
  <HouseholdWelcome household={p.household} canManage={p.access.can_manage_members} onChanged={()=>{p.onRefresh();p.onAccessChanged?.()}}/>
  <HouseholdStorageNote householdId={p.household.id} version={p.tab+JSON.stringify(p.access.modules)}/>
  {level==='view'&&<div className="module-readonly-banner"><Eye/><div><strong>Modo solo lectura</strong><span>Puedes consultar esta sección, pero los cambios están bloqueados por los permisos de tu rol.</span></div></div>}
  {denied?<AccessDenied role={p.access.role} onHome={()=>p.setTab('inicio')}/>:<Suspense fallback={<ModuleFallback/>}>
- {p.tab==='inicio'&&<HomeDashboard household={p.household} finance={p.financeHome} listCount={p.lists.length} access={p.access.modules} onNavigate={p.setTab}/>}
+ {p.tab==='inicio'&&<HomeDashboard appearance={appearance} onPersonalize={()=>setAppearanceOpen(true)} household={p.household} finance={p.financeHome} listCount={p.lists.length} access={p.access.modules} onNavigate={p.setTab}/>}
  {p.tab==='listas'&&<ListsCenter household={p.household} readOnly={level==='view'} onChanged={p.onRefresh}/>} 
  {p.tab==='calendario'&&<CalendarCenter household={p.household} readOnly={level==='view'} onChanged={p.onRefresh} onNavigate={p.setTab}/>} 
  {p.tab==='presupuesto'&&<Finance household={p.household} readOnly={level==='view'}/>} 
  {p.tab==='familia'&&<FamilyCenter household={p.household} onHouseholdRenamed={p.onHouseholdRenamed} onChanged={()=>{p.onRefresh();p.onAccessChanged?.()}}/>} {p.tab==='documentos'&&<DocumentVault household={p.household} readOnly={level==='view'}/>}  {p.tab==='comidas'&&<MealsCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='mantenimiento'&&<MaintenanceCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='salud'&&<HouseholdHealthCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='automatizaciones'&&<AutomationCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='cierre'&&<MonthlyCloseCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='planeacion'&&<PlanningCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>} {p.tab==='respaldos'&&<BackupCenter household={p.household}/>} {p.tab==='diagnostico'&&<DiagnosticCenter household={p.household} onNavigate={p.setTab}/>} 
- </Suspense>}
+ </Suspense>}{appearanceOpen&&<Suspense fallback={<ModuleFallback/>}><AppearanceDialog key={preferenceKey} value={appearance} access={p.access.modules} onSave={saveAppearance} onClose={()=>setAppearanceOpen(false)}/></Suspense>}
  </main><PwaInstallPrompt/><PwaUpdatePrompt/><nav><button className={p.tab==='inicio'?'active':''} onClick={()=>p.setTab('inicio')}><ModuleIcon name="home"/><span>Inicio</span></button><button disabled={p.access.modules.calendar==='none'} className={p.tab==='calendario'?'active':''} onClick={()=>p.setTab('calendario')}><ModuleIcon name="calendar"/><span>Calendario</span></button><button className="fab" onClick={()=>window.dispatchEvent(new CustomEvent('nh:quick-add'))} aria-label="Agregar rápido"><Plus/></button><button disabled={p.access.modules.finance==='none'} className={p.tab==='presupuesto'?'active':''} onClick={()=>p.setTab('presupuesto')}><ModuleIcon name="finance"/><span>Finanzas</span></button><button className={p.tab==='familia'?'active':''} onClick={()=>p.setTab('familia')}><ModuleIcon name="family"/><span>Familia</span></button></nav></div>
 }
 
@@ -188,7 +199,7 @@ function AccessDenied({role,onHome}:{role:string;onHome:()=>void}){return <secti
 function tabModule(tab:string){return({listas:'lists',calendario:'calendar',presupuesto:'finance',documentos:'documents',comidas:'meals',mantenimiento:'maintenance',planeacion:'planning',salud:'health',cierre:'monthly_close',automatizaciones:'automations',respaldos:'backups',diagnostico:'diagnostics'} as Record<string,string>)[tab]||null}
 const VALID_TABS=new Set(['inicio','listas','calendario','presupuesto','familia','documentos','comidas','mantenimiento','salud','automatizaciones','cierre','planeacion','respaldos','diagnostico','master']);
 function normalizeTab(tab:string|null){return tab&&VALID_TABS.has(tab)?tab:'inicio'}
-function ModuleFallback(){return <div className="module-loading" role="status" aria-live="polite"><div className="loader"/><span>Cargando módulo…</span></div>}
+function ModuleFallback(){return <div className="studio-skeleton" role="status" aria-label="Cargando módulo"><span/><i/><div><b/><b/><b/></div><i/><i/></div>}
 
 function Icon({kind}:{kind:string}){const map:any={list:<CheckCircle2/>,calendar:<ModuleIcon name="calendar"/>,budget:<ModuleIcon name="finance"/>,family:<ModuleIcon name="family"/>,docs:<ReceiptText/>,birthday:<ModuleIcon name="calendar"/>,meal:<ShoppingCart/>,recipe:<ReceiptText/>};return <span className={'ico '+kind}>{map[kind]}</span>}
 

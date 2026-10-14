@@ -1,3 +1,5 @@
+import ModuleLoading from './ModuleLoading';
+import {InteractiveTrend,SpendingDonut} from './FinancialVisuals';
 import TransactionReceipts from './TransactionReceipts';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
@@ -39,6 +41,7 @@ const dueDateForMonth=(d:Date,dueDay:number)=>{const last=new Date(d.getFullYear
 
 export default function Finance({household,readOnly=false}:{household:Household;readOnly?:boolean}){
  const [tab,setTab]=useState<'summary'|'budget'|'transactions'|'recurring'|'comparison'|'contributions'|'goals'|'networth'|'accounts'>('summary');
+ const [categoryFilter,setCategoryFilter]=useState<string|null>(null),[transactionQuery,setTransactionQuery]=useState(''),[transactionType,setTransactionType]=useState('all');
  const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [categories,setCategories]=useState<Category[]>([]),[txs,setTxs]=useState<Tx[]>([]),[allocations,setAllocations]=useState<Allocation[]>([]);
@@ -549,9 +552,13 @@ export default function Finance({household,readOnly=false}:{household:Household;
   setBusy(false);setMessage(error?error.message:'Transferencia eliminada.');if(!error){await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});await load()}
  }
 
- function moveMonth(delta:number){setMonth(m=>new Date(m.getFullYear(),m.getMonth()+delta,1))}
+ function moveMonth(delta:number){setCategoryFilter(null);setMonth(m=>new Date(m.getFullYear(),m.getMonth()+delta,1))}
+ function openChartMonth(key:string){setCategoryFilter(null);setTransactionQuery('');setTransactionType('all');setMonth(new Date(key+'T12:00'));setTab('transactions')}
+ const spendingRows=useMemo(()=>{const sums=new Map<string,number>();for(const t of txs)if(t.type==='expense'){const id=t.category_id||'uncategorized';sums.set(id,(sums.get(id)||0)+Number(t.amount))}return Array.from(sums,([id,amount])=>({id,amount,name:id==='uncategorized'?'Sin categoría':categoryName(id)})).sort((a,b)=>b.amount-a.amount)},[txs,categories]);
+ const filteredTransactions=txs.filter(t=>(categoryFilter===null||(t.type==='expense'&&(t.category_id||'uncategorized')===categoryFilter))&&(transactionType==='all'||t.type===transactionType)&&(!transactionQuery.trim()||[t.description,categoryName(t.category_id),t.notes||''].join(' ').toLocaleLowerCase('es-GT').includes(transactionQuery.trim().toLocaleLowerCase('es-GT'))));
+ const featuredGoal=goals[0],featuredSaved=featuredGoal?contributions.filter(c=>c.goal_id===featuredGoal.id).reduce((sum,c)=>sum+Number(c.amount),0):0;
 
- if(loading)return <div className="finance-loading"><div className="loader"/></div>;
+ if(loading)return <ModuleLoading/>;
 
  return <section className={'finance-v2 '+(readOnly?'read-only':'')}>
   <div className="finance-top">
@@ -559,7 +566,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
    {!readOnly&&<button className="finance-new" onClick={()=>setShowTxForm(true)}><Plus size={18}/> Movimiento</button>}
   </div>
 
-  <div className="month-switch"><button onClick={()=>moveMonth(-1)}><ArrowLeft size={18}/></button><strong>{monthLabel(month)}</strong><button onClick={()=>moveMonth(1)}><ArrowRight size={18}/></button></div>
+  <div className="month-switch"><button aria-label="Mes anterior" onClick={()=>moveMonth(-1)}><ArrowLeft size={18}/></button><strong>{monthLabel(month)}</strong><button aria-label="Mes siguiente" onClick={()=>moveMonth(1)}><ArrowRight size={18}/></button></div>
 
   <div className="finance-tabs">
    <button className={tab==='summary'?'active':''} onClick={()=>setTab('summary')}>Resumen</button>
@@ -576,56 +583,14 @@ export default function Finance({household,readOnly=false}:{household:Household;
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
   {tab==='summary'&&<>
-   <div className="finance-kpis">
-    <Kpi label="Ingresos" value={currency(totals.income)} icon={<ArrowDownLeft/>} tone="good"/>
-    <Kpi label="Gastado" value={currency(totals.expense)} icon={<ArrowUpRight/>} tone="warn"/>
-    <Kpi label="Ahorrado" value={currency(totals.saving)} icon={<PiggyBank/>} tone="save"/>
-    <Kpi label="Disponible" value={currency(totals.available)} icon={<ModuleIcon name="finance"/>} tone={totals.available>=0?'good':'bad'}/>
-   </div>
-
-   <div className={'finance-panel projection-panel '+smartBudget.health}>
-    <div className="projection-head"><div><p className="eyebrow">PROYECCIÓN DEL MES</p><h3>Dinero realmente disponible</h3><small>Considera pagos fijos pendientes, ahorro planificado y el presupuesto que aún falta por usar.</small></div><span className={'projection-health '+smartBudget.health}>{smartBudget.health==='good'?<TrendingUp/>:<AlertTriangle/>}{smartBudget.health==='good'?'Saludable':smartBudget.health==='watch'?'Ajustado':'En riesgo'}</span></div>
-    <div className="projection-grid">
-     <div><small>Disponible hoy</small><strong>{currency(totals.available)}</strong></div>
-     <div><small>Compromisos por cubrir</small><strong>{currency(smartBudget.fixedCommitments)}</strong></div>
-     <div><small>Ahorro pendiente</small><strong>{currency(smartBudget.savingsRemaining)}</strong></div>
-     <div className="projection-highlight"><small>Libre después de compromisos</small><strong>{currency(smartBudget.availableAfterCommitments)}</strong></div>
-    </div>
-    <div className="projection-footer"><span>Ingreso aún esperado <b>+{currency(smartBudget.expectedIncomeRemaining)}</b></span><span>Variables por usar <b>−{currency(smartBudget.variableRemaining)}</b></span><span>Cierre estimado <b className={smartBudget.projectedClose>=0?'positive':'negative'}>{currency(smartBudget.projectedClose)}</b></span></div>
-    <div className="projection-insight">{smartBudget.health==='risk'?'El plan actual terminaría aproximadamente '+currency(Math.abs(smartBudget.projectedClose))+' por encima de lo disponible.':smartBudget.health==='watch'?'El mes está equilibrado, pero queda poco margen libre si se usa todo el presupuesto previsto.':'Si mantienen este plan, el mes cerraría con aproximadamente '+currency(smartBudget.projectedClose)+' disponibles.'}</div>
-   </div>
-
-   <div className="finance-panel">
-    <div className="panel-heading"><div><span>Presupuesto utilizado</span><strong>{pct(totals.expense,totals.planned)}%</strong></div><small>{totals.planned?currency(totals.expense)+' de '+currency(totals.planned):'Define el presupuesto del mes'}</small></div>
-    <Progress value={pct(totals.expense,totals.planned)}/>
-   </div>
-
-   <div className="finance-columns">
-    <div className="finance-panel">
-     <div className="panel-title"><h3>Distribución del hogar</h3><button onClick={()=>setTab('budget')}>Ver todo <ChevronRight size={16}/></button></div>
-     <div className="budget-mini-head"><span>Categoría</span><span>Plan</span><span>Real</span></div>
-     {categories.slice(0,6).map(c=><div className="budget-mini" key={c.id}><span>{c.name}</span><b>{currency(allocationByCategory.get(c.id)||0)}</b><b>{currency(actualByCategory.get(c.id)||0)}</b></div>)}
-    </div>
-    <div className="finance-panel">
-     <div className="panel-title"><div><h3>Próximos pagos</h3><small>{recurringStats.overdue?recurringStats.overdue+' vencido(s)':'Control mensual de recurrentes'}</small></div><button onClick={()=>setTab('recurring')}>Ver todos <ChevronRight size={16}/></button></div>
-     {occurrences.filter(o=>recurringById(o.recurring_transaction_id)?.type==='expense').length?occurrences.filter(o=>recurringById(o.recurring_transaction_id)?.type==='expense').slice(0,5).map(o=>{const r=recurringById(o.recurring_transaction_id)!;const status=occurrenceStatus(o);return <div className="due-row recurring-summary-row" key={o.id}><span className="due-day">{new Date(o.due_date+'T12:00').getDate()}</span><div><strong>{r.description}</strong><small>{categoryName(r.category_id)} · <span className={'status-text '+status}>{statusLabel(status)}</span></small></div><div className="due-actions"><b>{currency(Number(r.amount))}</b>{(status==='pending'||status==='overdue')&&<button disabled={busy} onClick={()=>payRecurringOccurrence(o)}>Pagar</button>}</div></div>}):<EmptyFinance text="Aún no hay pagos recurrentes. Márcalos al registrar un movimiento."/>}
-    </div>
-   </div>
-
-   {members.length>1&&<div className="finance-panel">
-    <div className="panel-title"><div><h3>Balance entre nosotros</h3><small>{splitMethodLabel(splitMethod)} · gastos compartidos de este mes.</small></div><button onClick={()=>setTab('contributions')}>Configurar <ChevronRight size={16}/></button></div>
-    <div className="couple-grid">{contributionOverview.map(b=><div className="couple-card" key={b.user_id}><span>{b.full_name}</span><strong className={b.balance>=0?'positive':'negative'}>{b.balance>=0?'+':''}{currency(b.balance)}</strong><small>{b.balance>0?'A favor':b.balance<0?'Por compensar':'En equilibrio'}</small></div>)}</div>
-   </div>}
-
-   <div className="finance-panel comparison-preview">
-    <div className="panel-title"><div><h3>Tendencia financiera</h3><small>Ingresos, gastos y ahorro de los últimos {Math.min(6,monthlyMetrics.length)} meses.</small></div><button onClick={()=>setTab('comparison')}>Comparar <ChevronRight size={16}/></button></div>
-    <MonthlyBars data={monthlyMetrics.slice(-6)}/>
-   </div>
-
-   <div className="finance-panel">
-    <div className="panel-title"><h3>Movimientos recientes</h3><button onClick={()=>setTab('transactions')}>Ver todos <ChevronRight size={16}/></button></div>
-    <TransactionRows txs={txs.slice(0,6)} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction} onDetail={setDetailTx} receiptCounts={receiptCounts} readOnly={readOnly}/>
-   </div>
+   <section className="studio-finance-hero"><div><p className="eyebrow">TU DINERO, CON CLARIDAD</p><small>Disponible del mes</small><h3 className={totals.available<0?'negative':''}>{currency(totals.available)}</h3><p>Ingresos − gastos − ahorro registrado</p><span className="studio-previous">Mes anterior <b>{currency(previousMetric.balance)}</b></span></div><div className="studio-finance-orbit" aria-hidden="true"><span><ModuleIcon name="finance" size={57}/></span><i/><b/><em/></div><div className="studio-finance-hero-foot"><span>Balance de {monthLabel(month)}</span><button onClick={()=>setTab('accounts')}>Mis cuentas <ArrowUpRight size={16}/></button></div></section>
+   <div className="finance-kpis studio-finance-kpis"><Kpi label="Ingresos" value={currency(totals.income)} icon={<ArrowDownLeft/>} tone="good"/><Kpi label="Gastado" value={currency(totals.expense)} icon={<ArrowUpRight/>} tone="warn"/><Kpi label="Ahorrado" value={currency(totals.saving)} icon={<PiggyBank/>} tone="save"/></div>
+   <div className="studio-finance-charts"><section className="finance-panel"><div className="panel-title"><div><p className="eyebrow">EN QUÉ SE VA</p><h3>Tu mapa de gastos</h3><small>Toca una categoría para ver sus movimientos.</small></div></div><SpendingDonut rows={spendingRows} selected={categoryFilter} onSelect={id=>{setCategoryFilter(id);setTransactionType('all');setTransactionQuery('');setTab('transactions')}}/></section><section className="finance-panel"><div className="panel-title"><div><p className="eyebrow">PASO A PASO</p><h3>Así evoluciona tu hogar</h3><small>Selecciona un mes para explorar sus cifras.</small></div></div><InteractiveTrend data={monthlyMetrics.slice(-6)} onMonthSelect={openChartMonth}/></section></div>
+   <details className={'finance-panel studio-projection '+smartBudget.health}><summary><span className="studio-projection-icon">{smartBudget.health==='good'?<TrendingUp/>:<AlertTriangle/>}</span><span><small>DESPUÉS DE TU PLAN</small><strong>Cierre estimado <b className={smartBudget.projectedClose>=0?'positive':'negative'}>{currency(smartBudget.projectedClose)}</b></strong></span><ChevronRight size={18}/></summary><p className="muted">Incluye ingresos esperados, compromisos, ahorro y presupuesto pendiente.</p><div className="projection-grid"><div><small>Disponible hoy</small><strong>{currency(totals.available)}</strong></div><div><small>Compromisos por cubrir</small><strong>{currency(smartBudget.fixedCommitments)}</strong></div><div><small>Ahorro pendiente</small><strong>{currency(smartBudget.savingsRemaining)}</strong></div><div><small>Libre tras compromisos</small><strong>{currency(smartBudget.availableAfterCommitments)}</strong></div></div><div className="projection-footer"><span>Ingreso esperado <b>+{currency(smartBudget.expectedIncomeRemaining)}</b></span><span>Variables por usar <b>−{currency(smartBudget.variableRemaining)}</b></span></div><button className="studio-chart-open" onClick={()=>setTab('budget')}>Ajustar mi presupuesto <ArrowUpRight size={15}/></button></details>
+   <div className="finance-panel studio-budget-used"><div className="panel-heading"><div><span>Presupuesto utilizado</span><strong>{totals.planned?Math.round(totals.expense/totals.planned*100)+'%':'Sin definir'}</strong></div><small>{totals.planned?currency(totals.expense)+' de '+currency(totals.planned):'Dale un destino a tu dinero'}</small></div><Progress value={pct(totals.expense,totals.planned)}/><button className="studio-chart-open" onClick={()=>setTab('budget')}>Ver mi presupuesto <ArrowUpRight size={15}/></button></div>
+   <div className="finance-columns"><div className="finance-panel studio-goal-panel"><div className="panel-title"><div><p className="eyebrow">LO QUE VIENE</p><h3>Un paso más cerca</h3></div><button onClick={()=>setTab('goals')}>Mis metas <ChevronRight size={16}/></button></div>{featuredGoal?<button className="studio-featured-goal" onClick={()=>setTab('goals')}><span className="studio-ring" style={{'--ring-progress':pct(featuredSaved,Number(featuredGoal.target_amount))+'%'} as React.CSSProperties}><Target size={27}/></span><div><strong>{featuredGoal.name}</strong><b>{currency(featuredSaved)} <small>de {currency(Number(featuredGoal.target_amount))}</small></b><span>{pct(featuredSaved,Number(featuredGoal.target_amount))}% completado</span></div></button>:<div className="studio-chart-empty"><Target size={31}/><strong>Las grandes metas empiezan aquí</strong><span>Una casa, un viaje o tranquilidad para el futuro.</span><button className="studio-chart-open" onClick={()=>setTab('goals')}>Explorar metas <ArrowUpRight size={15}/></button></div>}</div><div className="finance-panel"><div className="panel-title"><div><p className="eyebrow">EN EL RADAR</p><h3>Próximos pagos</h3><small>{recurringStats.overdue?recurringStats.overdue+' vencido(s)':'Tus compromisos del mes'}</small></div><button onClick={()=>setTab('recurring')}>Ver todos <ChevronRight size={16}/></button></div>{occurrences.filter(o=>recurringById(o.recurring_transaction_id)?.type==='expense'&&o.status==='pending').length?occurrences.filter(o=>recurringById(o.recurring_transaction_id)?.type==='expense'&&o.status==='pending').slice(0,4).map(o=>{const r=recurringById(o.recurring_transaction_id)!;const status=occurrenceStatus(o);return <div className="due-row recurring-summary-row" key={o.id}><span className="due-day">{new Date(o.due_date+'T12:00').getDate()}</span><div><strong>{r.description}</strong><small className={'status-text '+status}>{statusLabel(status)}</small></div><div className="due-actions"><b>{currency(Number(r.amount))}</b>{!readOnly&&<button disabled={busy} onClick={()=>payRecurringOccurrence(o)}>Pagar</button>}</div></div>}):<div className="studio-chart-empty"><CalendarClock size={27}/><strong>Tu calendario de pagos está despejado</strong><span>No hay gastos recurrentes pendientes este mes.</span></div>}</div></div>
+   {members.length>1&&<div className="finance-panel"><div className="panel-title"><div><h3>Balance entre nosotros</h3><small>{splitMethodLabel(splitMethod)} · gastos compartidos.</small></div><button onClick={()=>setTab('contributions')}>Ver aportes <ChevronRight size={16}/></button></div><div className="couple-grid">{contributionOverview.map(b=><div className="couple-card" key={b.user_id}><span>{b.full_name}</span><strong className={b.balance>=0?'positive':'negative'}>{b.balance>=0?'+':''}{currency(b.balance)}</strong><small>{b.balance>0?'A favor':b.balance<0?'Por compensar':'En equilibrio'}</small></div>)}</div></div>}
+   <div className="finance-panel"><div className="panel-title"><div><p className="eyebrow">TU ACTIVIDAD</p><h3>Movimientos recientes</h3></div><button onClick={()=>{setCategoryFilter(null);setTab('transactions')}}>Ver todos <ChevronRight size={16}/></button></div><TransactionRows txs={txs.slice(0,5)} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction} onDetail={setDetailTx} receiptCounts={receiptCounts} readOnly={readOnly}/>{!txs.length&&<EmptyFinance text="Registra tu primer movimiento para empezar a ver tu actividad."/>}</div>
   </>}
 
   {tab==='budget'&&<>
@@ -642,11 +607,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
     <button className="finance-primary" disabled={busy} onClick={saveBudget}><Check size={17}/>{busy?'Guardando...':'Guardar presupuesto'}</button>
    </div>
   </>}
-  {tab==='transactions'&&<div className="finance-panel">
-   <div className="panel-title"><div><h3>Movimientos del mes</h3><small>{txs.length} registros</small></div><button className="mini-add" onClick={()=>setShowTxForm(true)}><Plus size={16}/> Agregar</button></div>
-   <TransactionRows txs={txs} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction} onDetail={setDetailTx} receiptCounts={receiptCounts} readOnly={readOnly}/>
-   {!txs.length&&<EmptyFinance text="Todavía no hay movimientos en este mes."/>}
-  </div>}
+  {tab==='transactions'&&<div className="finance-panel"><div className="panel-title"><div><h3>Movimientos del mes</h3><small>{filteredTransactions.length} de {txs.length} registros · {currency(filteredTransactions.reduce((sum,t)=>sum+(t.type==='income'?1:-1)*Number(t.amount),0))} netos</small></div>{!readOnly&&<button className="mini-add" onClick={()=>setShowTxForm(true)}><Plus size={16}/> Agregar</button>}</div><div className="studio-transaction-filters"><label>Buscar movimiento<input value={transactionQuery} onChange={e=>setTransactionQuery(e.target.value)} placeholder="Nombre, categoría o nota"/></label><label>Tipo<select aria-label="Tipo de movimiento" value={transactionType} onChange={e=>setTransactionType(e.target.value)}><option value="all">Todos los movimientos</option><option value="expense">Gastos</option><option value="income">Ingresos</option></select></label><label>Categoría de gasto<select aria-label="Categoría de gasto" value={categoryFilter||'all'} onChange={e=>setCategoryFilter(e.target.value==='all'?null:e.target.value)}><option value="all">Todas las categorías</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}<option value="uncategorized">Sin categoría</option></select></label></div>{categoryFilter&&<button className="studio-filter-chip" onClick={()=>setCategoryFilter(null)}>{categoryFilter==='uncategorized'?'Sin categoría':categoryName(categoryFilter)} <X size={14}/> Quitar filtro</button>}<TransactionRows txs={filteredTransactions} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction} onDetail={setDetailTx} receiptCounts={receiptCounts} readOnly={readOnly}/>{!filteredTransactions.length&&<EmptyFinance text={txs.length?'No hay movimientos con estos filtros.':'Todavía no hay movimientos en este mes.'}/>}</div>}
 
   {tab==='goals'&&<>
    <div className="finance-panel">
@@ -904,10 +865,7 @@ function ComparisonKpi({label,value,delta,goodWhenUp}:{label:string;value:number
  return <div className="comparison-kpi"><div><small>{label}</small><strong>{currency(value)}</strong></div><span className={neutral?'neutral':good?'good':'bad'}>{neutral?'—':up?<TrendingUp/>:<TrendingDown/>}{neutral?'Sin cambio':Math.abs(delta).toFixed(1)+'%'}</span></div>
 }
 
-function MonthlyBars({data}:{data:MonthMetric[]}){
- const max=Math.max(1,...data.flatMap(row=>[row.income,row.expense,row.saving]));
- return <div className="monthly-bars"><div className="chart-legend"><span><i className="income"/>Ingresos</span><span><i className="expense"/>Gastos</span><span><i className="saving"/>Ahorro</span></div><div className="monthly-bars-grid">{data.map(row=><div className="month-bar-group" key={row.key}><div className="month-bars"><span className="income" style={{height:(row.income/max*100)+'%'}} title={'Ingresos '+currency(row.income)}/><span className="expense" style={{height:(row.expense/max*100)+'%'}} title={'Gastos '+currency(row.expense)}/><span className="saving" style={{height:(row.saving/max*100)+'%'}} title={'Ahorro '+currency(row.saving)}/></div><small>{row.label}</small></div>)}</div></div>
-}
+function MonthlyBars({data}:{data:MonthMetric[]}){return <InteractiveTrend data={data}/>}
 
 function BalanceChart({data}:{data:MonthMetric[]}){
  const max=Math.max(1,...data.map(row=>Math.abs(row.balance)));
@@ -927,7 +885,7 @@ function CategoryComparison({rows}:{rows:{id:string;name:string;current:number;p
 
 function GoalCard({goal,saved,busy,onContribute}:{goal:Goal;saved:number;busy:boolean;onContribute:(id:string,amount:number)=>void}){
  const [amount,setAmount]=useState('');const progress=pct(saved,Number(goal.target_amount));
- return <div className="goal-card"><div className="goal-head"><span><Target/></span><div><strong>{goal.name}</strong><small>{goal.target_date?'Meta '+new Date(goal.target_date+'T12:00').toLocaleDateString('es-GT'):'Sin fecha límite'}</small></div></div><div className="goal-amount"><strong>{currency(saved)}</strong><span>de {currency(Number(goal.target_amount))}</span></div><Progress value={progress}/><div className="goal-footer"><small>{progress}% completado</small><div><input value={amount} onChange={e=>setAmount(e.target.value)} type="number" min="1" placeholder="Aporte"/><button disabled={busy} onClick={()=>{onContribute(goal.id,Number(amount));setAmount('')}}>+</button></div></div></div>
+ return <div className="goal-card"><div className="goal-head"><span className="studio-ring" style={{'--ring-progress':progress+'%'} as React.CSSProperties}><Target/></span><div><strong>{goal.name}</strong><small>{goal.target_date?'Meta '+new Date(goal.target_date+'T12:00').toLocaleDateString('es-GT'):'Sin fecha límite'}</small></div></div><div className="goal-amount"><strong>{currency(saved)}</strong><span>de {currency(Number(goal.target_amount))}</span></div><Progress value={progress}/><div className="goal-footer"><small>{progress}% completado</small><div><input value={amount} onChange={e=>setAmount(e.target.value)} type="number" min="1" placeholder="Aporte"/><button disabled={busy} onClick={()=>{onContribute(goal.id,Number(amount));setAmount('')}}>+</button></div></div></div>
 }
 
 function Modal({title,close,children}:{title:string;close:()=>void;children:any}){return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}><div className="finance-modal"><div className="modal-head"><h3>{title}</h3><button onClick={close}><X/></button></div>{children}</div></div>}

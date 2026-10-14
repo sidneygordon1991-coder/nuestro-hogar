@@ -1,3 +1,5 @@
+import ModuleLoading from './ModuleLoading';
+import DocumentThumbnail from './DocumentThumbnail';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,BadgeCheck,CalendarClock,Car,ExternalLink,GraduationCap,LockKeyhole,Paperclip,Pencil,Plus,Search,ShieldCheck,Trash2,Upload,X} from 'lucide-react';
@@ -126,7 +128,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
   setBusy(false);setMessage(error?error.message:'Documento eliminado.');if(!error)await load();
  }
 
- if(loading)return <div className="finance-loading"><div className="loader"/></div>;
+ if(loading)return <ModuleLoading/>;
 
  return <section className="document-vault">
   <div className="document-top">
@@ -154,7 +156,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
 
   <div className="document-grid">
    {filtered.map(doc=>{const status=expiryStatus(doc.expires_on);return <article className={'document-card '+status.tone} key={doc.id}>
-    <div className="document-card-head"><span className={'document-category-icon '+doc.category}>{categoryIcon(doc.category)}</span><div><small>{categoryLabel(doc.category)}</small><strong>{doc.title}</strong><p>{doc.issuer||doc.document_number||'Documento del hogar'}</p></div><span className={'document-status '+status.tone}>{status.label}</span></div>
+    <DocumentThumbnail path={doc.file_path} mime={doc.mime_type} name={doc.title} privateFile={doc.access_scope==='private'}/><div className="document-card-head"><span className={'document-category-icon '+doc.category}>{categoryIcon(doc.category)}</span><div><small>{categoryLabel(doc.category)}</small><strong>{doc.title}</strong><p>{doc.issuer||doc.document_number||'Documento del hogar'}</p></div><span className={'document-status '+status.tone}>{status.label}</span></div>
     <div className="document-meta">
      {doc.document_number&&<div><span>Número</span><b>{doc.document_number}</b></div>}
      {doc.expires_on&&<div><span>Vencimiento</span><b>{formatDate(doc.expires_on)}</b></div>}

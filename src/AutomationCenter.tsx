@@ -1,3 +1,4 @@
+import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
 import {BellRing,Check,ChevronRight,Clock3,Gauge,History,Package,Play,Settings2,ShoppingCart,SlidersHorizontal} from 'lucide-react';
@@ -87,7 +88,7 @@ export default function AutomationCenter({household,onNavigate,readOnly=false}:{
  const groups=useMemo(()=>['Finanzas','Organización','Documentos','Casa y vehículos','Comidas'].map(group=>({group,rules:rules.filter(r=>definitions[r.rule_key]?.group===group)})).filter(x=>x.rules.length),[rules]);
  const lastActivity=runs.find(r=>r.action!=='configured')||runs[0];
 
- if(loading)return <div className="finance-loading"><div className="loader"/></div>;
+ if(loading)return <ModuleLoading/>;
 
  return <section className="automation-center">
   <div className="automation-top"><div><p className="eyebrow">AUTOMATIZACIONES</p><h2 className="page-title">Reglas del hogar</h2><p className="muted">Decide qué debe vigilar Nuestro Hogar y qué acciones puede ejecutar automáticamente.</p></div>{!readOnly&&<button className="automation-run" onClick={runNow} disabled={running}><Play/>{running?'Evaluando...':'Ejecutar ahora'}</button>}</div>

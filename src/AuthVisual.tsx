@@ -3,7 +3,7 @@ import ModuleIcon from './ModuleIcon';
 
 export default function AuthVisual(){
  return <section className="auth-story" aria-label="Nuestro Hogar, tu vida en equilibrio">
-  <a className="auth-wordmark" href={import.meta.env.BASE_URL}><span><ModuleIcon name="home" size={29}/></span><strong>Nuestro Hogar<small>UN ESPACIO PARA LOS TUYOS</small></strong></a>
+  <a className="auth-wordmark" href={import.meta.env.BASE_URL}><span><ModuleIcon name="home" size={29}/></span><strong>Nuestro Hogar<small>LA VIDA, EN CASA</small></strong></a>
   <div className="auth-story-copy"><p className="auth-badge"><Sparkles size={14}/> Menos pendientes. Más vida.</p><h2>Todo tu hogar.<br/><em>En armonía.</em></h2><p>Conecta los planes, las finanzas y los pequeños detalles que hacen grande tu vida en familia.</p></div>
   <div className="auth-scene" aria-hidden="true">
    <div className="auth-orbit auth-orbit-one"/><div className="auth-orbit auth-orbit-two"/>
