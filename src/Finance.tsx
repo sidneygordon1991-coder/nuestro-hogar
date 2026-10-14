@@ -1,6 +1,7 @@
+import TransactionReceipts from './TransactionReceipts';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowRightLeft,ArrowUpRight,BarChart3,Building2,CalendarClock,Car,Check,ChevronRight,CircleDollarSign,Copy,CreditCard,Gauge,Gem,GraduationCap,Landmark,Pencil,Plane,PiggyBank,Plus,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingDown,TrendingUp,X} from 'lucide-react';
+import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowRightLeft,ArrowUpRight,BarChart3,Building2,CalendarClock,Car,Check,ChevronRight,CircleDollarSign,Copy,CreditCard,Gauge,Gem,GraduationCap,Landmark,Pencil,Plane,PiggyBank,Plus,Paperclip,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingDown,TrendingUp,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -45,6 +46,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
  const [accounts,setAccounts]=useState<Account[]>([]),[accountTxs,setAccountTxs]=useState<{account_id:string|null;type:string;amount:number}[]>([]);
  const [transfers,setTransfers]=useState<Transfer[]>([]),[assets,setAssets]=useState<FinanceAsset[]>([]),[netWorthSnapshots,setNetWorthSnapshots]=useState<NetWorthSnapshot[]>([]);
  const [members,setMembers]=useState<Member[]>([]),[splits,setSplits]=useState<Split[]>([]),[currentUser,setCurrentUser]=useState('');
+ const [detailTx,setDetailTx]=useState<Tx|null>(null),[receiptCounts,setReceiptCounts]=useState<Record<string,number>>({});
  const [showTxForm,setShowTxForm]=useState(false),[editingTx,setEditingTx]=useState<Tx|null>(null),[showGoalForm,setShowGoalForm]=useState(false),[showAccountForm,setShowAccountForm]=useState(false),[editingAccount,setEditingAccount]=useState<Account|null>(null),[showAssetForm,setShowAssetForm]=useState(false),[editingAsset,setEditingAsset]=useState<FinanceAsset|null>(null),[showTransferForm,setShowTransferForm]=useState(false),[showCategoryForm,setShowCategoryForm]=useState(false);
  const [budgetDraft,setBudgetDraft]=useState<Record<string,string>>({});
  const [categoryGroupDraft,setCategoryGroupDraft]=useState<Record<string,BudgetGroup>>({});
@@ -56,6 +58,20 @@ export default function Finance({household,readOnly=false}:{household:Household;
 
  useEffect(()=>{load()},[household.id,month.getFullYear(),month.getMonth()]);
 
+ useEffect(()=>{setDetailTx(null)},[household.id]);
+ useEffect(()=>{let active=true;
+  if(!txs.length){setReceiptCounts({});return}
+  supabase.from('finance_receipts').select('transaction_id').eq('household_id',household.id).in('transaction_id',txs.map(tx=>tx.id)).then(({data,error})=>{
+   if(!active)return;const counts:Record<string,number>={};
+   if(!error)for(const row of data||[])counts[row.transaction_id]=(counts[row.transaction_id]||0)+1;
+   setReceiptCounts(counts);
+  });return()=>{active=false};
+ },[household.id,txs]);
+ async function refreshReceiptCounts(){
+  if(!txs.length)return;
+  const {data,error}=await supabase.from('finance_receipts').select('transaction_id').eq('household_id',household.id).in('transaction_id',txs.map(tx=>tx.id));
+  if(error)return;const counts:Record<string,number>={};for(const row of data||[])counts[row.transaction_id]=(counts[row.transaction_id]||0)+1;setReceiptCounts(counts);
+ }
  async function load(){
   setLoading(true);setMessage('');
   if(!readOnly){await supabase.rpc('seed_finance_categories',{p_household_id:household.id});await supabase.rpc('refresh_my_net_worth_snapshot',{p_household_id:household.id});}
@@ -608,7 +624,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
 
    <div className="finance-panel">
     <div className="panel-title"><h3>Movimientos recientes</h3><button onClick={()=>setTab('transactions')}>Ver todos <ChevronRight size={16}/></button></div>
-    <TransactionRows txs={txs.slice(0,6)} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction}/>
+    <TransactionRows txs={txs.slice(0,6)} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction} onDetail={setDetailTx} receiptCounts={receiptCounts} readOnly={readOnly}/>
    </div>
   </>}
 
@@ -628,7 +644,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
   </>}
   {tab==='transactions'&&<div className="finance-panel">
    <div className="panel-title"><div><h3>Movimientos del mes</h3><small>{txs.length} registros</small></div><button className="mini-add" onClick={()=>setShowTxForm(true)}><Plus size={16}/> Agregar</button></div>
-   <TransactionRows txs={txs} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction}/>
+   <TransactionRows txs={txs} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction} onDetail={setDetailTx} receiptCounts={receiptCounts} readOnly={readOnly}/>
    {!txs.length&&<EmptyFinance text="Todavía no hay movimientos en este mes."/>}
   </div>}
 
@@ -808,6 +824,11 @@ export default function Finance({household,readOnly=false}:{household:Household;
    </div>
   </>}
 
+  {detailTx&&<Modal title="Detalle del movimiento" close={()=>setDetailTx(null)}>
+   <div className="transaction-detail-summary"><strong>{detailTx.description}</strong><b className={detailTx.type}>{currency(Number(detailTx.amount))}</b><dl><div><dt>Fecha</dt><dd>{new Date(detailTx.transaction_date+'T12:00').toLocaleDateString('es-GT')}</dd></div><div><dt>Categoría</dt><dd>{categoryName(detailTx.category_id)}</dd></div><div><dt>Pagado por</dt><dd>{memberName(detailTx.paid_by)}</dd></div><div><dt>Tipo</dt><dd>{detailTx.is_shared?'Compartido':'Personal'}</dd></div></dl>{detailTx.notes&&<p>{detailTx.notes}</p>}</div>
+   <TransactionReceipts key={detailTx.id} householdId={household.id} transactionId={detailTx.id} readOnly={readOnly} onChanged={refreshReceiptCounts}/>
+  </Modal>}
+
   {showTxForm&&!readOnly&&<Modal title="Nuevo movimiento" close={()=>setShowTxForm(false)}><form className="finance-form" onSubmit={addTransaction}>
    <div className="two"><label>Tipo<select name="type" defaultValue="expense"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label><label>Monto<input name="amount" type="number" min=".01" step=".01" placeholder="0.00" required/></label></div>
    <label>Descripción<input name="description" placeholder="Ej. Supermercado" required/></label>
@@ -874,8 +895,8 @@ function Kpi({label,value,icon,tone}:{label:string;value:string;icon:any;tone:st
 function Progress({value}:{value:number}){return <div className="progress"><span style={{width:`${Math.max(0,Math.min(100,value))}%`}}/></div>}
 function EmptyFinance({text}:{text:string}){return <div className="finance-empty">{text}</div>}
 
-function TransactionRows({txs,categoryName,memberName,onEdit,onDelete}:{txs:Tx[];categoryName:(x:string|null)=>string;memberName:(x:string|null)=>string;onEdit:(tx:Tx)=>void;onDelete:(tx:Tx)=>void}){
- return <div className="transaction-list">{txs.map(t=>{const category=categoryName(t.category_id);return <div className="transaction-row polished" key={t.id}><span className={'transaction-icon '+t.type}>{transactionIcon(t.type,category)}</span><div className="transaction-main"><strong>{t.description}</strong><small>{category} · {memberName(t.paid_by)}{t.is_shared?' · Compartido':''}{t.recurring_transaction_id?' · Recurrente':''}</small></div><div className="transaction-value"><b className={t.type}>{t.type==='income'?'+':'−'}{currency(Number(t.amount))}</b><small>{new Date(t.transaction_date+'T12:00').toLocaleDateString('es-GT',{day:'2-digit',month:'short'})}</small></div><div className="transaction-actions"><button className="transaction-action edit" title="Editar movimiento" aria-label="Editar movimiento" onClick={()=>onEdit(t)}><Pencil/></button><button className="transaction-action delete" title="Eliminar movimiento" aria-label="Eliminar movimiento" onClick={()=>onDelete(t)}><Trash2/></button></div></div>})}</div>
+function TransactionRows({txs,categoryName,memberName,onEdit,onDelete,onDetail,receiptCounts,readOnly}:{txs:Tx[];categoryName:(x:string|null)=>string;memberName:(x:string|null)=>string;onEdit:(tx:Tx)=>void;onDelete:(tx:Tx)=>void;onDetail:(tx:Tx)=>void;receiptCounts:Record<string,number>;readOnly:boolean}){
+ return <div className="transaction-list">{txs.map(t=>{const category=categoryName(t.category_id),count=receiptCounts[t.id]||0;return <div className="transaction-row polished" key={t.id}><span className={'transaction-icon '+t.type}>{transactionIcon(t.type,category)}</span><div className="transaction-main"><button type="button" className="transaction-detail-link" onClick={()=>onDetail(t)} aria-label={'Ver detalle de '+t.description}>{t.description}</button><small>{category} · {memberName(t.paid_by)}{t.is_shared?' · Compartido':''}{t.recurring_transaction_id?' · Recurrente':''}</small>{!!count&&<small className="transaction-receipt-count"><Paperclip/>{count} comprobante{count===1?'':'s'}</small>}</div><div className="transaction-value"><b className={t.type}>{t.type==='income'?'+':'−'}{currency(Number(t.amount))}</b><small>{new Date(t.transaction_date+'T12:00').toLocaleDateString('es-GT',{day:'2-digit',month:'short'})}</small></div><div className="transaction-actions"><button type="button" className="transaction-action receipt" title="Ver detalle y comprobantes" aria-label={'Ver detalle y comprobantes de '+t.description} onClick={()=>onDetail(t)}><Paperclip/></button>{!readOnly&&<><button className="transaction-action edit" title="Editar movimiento" aria-label="Editar movimiento" onClick={()=>onEdit(t)}><Pencil/></button><button className="transaction-action delete" title="Eliminar movimiento" aria-label="Eliminar movimiento" onClick={()=>onDelete(t)}><Trash2/></button></>}</div></div>})}</div>
 }
 
 function ComparisonKpi({label,value,delta,goodWhenUp}:{label:string;value:number;delta:number;goodWhenUp:boolean}){
