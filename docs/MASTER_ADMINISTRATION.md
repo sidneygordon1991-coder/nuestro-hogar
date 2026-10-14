@@ -35,3 +35,5 @@ El alta inicial de la cuenta master se realiza mediante una operación administr
 `supabase/tests/platform_master_permissions.sql` crea fixtures sintéticos y revierte todo al finalizar. Comprueba autorización, escalada por metadata, permisos de tablas privadas, aislamiento, confirmaciones, protección del propietario, cuotas asignadas y reales, límites de miembros y unión mediante RPC, archivado, restauración, revocación, integridad financiera y auditoría. La prueba de comprobantes se vuelve a ejecutar para comprobar recuperación y privacidad.
 
 `npm test` y `npm run build` validan cliente, presentación y compilación. La revisión visual usa datos ficticios interceptados, sin iniciar sesión en una cuenta real, en ambos temas y anchos de 360, 390 y 1280 px. Los cambios de recursos reales deben validarse desde la sesión del propietario.
+
+El acceso global también requiere una sesión MFA `aal2` una vez activada la protección. La pantalla del panel permite configurar y verificar el autenticador. Consulta SHARING_AND_RECOVERY.md para respaldos con archivos y recuperación.

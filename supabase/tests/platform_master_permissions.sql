@@ -1,5 +1,6 @@
 -- Real role/RLS/quota integration tests; all fixtures and operations roll back.
 begin;
+select set_config('request.jwt.claims','{"aal":"aal2"}',true);
 do $$
 declare master_uid uuid:=gen_random_uuid();owner_uid uuid:=gen_random_uuid();guest_uid uuid:=gen_random_uuid();a uuid:=gen_random_uuid();b uuid:=gen_random_uuid();ta uuid:=gen_random_uuid();tb uuid:=gen_random_uuid();
 begin

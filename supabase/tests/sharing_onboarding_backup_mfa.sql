@@ -1,0 +1,62 @@
+begin;
+do $$ declare owner_uid uuid:=gen_random_uuid();guest_uid uuid:=gen_random_uuid();other_uid uuid:=gen_random_uuid();a uuid:=gen_random_uuid();b uuid:=gen_random_uuid();tx uuid:=gen_random_uuid();rid uuid:=gen_random_uuid();begin
+ perform set_config('sharing_qa.owner',owner_uid::text,true);perform set_config('sharing_qa.guest',guest_uid::text,true);perform set_config('sharing_qa.other',other_uid::text,true);perform set_config('sharing_qa.a',a::text,true);perform set_config('sharing_qa.b',b::text,true);perform set_config('sharing_qa.tx',tx::text,true);perform set_config('sharing_qa.rid',rid::text,true);perform set_config('sharing_qa.submission',gen_random_uuid()::text,true);
+ insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data) values(owner_uid,'sharing-qa-'||owner_uid||'@example.invalid',now(),'{"full_name":"Sharing owner QA"}'),(guest_uid,'sharing-qa-'||guest_uid||'@example.invalid',now(),'{"full_name":"Sharing guest QA"}'),(other_uid,'sharing-qa-'||other_uid||'@example.invalid',now(),'{"full_name":"Other owner QA"}');
+ insert into public.households(id,name,owner_id) values(a,'Sharing QA rollback A',owner_uid),(b,'Sharing QA rollback B',other_uid);
+ insert into public.household_members(household_id,user_id,role) values(a,owner_uid,'owner'),(a,guest_uid,'guest'),(b,other_uid,'owner');
+ insert into public.transactions(id,household_id,type,amount,description,paid_by) values(tx,a,'expense',77.25,'Sharing QA expense',owner_uid);
+ insert into public.finance_receipts(id,household_id,transaction_id,file_path,original_filename,mime_type,file_size) values(rid,a,tx,a||'/'||tx||'/'||rid||'.pdf','receipt.pdf','application/pdf',12);
+ insert into public.household_documents(household_id,title,access_scope,owner_user_id) values(a,'Shared QA','household',null),(a,'Owner private QA','private',owner_uid),(a,'Other private QA','private',guest_uid);
+ insert into platform_security.masters(user_id) values(owner_uid);
+end $$;
+select set_config('request.jwt.claim.sub',current_setting('sharing_qa.owner'),true);
+select set_config('request.jwt.claims','{"aal":"aal1"}',true);
+set local role authenticated;
+do $$ declare snapshot jsonb;file_snapshot jsonb;missing_receipt uuid:=gen_random_uuid();backup uuid;repeat_backup uuid;result jsonb;begin
+ if not public.get_my_platform_access() then raise exception 'Master identity hidden before enrollment';end if;
+ begin perform public.get_platform_overview();raise exception 'MFA bypassed';exception when insufficient_privilege then null;end;
+ if (select completed_at is not null from public.household_setup_state where household_id=current_setting('sharing_qa.a')::uuid) then raise exception 'New family setup already completed';end if;
+ perform public.save_household_setup(current_setting('sharing_qa.a')::uuid,current_setting('sharing_qa.submission')::uuid,'2026-10-01','income',jsonb_build_array(jsonb_build_object('user_id',auth.uid(),'monthly_income',10000)),'[{"id":null,"name":"QA food","budget_group":"variable","planned_amount":2000}]');
+ perform public.save_household_setup(current_setting('sharing_qa.a')::uuid,current_setting('sharing_qa.submission')::uuid,'2026-10-01','income',jsonb_build_array(jsonb_build_object('user_id',auth.uid(),'monthly_income',10000)),'[{"id":null,"name":"QA food","budget_group":"variable","planned_amount":2000}]');
+ if (select count(*) from public.budget_categories where household_id=current_setting('sharing_qa.a')::uuid and name='QA food')<>1 then raise exception 'Setup retry duplicated categories';end if;
+ if (select monthly_income from public.finance_member_settings where household_id=current_setting('sharing_qa.a')::uuid and user_id=auth.uid())<>10000 then raise exception 'Income not configured';end if;
+ if (select amount from public.transactions where id=current_setting('sharing_qa.tx')::uuid)<>77.25 then raise exception 'Setup altered transaction';end if;
+ if (select count(*) from public.transactions where household_id=current_setting('sharing_qa.a')::uuid)<>1 then raise exception 'Setup created movement';end if;
+ snapshot:=public.build_household_backup_snapshot(current_setting('sharing_qa.a')::uuid);
+ if jsonb_array_length(snapshot->'tables'->'finance_receipts')<>1 then raise exception 'Receipt metadata missing from snapshot';end if;
+ if jsonb_array_length(snapshot->'tables'->'household_documents')<>1 then raise exception 'Standard snapshot leaked private documents';end if;
+ file_snapshot:=public.build_household_file_backup(current_setting('sharing_qa.a')::uuid);
+ if jsonb_array_length(file_snapshot->'tables'->'household_documents')<>2 then raise exception 'File snapshot must include shared and own private docs only';end if;
+ if exists(select 1 from jsonb_array_elements(file_snapshot->'tables'->'household_documents') d where d->>'title'='Other private QA') then raise exception 'File snapshot leaked other private doc';end if;
+ file_snapshot:=jsonb_set(file_snapshot,'{notes,archive_id}',to_jsonb(gen_random_uuid()::text));
+ file_snapshot:=jsonb_set(file_snapshot,'{tables,finance_receipts}',(file_snapshot->'tables'->'finance_receipts')||jsonb_build_array((file_snapshot->'tables'->'finance_receipts'->0)||jsonb_build_object('id',missing_receipt,'file_path',current_setting('sharing_qa.a')||'/'||current_setting('sharing_qa.tx')||'/'||missing_receipt||'.pdf')));
+ backup:=public.import_household_backup(current_setting('sharing_qa.a')::uuid,file_snapshot,'Sharing ZIP QA');
+ repeat_backup:=public.import_household_backup(current_setting('sharing_qa.a')::uuid,file_snapshot,'Sharing ZIP QA repeat');
+ if backup<>repeat_backup then raise exception 'ZIP retry duplicated metadata backup';end if;
+ result:=public.restore_household_backup_missing(backup);
+ if (result->>'restored_records')::int<>1 or (result->'by_table'->>'finance_receipts')::int<>1 then raise exception 'Missing receipt not restored';end if;
+ perform set_config('sharing_qa.backup',backup::text,true);
+ begin perform public.save_household_setup(current_setting('sharing_qa.b')::uuid,gen_random_uuid(),'2026-10-01','equal','[]','[]');raise exception 'Cross-family setup allowed';exception when insufficient_privilege then null;end;
+end $$;
+reset role;
+-- A second restoration must preserve all rows rather than duplicate them.
+set local role authenticated;
+do $$ declare result jsonb;begin
+ result:=public.restore_household_backup_missing(current_setting('sharing_qa.backup')::uuid);
+ if (result->>'restored_records')::int<>0 then raise exception 'Repeat restore duplicated records';end if;
+ if (select amount from public.transactions where id=current_setting('sharing_qa.tx')::uuid)<>77.25 then raise exception 'Restore changed amount';end if;
+end $$;
+reset role;
+select set_config('request.jwt.claims','{"aal":"aal2"}',true);
+set local role authenticated;
+do $$ begin if public.get_platform_overview() is null then raise exception 'Verified master cannot access overview';end if;end $$;
+reset role;
+select set_config('request.jwt.claim.sub',current_setting('sharing_qa.guest'),true);
+set local role authenticated;
+do $$ begin
+ begin perform public.save_household_setup(current_setting('sharing_qa.a')::uuid,gen_random_uuid(),'2026-10-01','equal','[]','[]');raise exception 'Guest setup allowed';exception when insufficient_privilege then null;end;
+ begin perform public.build_household_file_backup(current_setting('sharing_qa.a')::uuid);raise exception 'Guest file backup allowed';exception when raise_exception or insufficient_privilege then if sqlerrm='Guest file backup allowed' then raise;end if;end;
+end $$;
+reset role;
+rollback;
+select json_build_object('passed',true,'checks',array['new-family setup','atomic idempotent setup','no actual movement writes','cross-family setup denied','guest setup denied','receipts in snapshot','shared/own-private/other-private separation','ZIP import idempotence','missing receipt restore','existing records preserved','aal1 master denied','aal2 master accepted'],'fixtures','rolled back') as result;

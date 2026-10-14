@@ -177,6 +177,7 @@ export default function FamilyCenter({household,onChanged,onHouseholdRenamed}:{h
   </section>}
 
   {me?.role!=='owner'&&<button className="family-leave" onClick={leaveHousehold}><LogOut/> Salir de este hogar</button>}
+  {myAccess.can_manage_members&&<button className="primary compact" onClick={()=>window.dispatchEvent(new CustomEvent('nh:setup'))}><ShieldCheck size={17}/> Configuración guiada</button>}
   <button className="logout family-logout" onClick={()=>supabase.auth.signOut()}><LogOut size={17}/> Cerrar sesión</button>
 
   {renamingHousehold&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setRenamingHousehold(false)}}><div className="finance-modal"><div className="modal-head"><h3>Editar nombre de la familia</h3><button onClick={()=>setRenamingHousehold(false)} aria-label="Cerrar"><X/></button></div><form className="finance-form" onSubmit={saveHouseholdName}><label>Nombre de la familia<input value={householdName} maxLength={80} onChange={e=>setHouseholdName(e.target.value)} required autoFocus/></label><button className="finance-primary" disabled={busy||!householdName.trim()}><Save/>{busy?'Guardando...':'Guardar nombre'}</button></form></div></div>}

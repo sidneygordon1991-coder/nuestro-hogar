@@ -1,3 +1,4 @@
+import FileBackupPanel from './FileBackupPanel';
 import ModuleIcon from './ModuleIcon';
 import {ChangeEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {ArchiveRestore,CheckCircle2,Database,Download,FileJson,FileSpreadsheet,History,Package,Printer,RefreshCw,ShieldCheck,Trash2,UploadCloud,X} from 'lucide-react';
@@ -22,14 +23,14 @@ export default function BackupCenter({household}:{household:Household}){
 
  useEffect(()=>{load()},[household.id]);
 
- async function load(){
-  setLoading(true);
+ async function load(showLoader=true){
+  if(showLoader)setLoading(true);
   const [b,r]=await Promise.all([
    supabase.from('household_backups').select('id,name,schema_version,counts,size_bytes,source,created_at').eq('household_id',household.id).order('created_at',{ascending:false}),
    supabase.from('household_recovery_items').select('id,module,source_table,source_id,label,deleted_at,expires_at,restored_at').eq('household_id',household.id).is('restored_at',null).gt('expires_at',new Date().toISOString()).order('deleted_at',{ascending:false}).limit(50)
   ]);
   if(b.error||r.error)setMessage(b.error?.message||r.error?.message||'No se pudo cargar el centro de respaldo.');
-  setBackups((b.data||[]) as BackupRow[]);setRecovery((r.data||[]) as RecoveryRow[]);setLoading(false);
+  setBackups((b.data||[]) as BackupRow[]);setRecovery((r.data||[]) as RecoveryRow[]);if(showLoader)setLoading(false);
  }
 
  async function createBackup(){
@@ -145,21 +146,8 @@ export default function BackupCenter({household}:{household:Household}){
    if(r.error){setBusy('');setMessage(r.error.message);return}
    snapshot=r.data;period=month;
   }
-  setBusy('');
-  const w=window.open('','_blank');if(!w){setMessage('El navegador bloqueó la ventana de impresión.');return}
-  const f=snapshot.financial||{},o=snapshot.operations||{},insights=(snapshot.insights||[]) as any[];
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Cierre mensual - ${escapeHtml(household.name)}</title><style>
-  body{font-family:Arial,sans-serif;color:#182028;margin:34px}h1{margin:0 0 3px}h2{font-size:17px;margin-top:28px}small{color:#66717a}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}.card{border:1px solid #d9dee2;border-radius:10px;padding:12px}.card small,.card strong{display:block}.card strong{font-size:18px;margin-top:5px}.score{font-size:34px;font-weight:800}.insight{border-left:3px solid #5c7c8b;padding:7px 10px;margin:7px 0;background:#f5f7f8}.foot{margin-top:30px;border-top:1px solid #ddd;padding-top:10px;color:#707a82;font-size:11px}@media print{body{margin:18mm}.no-print{display:none}}</style></head><body>
-  <h1>${escapeHtml(household.name)}</h1><small>Cierre de ${escapeHtml(new Date(period+'T12:00').toLocaleDateString('es-GT',{month:'long',year:'numeric'}))}</small>
-  <p><span class="score">${escapeHtml(snapshot.score||0)}/100</span> · ${escapeHtml(snapshot.status_label||'Resumen mensual')}</p>
-  <div class="grid"><div class="card"><small>Ingresos</small><strong>${escapeHtml(money(f.income))}</strong></div><div class="card"><small>Gastos</small><strong>${escapeHtml(money(f.expense))}</strong></div><div class="card"><small>Ahorro</small><strong>${escapeHtml(money(f.saving))}</strong></div><div class="card"><small>Balance</small><strong>${escapeHtml(money(f.balance))}</strong></div></div>
-  <h2>Operación del hogar</h2><div class="grid"><div class="card"><small>Tareas completadas</small><strong>${escapeHtml(o.tasks_completed||0)}</strong></div><div class="card"><small>Tareas vencidas</small><strong>${escapeHtml(o.tasks_overdue||0)}</strong></div><div class="card"><small>Pagos pendientes</small><strong>${escapeHtml(o.recurring_pending||0)}</strong></div><div class="card"><small>Mantenimientos</small><strong>${escapeHtml(o.maintenance_count||0)}</strong></div></div>
-  <h2>Hallazgos</h2>${insights.map(i=>`<div class="insight"><strong>${escapeHtml(i.title)}</strong><br><small>${escapeHtml(i.body)}</small></div>`).join('')||'<small>Sin hallazgos relevantes.</small>'}
-  ${closed?.reflection?`<h2>Reflexión</h2><p>${escapeHtml(closed.reflection)}</p>`:''}
-  ${closed?.next_month_focus?.length?`<h2>Objetivos siguientes</h2><ul>${closed.next_month_focus.map((x:string)=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>`:''}
-  <div class="foot">Generado por Nuestro Hogar · ${escapeHtml(new Date().toLocaleString('es-GT'))}</div>
-  <script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`);
-  w.document.close();
+  try{const {downloadMonthlyPdf}=await import('./lib/monthlyPdf');await downloadMonthlyPdf(household.name,snapshot,{reflection:closed?.reflection,focus:closed?.next_month_focus,closed:Boolean(closed)})}catch(error){setMessage(error instanceof Error?error.message:'No se pudo descargar el PDF.')}finally{setBusy('')}
+
  }
 
  const totalRecords=useMemo(()=>backups.reduce((sum,b)=>sum+Number(b.counts?.total_records||0),0),[backups]);
@@ -180,15 +168,16 @@ export default function BackupCenter({household}:{household:Household}){
   <section className="backup-panel">
    <div className="backup-panel-head"><div><p className="eyebrow">EXPORTAR</p><h3>Lleva tus datos contigo</h3><p>CSV abre directamente en Excel. El JSON conserva la estructura completa para respaldo e importación.</p></div><Download/></div>
    <div className="backup-export-grid">
-    <ExportCard icon={<FileJson/>} title="Respaldo completo" text="Todos los datos del hogar y metadatos de documentos." action="Descargar JSON" busy={busy==='json'} onClick={downloadLiveJson}/>
+    <ExportCard icon={<FileJson/>} title="Registros en JSON" text="Datos del hogar y metadatos; usa ZIP para incluir archivos." action="Descargar JSON" busy={busy==='json'} onClick={downloadLiveJson}/>
     <ExportCard icon={<ModuleIcon name="finance"/>} title="Finanzas" text="Movimientos con categoría, monto, fecha y notas." action="Descargar CSV" busy={busy==='finance'} onClick={exportFinance}/>
     <ExportCard icon={<ModuleIcon name="calendar"/>} title="Agenda" text="Eventos, horarios, recurrencia y ubicaciones." action="Descargar CSV" busy={busy==='calendar'} onClick={exportCalendar}/>
     <ExportCard icon={<FileSpreadsheet/>} title="Listas" text="Compras, tareas, cantidades y estados." action="Descargar CSV" busy={busy==='lists'} onClick={exportLists}/>
     <ExportCard icon={<Package/>} title="Despensa" text="Inventario, mínimos, ubicaciones y vencimientos." action="Descargar CSV" busy={busy==='pantry'} onClick={exportPantry}/>
-    <ExportCard icon={<Printer/>} title="Informe mensual" text="Resumen listo para imprimir o guardar como PDF." action="Imprimir / PDF" busy={busy==='print'} onClick={printMonthly}/>
+    <ExportCard icon={<Printer/>} title="Informe mensual" text="Resumen listo para imprimir o guardar como PDF." action="Descargar PDF" busy={busy==='print'} onClick={printMonthly}/>
    </div>
   </section>
 
+  <FileBackupPanel key={household.id} household={household} onChanged={()=>load(false)}/>
   <div className="backup-two">
    <section className="backup-panel">
     <div className="backup-panel-head"><div><p className="eyebrow">RESPALDOS</p><h3>Fotografías completas</h3></div><button className="backup-import" onClick={()=>fileRef.current?.click()} disabled={busy==='import'}><UploadCloud/>{busy==='import'?'Importando...':'Importar JSON'}</button><input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={importBackup}/></div>
@@ -202,7 +191,7 @@ export default function BackupCenter({household}:{household:Household}){
   </div>
 
   <section className="backup-safety">
-   <span><ShieldCheck/></span><div><strong>Recuperación conservadora</strong><p>Restaurar un respaldo solo vuelve a insertar registros que ya no existen; nunca sobrescribe información actual. Los archivos físicos de la bóveda no viajan dentro del JSON: se respaldan sus metadatos. Si un archivo adjunto fue eliminado del almacenamiento, habrá que volver a subirlo.</p></div>
+   <span><ShieldCheck/></span><div><strong>Recuperación conservadora</strong><p>Restaurar un respaldo solo vuelve a insertar registros que ya no existen; nunca sobrescribe información actual. El respaldo ZIP incluye los archivos físicos. En el JSON: se respaldan sus metadatos. Si un archivo adjunto fue eliminado del almacenamiento, habrá que volver a subirlo.</p></div>
   </section>
 
   {showCreate&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowCreate(false)}}><div className="finance-modal backup-modal"><div className="modal-head"><div><p className="eyebrow">RESPALDO MANUAL</p><h3>Crear fotografía del hogar</h3></div><button onClick={()=>setShowCreate(false)}><X/></button></div><div className="finance-form"><label>Nombre del respaldo<input value={backupName} onChange={e=>setBackupName(e.target.value)} placeholder="Ej. Antes de cierre de octubre"/></label><div className="backup-create-note"><Database/><span>Incluye finanzas, agenda, listas, documentos (metadatos), comidas, mantenimiento, planeación, cierres y configuraciones operativas.</span></div><button className="finance-primary" onClick={createBackup} disabled={busy==='create'}><ModuleIcon name="backups"/>{busy==='create'?'Creando...':'Crear respaldo'}</button></div></div></div>}

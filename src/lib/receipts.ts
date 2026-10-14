@@ -1,3 +1,4 @@
+import {compressPhoto} from './photoCompression';
 import {checkHouseholdUpload} from './platform';
 import type {SupabaseClient} from '@supabase/supabase-js';
 export const RECEIPT_BUCKET='finance-receipts';
@@ -36,7 +37,7 @@ function uploadIdentity(file:File,scope:string){
 const receiptColumns='id,transaction_id,file_path,original_filename,mime_type,file_size,purchase_detail,created_at';
 
 /** This function never writes transactions or totals. Partial failures remain retryable. */
-export async function uploadReceipts(client:SupabaseClient,householdId:string,transactionId:string,files:File[]){
+export async function uploadReceipts(client:SupabaseClient,householdId:string,transactionId:string,files:File[],optimizePhotos=true){
  const saved:Receipt[]=[],failed:{file:File;message:string}[]=[];
  for(const file of files){
   let path='',uploaded=false,linked=false;
@@ -48,11 +49,12 @@ export async function uploadReceipts(client:SupabaseClient,householdId:string,tr
    if(lookupError)throw lookupError;
    if(existing){saved.push(existing as Receipt);continue}
    if(identity.attempted){const {error:cleanupError}=await client.storage.from(RECEIPT_BUCKET).remove([path]);if(cleanupError)throw cleanupError;}
-   await checkHouseholdUpload(client,householdId,file.size);
+   const prepared=optimizePhotos?await compressPhoto(file):file;
+   await checkHouseholdUpload(client,householdId,prepared.size);
    identity.attempted=true;
-   const {error:uploadError}=await client.storage.from(RECEIPT_BUCKET).upload(path,file,{upsert:false,contentType:format.mime,cacheControl:'300'});
+   const {error:uploadError}=await client.storage.from(RECEIPT_BUCKET).upload(path,prepared,{upsert:false,contentType:format.mime,cacheControl:'300'});
    if(uploadError)throw uploadError;uploaded=true;
-   const {data,error}=await client.from('finance_receipts').insert({id:identity.id,household_id:householdId,transaction_id:transactionId,file_path:path,original_filename:file.name.slice(0,250),mime_type:format.mime,file_size:file.size}).select(receiptColumns).single();
+   const {data,error}=await client.from('finance_receipts').insert({id:identity.id,household_id:householdId,transaction_id:transactionId,file_path:path,original_filename:file.name.slice(0,250),mime_type:format.mime,file_size:prepared.size}).select(receiptColumns).single();
    if(error)throw error;
    if(!data)throw new Error('No se pudo vincular el comprobante.');
    linked=true;saved.push(data as Receipt);

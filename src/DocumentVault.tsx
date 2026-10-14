@@ -2,6 +2,7 @@ import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,BadgeCheck,CalendarClock,Car,ExternalLink,GraduationCap,LockKeyhole,Paperclip,Pencil,Plus,Search,ShieldCheck,Trash2,Upload,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {compressPhoto} from './lib/photoCompression';
 import {checkHouseholdUpload,platformError} from './lib/platform';
 
 type Household={id:string;name:string;invite_code:string};
@@ -70,7 +71,8 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
  async function saveDocument(e:FormEvent<HTMLFormElement>){
   if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();if(!userId)return;setBusy(true);setMessage('');
-  const form=e.currentTarget,data=new FormData(form),file=(data.get('file') as File|null);
+  const form=e.currentTarget,data=new FormData(form);let file=(data.get('file') as File|null);
+  if(file&&file.size&&data.get('optimize_photos')==='on')file=await compressPhoto(file);
   if(file&&file.size>15*1024*1024){setBusy(false);setMessage('El archivo supera el límite de 15 MB.');return}
   const id=editing?.id||crypto.randomUUID();
   const requestedScope=(editing?.file_path?editing.access_scope:scopeDraft) as AccessScope;
@@ -178,6 +180,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
     <label>Etiquetas<input name="tags" defaultValue={(editing?.tags||[]).join(', ')} placeholder="Ej. viaje, carro, 2027"/></label>
     <label>Notas<textarea name="notes" defaultValue={editing?.notes||''} rows={3} placeholder="Información útil, cobertura, ubicación física, etc."/></label>
     <label className="document-upload"><Upload/><div><strong>{editing?.file_path?'Reemplazar archivo':'Adjuntar archivo'}</strong><small>PDF, imágenes, Word o Excel · máximo 15 MB</small></div><input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"/></label>
+    <label className="sharing-optimize"><input name="optimize_photos" type="checkbox" defaultChecked/> Optimizar fotos para ahorrar espacio</label><small className="muted">Desmárcalo para conservar la foto original. PDF, Word y Excel se mantienen completos.</small>
     <button className="finance-primary" disabled={busy}><BadgeCheck/>{busy?'Guardando...':editing?'Guardar cambios':'Guardar en la bóveda'}</button>
    </form>
   </div></div>}

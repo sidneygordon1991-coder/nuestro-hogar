@@ -1,6 +1,6 @@
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,ArrowDownRight,ArrowUpRight,CalendarCheck2,Check,CheckCircle2,ChevronLeft,ChevronRight,Copy,Minus,Plus,ReceiptText,RefreshCw,Sparkles,Target,TrendingUp} from 'lucide-react';
+import {AlertTriangle,ArrowDownRight,ArrowUpRight,CalendarCheck2,Check,CheckCircle2,ChevronLeft,ChevronRight,Copy,Download,Minus,Plus,ReceiptText,RefreshCw,Sparkles,Target,TrendingUp} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import './MonthlyCloseCenter.css';
 
@@ -132,6 +132,7 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
    <button onClick={()=>moveMonth(1)} disabled={!canNext}><ChevronRight/></button>
   </div>
 
+  <button className="primary compact" disabled={busy} onClick={async()=>{setBusy(true);try{const {downloadMonthlyPdf}=await import('./lib/monthlyPdf');await downloadMonthlyPdf(household.name,snapshot,{reflection:closure?.reflection??reflection,focus:closure?.next_month_focus??focus.filter(Boolean),closed:Boolean(closure)})}catch(error){setMessage(error instanceof Error?error.message:'No se pudo generar el PDF.')}finally{setBusy(false)}}}><Download size={17}/> Descargar resumen PDF</button>
   <section className={'monthly-close-hero '+snapshot.status}>
    <div className="monthly-close-score" style={{'--score':snapshot.score} as React.CSSProperties}><div><strong>{snapshot.score}</strong><span>/100</span></div></div>
    <div className="monthly-close-hero-copy"><p className="eyebrow">{closure?'RESULTADO FINAL':'RESULTADO PROVISIONAL'}</p><h3>{snapshot.status_label}</h3><p>{statusCopy}</p><div><span><Sparkles/> {snapshot.insights.length} hallazgo{snapshot.insights.length===1?'':'s'}</span><span><Target/> {focus.filter(Boolean).length} objetivo{focus.filter(Boolean).length===1?'':'s'} próximo mes</span></div></div>

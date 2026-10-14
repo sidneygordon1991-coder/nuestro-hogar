@@ -5,6 +5,7 @@ import {RECEIPT_ACCEPT,RECEIPT_BUCKET,purchaseLines,receiptFormat,receiptSize,up
 
 export default function TransactionReceipts({householdId,transactionId,readOnly=false,onChanged}:{householdId:string;transactionId:string;readOnly?:boolean;onChanged?:()=>void}){
  const [receipts,setReceipts]=useState<Receipt[]>([]),[files,setFiles]=useState<File[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
+ const [optimizePhotos,setOptimizePhotos]=useState(true);
  const [message,setMessage]=useState(''),[error,setError]=useState('');
  const [preview,setPreview]=useState<{receipt:Receipt;url:string}|null>(null);
  const [editing,setEditing]=useState<Receipt|null>(null),[detail,setDetail]=useState('');
@@ -28,7 +29,7 @@ export default function TransactionReceipts({householdId,transactionId,readOnly=
  async function saveFiles(){
   if(readOnly||busy||!files.length)return;setBusy(true);setError('');setMessage('');
   try{
-   const result=await uploadReceipts(supabase,householdId,transactionId,files);
+   const result=await uploadReceipts(supabase,householdId,transactionId,files,optimizePhotos);
    setFiles(result.failed.map(item=>item.file));
    if(result.saved.length)setMessage(result.saved.length+' comprobante'+(result.saved.length===1?' guardado.':'s guardados.'));
    if(result.failed.length)setError(result.failed.map(item=>item.file.name+': '+item.message).join(' ')+' Puedes reintentar sin registrar otro movimiento.');
@@ -73,6 +74,7 @@ export default function TransactionReceipts({householdId,transactionId,readOnly=
    <input ref={picker} className="receipt-file-input" type="file" accept={RECEIPT_ACCEPT} multiple onChange={e=>{choose(e.target.files);e.target.value=''}}/>
    <input ref={camera} className="receipt-file-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e=>{choose(e.target.files);e.target.value=''}}/>
    <small>PDF, JPG, PNG o WEBP · hasta 15 MB por archivo.</small>
+   <label className="sharing-optimize"><input type="checkbox" checked={optimizePhotos} disabled={busy} onChange={e=>setOptimizePhotos(e.target.checked)}/> Optimizar fotos para ahorrar espacio</label><small>Desmárcalo para conservar la foto original.</small>
    {!!files.length&&<><div className="receipt-pending">{files.map((file,index)=><div key={index}><FileText/><div><strong>{file.name}</strong><small>{receiptSize(file.size)} · pendiente</small></div><button type="button" disabled={busy} aria-label={'Quitar '+file.name+' de la selección'} onClick={()=>setFiles(previous=>previous.filter((_,i)=>i!==index))}><X/></button></div>)}</div><button type="button" className="finance-primary" disabled={busy} onClick={saveFiles}><Upload/>{busy?'Subiendo comprobantes…':'Guardar '+files.length+' comprobante'+(files.length===1?'':'s')}</button></>}
   </div>}
  </section>;
