@@ -34,7 +34,7 @@ do $$ begin
  begin perform public.configure_platform_household(current_setting('platform_qa.b')::uuid,1000000,'active','Wrong name','QA quota');raise exception 'Incorrect confirmation accepted';exception when raise_exception then if sqlerrm='Incorrect confirmation accepted' then raise;end if;end;
  begin perform public.configure_platform_household(current_setting('platform_qa.b')::uuid,1000000000,'active','Platform QA rollback B','QA over-allocation');raise exception 'Allocated quota exceeded global capacity';exception when raise_exception then if sqlerrm='Allocated quota exceeded global capacity' then raise;end if;end;
  perform public.configure_platform_resources(current_setting('platform_qa.b')::uuid,1000000,2,'active','Platform QA rollback B','QA quota and member limit test');
- begin perform public.join_household(current_setting('platform_qa.invite'));raise exception 'Member limit bypassed';exception when raise_exception then if sqlerrm='Member limit bypassed' then raise;end if;end;
+ begin perform public.join_household(current_setting('platform_qa.invite'));raise exception 'Member limit bypassed';exception when raise_exception then if sqlerrm not like '%máximo de miembros%' then raise;end if;end;
  begin perform public.manage_platform_member(current_setting('platform_qa.b')::uuid,current_setting('platform_qa.owner')::uuid,'remove','Platform QA rollback B','Remove owner');raise exception 'Owner removed';exception when raise_exception then if sqlerrm='Owner removed' then raise;end if;end;
  perform public.manage_platform_member(current_setting('platform_qa.b')::uuid,current_setting('platform_qa.guest')::uuid,'adult','Platform QA rollback B','QA role test');
 end $$;
@@ -42,6 +42,8 @@ reset role;
 select set_config('request.jwt.claim.sub',current_setting('platform_qa.owner'),true);
 set local role authenticated;
 do $$ declare path text:=current_setting('platform_qa.b')||'/'||current_setting('platform_qa.tb')||'/'||gen_random_uuid()||'.pdf';begin
+ perform public.join_household(current_setting('platform_qa.invite'));
+ perform public.join_household(current_setting('platform_qa.invite'));
  perform set_config('platform_qa.path',path,true);
  insert into storage.objects(bucket_id,name,owner_id,metadata) values('finance-receipts',path,auth.uid()::text,'{"size":600000}');
  if (public.get_my_household_storage(current_setting('platform_qa.b')::uuid)->>'used_bytes')::bigint<>600000 then raise exception 'Stored file not counted';end if;
@@ -53,6 +55,8 @@ reset role;
 do $$ begin
  if (select member_count from platform_security.household_controls where household_id=current_setting('platform_qa.b')::uuid)<>2 then raise exception 'Failed join consumed member quota';end if;
  if (select role from public.household_members where household_id=current_setting('platform_qa.b')::uuid and user_id=current_setting('platform_qa.guest')::uuid)<>'adult' then raise exception 'Master role change failed';end if;
+ insert into storage.objects(bucket_id,name,owner_id,metadata) values('finance-receipts',current_setting('platform_qa.path'),current_setting('platform_qa.owner'),'{"size":600000}') on conflict do nothing;
+ if (select used_bytes from platform_security.household_controls where household_id=current_setting('platform_qa.b')::uuid)<>600000 then raise exception 'Duplicate file spent quota twice';end if;
  -- Both buckets must spend the same quota; placeholder -> final metadata must be counted too.
  begin insert into storage.objects(bucket_id,name,owner_id,metadata) values('household-documents',current_setting('platform_qa.b')||'/household/'||gen_random_uuid()||'/qa.pdf',current_setting('platform_qa.owner'),'{"size":500000}');raise exception 'Second bucket bypassed quota';exception when raise_exception then if sqlerrm='Second bucket bypassed quota' then raise;end if;end;
  insert into storage.objects(bucket_id,name,owner_id) values('finance-receipts',current_setting('platform_qa.b')||'/'||current_setting('platform_qa.tb')||'/placeholder.pdf',current_setting('platform_qa.owner'));
@@ -107,4 +111,4 @@ do $$ begin
 end $$;
 reset role;
 rollback;
-select json_build_object('passed',true,'checks',array['master authorization','metadata cannot escalate','private tables protected','family isolation','confirmed changes','owner protection','allocated quotas cannot exceed free capacity','family member limits','join RPC cannot bypass member quota','both bucket quotas','final metadata quota','failed upload rollback','global quota','quota released on reduced metadata','archive read-only','reactivation','membership revocation','unchanged finances','audit trail','anonymous denied'],'fixtures','rolled back') as result;
+select json_build_object('passed',true,'checks',array['master authorization','metadata cannot escalate','private tables protected','family isolation','confirmed changes','owner protection','allocated quotas cannot exceed free capacity','idempotent repeat joins','idempotent duplicate file metadata','family member limits','join RPC cannot bypass member quota','both bucket quotas','final metadata quota','failed upload rollback','global quota','quota released on reduced metadata','archive read-only','reactivation','membership revocation','unchanged finances','audit trail','anonymous denied'],'fixtures','rolled back') as result;
