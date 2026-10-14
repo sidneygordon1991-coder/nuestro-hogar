@@ -1,0 +1,28 @@
+/* The panel is portaled to .app, outside the header's backdrop-filter containing block. */
+.app .notification-panel.notification-panel--expanded{display:flex;flex-direction:column;top:max(18px,env(safe-area-inset-top));bottom:max(18px,env(safe-area-inset-bottom));right:max(18px,calc((100vw - 1440px)/2));width:min(640px,calc(100vw - 36px));height:auto;max-height:none;min-height:0;overflow:hidden;padding:0;background:var(--nh-surface);border-radius:23px}
+.notification-panel--expanded .notification-head{flex:none;align-items:center;padding:21px 23px;border-bottom:1px solid var(--nh-border);gap:14px}
+.notification-panel--expanded .notification-head>div:first-child{min-width:0;overflow-wrap:anywhere}
+.notification-panel--expanded .notification-head>div:last-child{flex:none}
+.notification-panel--expanded .notification-head h3{font-size:24px;letter-spacing:-.6px;margin:6px 0 0}
+.notification-panel--expanded .notification-head button{width:40px;height:40px;border-radius:12px}
+.notification-panel--expanded .notification-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 22px 22px;scroll-padding-block:18px;scrollbar-gutter:stable}
+.notification-panel--expanded .notification-toolbar{border-top:0;gap:12px;flex-wrap:wrap;padding:15px 0;margin:0 0 14px}
+.notification-panel--expanded .notification-toolbar>span{font-size:12px}
+.notification-panel--expanded .notification-toolbar>div{flex-wrap:wrap;gap:7px}
+.notification-panel--expanded .notification-toolbar button{min-height:38px;padding:9px 11px;font-size:12px}
+.notification-panel--expanded .notification-list{max-height:none;overflow:visible;gap:10px}
+.notification-panel--expanded .notification-item{padding:15px;gap:12px;align-items:start;border-radius:16px}
+.notification-panel--expanded .notification-item>div{min-width:0;overflow-wrap:anywhere}
+.notification-panel--expanded .notification-item strong{font-size:14px;line-height:1.4}
+.notification-panel--expanded .notification-item p{font-size:12px;line-height:1.65;margin:6px 0 9px}
+.notification-panel--expanded .notification-item small{font-size:11px}
+.notification-panel--expanded .notification-settings{padding-top:18px}
+.notification-panel--expanded .notification-pref{padding:15px 2px;font-size:13px}
+.notification-panel--expanded .notification-device{flex-wrap:wrap;padding:15px}
+.notification-panel--expanded .notification-device>div{min-width:0;flex:1}
+.notification-panel--expanded .notification-device strong{font-size:13px}
+.notification-panel--expanded .notification-message{margin-top:15px;overflow-wrap:anywhere}
+.notification-history{display:grid;justify-items:center;gap:12px;padding:22px 0 4px;color:var(--nh-muted);font-size:12px}
+.notification-history button{border:1px solid var(--nh-border);background:var(--nh-accent-soft);color:var(--nh-accent);border-radius:12px;padding:12px 16px;font:inherit;font-weight:650}
+.notification-history-error{margin:0;text-align:center;color:var(--nh-warning);font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:620px){.app .notification-panel.notification-panel--expanded{top:calc(8px + env(safe-area-inset-top));bottom:calc(8px + env(safe-area-inset-bottom));right:8px;width:calc(100vw - 16px);border-radius:20px}.notification-panel--expanded .notification-head{padding:18px 16px;gap:9px}.notification-panel--expanded .notification-head h3{font-size:22px}.notification-panel--expanded .notification-head .eyebrow{font-size:11px}.notification-panel--expanded .notification-scroll{padding:0 14px 20px}.notification-panel--expanded .notification-toolbar>span{flex-basis:100%}.notification-panel--expanded .notification-toolbar>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.notification-panel--expanded .notification-toolbar button{justify-content:center;min-width:0;font-size:11px}.notification-panel--expanded .notification-item{padding:13px 11px}.notification-history button{width:100%}}
