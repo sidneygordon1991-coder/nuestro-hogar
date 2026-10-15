@@ -65,7 +65,14 @@ export default function App(){
  }
  useEffect(()=>{if(household){setAccess(null);loadAccess(household.id);loadData(household.id)}},[household]);
  useEffect(()=>{if(household)loadData(household.id)},[tab]);
- async function loadHouseholds(){const {data,error}=await supabase.from('household_members').select('household_id, households(id,name,invite_code)');if(error)return;const rows=(data||[]).map((r:any)=>r.households).filter(Boolean);setHouseholds(rows);if(rows[0])setHousehold(rows[0])}
+ async function loadHouseholds(){
+  const userId=session?.user.id;if(!userId)return;
+  const {data,error}=await supabase.from('household_members').select('household_id, households(id,name,invite_code)').eq('user_id',userId);
+  if(error)return;
+  const joined=(data||[]).map((r:any)=>r.households).filter(Boolean) as Household[];
+  const rows=Array.from(new Map(joined.map(h=>[h.id,h])).values());
+  setHouseholds(rows);setHousehold(current=>rows.find(h=>h.id===current?.id)||rows[0]||null);
+ }
  async function loadAccess(id:string){const {data,error}=await supabase.rpc('get_my_household_access',{p_household_id:id});if(error){setAccess(null);return}setAccess(data as HouseholdAccess)}
  async function loadData(id:string){
   const period=currentMonth();
