@@ -24,7 +24,7 @@ describe('commercial release safeguards',()=>{
   });
 
   it('keeps the service worker lifecycle and offline shell protections',()=>{
-    expect(serviceWorkerRaw).toContain("nuestro-hogar-v16");
+    expect(serviceWorkerRaw).toContain("nuestro-hogar-v17");
     expect(serviceWorkerRaw).toContain("self.clients.claim()");
     expect(serviceWorkerRaw).toContain("SKIP_WAITING");
     expect(serviceWorkerRaw).toContain("icon-192.png");

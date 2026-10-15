@@ -564,7 +564,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
 
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
-  {tab==='fortnight'&&<FortnightBudget key={household.id+':'+monthDate(month)} month={monthDate(month)} label={monthLabel(month)} context={shareContext} allocations={allocations} categories={categories} movements={txs} savings={contributions} splits={splits} loadError={incomePlanError||periodDataError} onIncome={()=>setTab('income')} onBudget={()=>setTab('budget')} onRules={()=>setTab('contributions')}/>}
+  {tab==='fortnight'&&<FortnightBudget key={household.id+':'+monthDate(month)} householdId={household.id} householdName={household.name} readOnly={readOnly} onPayments={()=>setTab('recurring')} onMovements={()=>{setTransactionQuery('');setCategoryFilter(null);setTransactionType('all');setTab('transactions')}} month={monthDate(month)} label={monthLabel(month)} context={shareContext} allocations={allocations} categories={categories} movements={txs} savings={contributions} splits={splits} loadError={incomePlanError||periodDataError} onIncome={()=>setTab('income')} onBudget={()=>setTab('budget')} onRules={()=>setTab('contributions')}/>}
 
   {tab==='income'&&<MonthlyIncomePlan key={household.id+':'+monthDate(month)} householdId={household.id} month={monthDate(month)} label={monthLabel(month)} summary={incomeSummary} readOnly={readOnly} loadError={incomePlanError||periodDataError} onReload={()=>load()} onSaved={plans=>{if(incomeScope.current===household.id+':'+monthDate(month))setIncomePlans(plans)}} onMovements={()=>{setCategoryFilter(null);setTransactionQuery('');setTransactionType('income');setTab('transactions')}}/>}
 

@@ -1,0 +1,84 @@
+-- Run each BEGIN/ROLLBACK block separately. All fixtures use existing identities
+-- and roll back; no auth record is created, changed or removed.
+begin;
+select set_config('qa.review.owner',(select user_id::text from public.household_members where role='owner' order by joined_at limit 1),true);
+select set_config('request.jwt.claim.sub',current_setting('qa.review.owner'),true);
+select set_config('qa.review.hh',public.create_household('QA guided review rollback')::text,true);
+set local role authenticated;
+do $$declare h uuid:=current_setting('qa.review.hh')::uuid;preview jsonb;new_preview jsonb;snap jsonb;t uuid;review_time timestamptz;
+begin
+ preview:=public.get_finance_fortnight_review(h,'2000-01-01','first');
+ if preview->'source'->'transactions'<>'[]'::jsonb or length(preview->>'fingerprint')<>32 then raise exception 'Preview source invalid';end if;
+ if preview->>'fingerprint' is distinct from public.get_finance_fortnight_review(h,'2000-01-01','first')->>'fingerprint' then raise exception 'Fingerprint unstable';end if;
+ snap:=jsonb_build_object('schema_version',1,'month','2000-01-01','period','first','start','2000-01-01','end','2000-01-15','financial',jsonb_build_object('expected',0,'income',0,'budget',0,'expense',0,'saving_plan',0,'saving',0,'carry',0,'balance',0,'pending_income',0,'pending_payments',0),'people','[]'::jsonb,'issues','[]'::jsonb,'payments','[]'::jsonb,'settlements','[]'::jsonb);
+ insert into public.finance_fortnight_reviews(household_id,month,period,source_fingerprint,snapshot,checks,reviewed_by,reviewed_at) values(h,'2000-01-01','first',preview->>'fingerprint',snap,'{"income":true,"payments":true,"contributions":true}',auth.uid(),'1990-01-01');
+ select reviewed_at into review_time from public.finance_fortnight_reviews where household_id=h;
+ if review_time<'2026-01-01' or (select count(*) from public.transactions where household_id=h)<>0 then raise exception 'Review timestamp or side effects invalid';end if;
+ new_preview:=public.get_finance_fortnight_review(h,'2000-01-01','first');
+ if new_preview->'review'->'snapshot' is distinct from snap or new_preview->>'fingerprint' is distinct from preview->>'fingerprint' then raise exception 'Saved review unavailable or changes its own source';end if;
+ begin update public.finance_fortnight_reviews set checks='{"income":true}' where household_id=h;raise exception 'Incomplete checks accepted';exception when check_violation then null;end;
+ begin update public.finance_fortnight_reviews set snapshot='{}' where household_id=h;raise exception 'Malformed snapshot accepted';exception when check_violation then null;end;
+ begin update public.finance_fortnight_reviews set snapshot=jsonb_set(snap,'{month}','"2000-02-01"') where household_id=h;raise exception 'Cross-period snapshot accepted';exception when check_violation then null;end;
+ t:=public.quick_add_transaction(h,'QA review expense',10,'expense','2000-01-15');
+ new_preview:=public.get_finance_fortnight_review(h,'2000-01-01','first');
+ if new_preview->>'fingerprint'=preview->>'fingerprint' then raise exception 'Financial change not detected';end if;
+ begin update public.finance_fortnight_reviews set notes='Stale attempt' where household_id=h;raise exception 'Stale review accepted';exception when serialization_failure then null;end;
+ if (select notes from public.finance_fortnight_reviews where household_id=h) is not null then raise exception 'Stale attempt changed saved review';end if;
+ snap:=jsonb_set(jsonb_set(snap,'{financial,expense}','10'),'{financial,balance}','-10');
+ snap:=jsonb_set(snap,'{issues}','[{"id":"negative-balance","text":"Saldo negativo","action":null}]');
+ begin update public.finance_fortnight_reviews set snapshot=snap,source_fingerprint=new_preview->>'fingerprint' where household_id=h;raise exception 'Unacknowledged pending accepted';exception when check_violation then null;end;
+ update public.finance_fortnight_reviews set snapshot=snap,source_fingerprint=new_preview->>'fingerprint',acknowledged_pending=true,notes='Cubrir diferencia.' where household_id=h;
+ if (select count(*) from public.transactions where household_id=h)<>1 or (select amount from public.transactions where id=t)<>10 then raise exception 'Review mutated ledger';end if;
+ preview:=public.get_finance_fortnight_review(h,'2000-01-01','first');
+ perform public.quick_add_transaction(h,'QA second-half income',20,'income','2000-01-16');
+ if public.get_finance_fortnight_review(h,'2000-01-01','first')->>'fingerprint' is distinct from preview->>'fingerprint' then raise exception 'Second-half movement invalidated first-half review';end if;
+ preview:=public.get_finance_fortnight_review(h,'2099-01-01','first');
+ begin insert into public.finance_fortnight_reviews(household_id,month,period,source_fingerprint,snapshot,checks,reviewed_by) values(h,'2099-01-01','first',preview->>'fingerprint',jsonb_set(snap,'{month}','"2099-01-01"'),'{"income":true,"payments":true,"contributions":true}',auth.uid());raise exception 'Future review accepted';exception when check_violation then null;end;
+end$$;
+select true as preview_persistence_checks_staleness_pending_dates_and_ledger_passed;
+rollback;
+
+begin;
+select set_config('qa.review.owner',(select user_id::text from public.household_members where role='owner' order by joined_at limit 1),true);
+select set_config('request.jwt.claim.sub',current_setting('qa.review.owner'),true);
+select set_config('qa.review.hh',public.create_household('QA guided review backup rollback')::text,true);
+set local role authenticated;
+select set_config('qa.review.snapshot',jsonb_set(public.build_household_backup_snapshot(current_setting('qa.review.hh')::uuid),'{tables,finance_fortnight_reviews}',jsonb_build_array(jsonb_build_object('household_id',current_setting('qa.review.hh'),'month','2001-01-01','period','first','source_fingerprint',repeat('f',32),'snapshot',jsonb_build_object('schema_version',1,'month','2001-01-01','period','first','start','2001-01-01','end','2001-01-15','financial','{}'::jsonb,'people','[]'::jsonb,'issues','[]'::jsonb,'payments','[]'::jsonb,'settlements','[]'::jsonb),'checks','{"income":true,"payments":true,"contributions":true}'::jsonb,'acknowledged_pending',false,'notes','Historical review','reviewed_by',auth.uid(),'reviewed_at','2001-01-16T12:00:00Z')))::text,true);
+select set_config('qa.review.backup',public.import_household_backup(current_setting('qa.review.hh')::uuid,current_setting('qa.review.snapshot')::jsonb,'QA guided review backup rollback')::text,true);
+select public.restore_household_backup_missing(current_setting('qa.review.backup')::uuid);
+select public.restore_household_backup_missing(current_setting('qa.review.backup')::uuid);
+do $$begin
+ if (select count(*) from public.finance_fortnight_reviews where household_id=current_setting('qa.review.hh')::uuid and month='2001-01-01' and source_fingerprint=repeat('f',32) and reviewed_at='2001-01-16T12:00:00Z')<>1 then raise exception 'Historical restore or idempotency failed';end if;
+ if jsonb_array_length(public.build_household_backup_snapshot(current_setting('qa.review.hh')::uuid)->'tables'->'finance_fortnight_reviews')<>1 then raise exception 'Review omitted from export';end if;
+end$$;
+select true as historical_backup_restore_and_export_passed;
+rollback;
+
+begin;
+select set_config('qa.review.a',(select user_id::text from public.household_members where role='owner' order by joined_at limit 1),true);
+select set_config('qa.review.b',(select user_id::text from public.household_members where role='owner' and user_id<>current_setting('qa.review.a')::uuid order by joined_at limit 1),true);
+select set_config('request.jwt.claim.sub',current_setting('qa.review.a'),true);
+select set_config('qa.review.hh',public.create_household('QA guided review permissions rollback')::text,true);
+select set_config('qa.review.other',public.create_household('QA guided review other rollback')::text,true);
+insert into public.household_members(household_id,user_id,role) values(current_setting('qa.review.hh')::uuid,current_setting('qa.review.b')::uuid,'guest');
+insert into public.household_member_access(household_id,user_id,module,access_level) values(current_setting('qa.review.hh')::uuid,current_setting('qa.review.b')::uuid,'finance','view');
+set local role authenticated;
+insert into public.finance_fortnight_reviews(household_id,month,period,source_fingerprint,snapshot,checks,reviewed_by,notes) values(current_setting('qa.review.hh')::uuid,'2000-01-01','first',public.get_finance_fortnight_review(current_setting('qa.review.hh')::uuid,'2000-01-01','first')->>'fingerprint','{"schema_version":1,"month":"2000-01-01","period":"first","start":"2000-01-01","end":"2000-01-15","financial":{},"people":[],"issues":[],"payments":[],"settlements":[]}','{"income":true,"payments":true,"contributions":true}',auth.uid(),'Original');
+select set_config('request.jwt.claim.sub',current_setting('qa.review.b'),true);
+do $$begin
+ if public.get_finance_fortnight_review(current_setting('qa.review.hh')::uuid,'2000-01-01','first')->'review'->>'notes'<>'Original' then raise exception 'View-only cannot read review';end if;
+ begin perform public.get_finance_fortnight_review(current_setting('qa.review.other')::uuid,'2000-01-01','first');raise exception 'Other household exposed';exception when insufficient_privilege then null;end;
+end$$;
+update public.finance_fortnight_reviews set notes='Forbidden' where household_id=current_setting('qa.review.hh')::uuid;
+do $$begin if (select notes from public.finance_fortnight_reviews where household_id=current_setting('qa.review.hh')::uuid)<>'Original' then raise exception 'Read-only write accepted';end if;end$$;
+reset role;
+update platform_security.household_controls set status='archived' where household_id=current_setting('qa.review.hh')::uuid;
+select set_config('request.jwt.claim.sub',current_setting('qa.review.a'),true);
+set local role authenticated;
+do $$begin begin update public.finance_fortnight_reviews set notes='Forbidden' where household_id=current_setting('qa.review.hh')::uuid;exception when insufficient_privilege then null;end;end$$;
+do $$begin if (select notes from public.finance_fortnight_reviews where household_id=current_setting('qa.review.hh')::uuid)<>'Original' then raise exception 'Archived write accepted';end if;end$$;
+reset role;
+set local role anon;
+do $$begin begin perform public.get_finance_fortnight_review(current_setting('qa.review.hh')::uuid,'2000-01-01','first');raise exception 'Anonymous RPC accepted';exception when insufficient_privilege then null;end;begin perform 1 from public.finance_fortnight_reviews;raise exception 'Anonymous table access accepted';exception when insufficient_privilege then null;end;end$$;
+select true as shared_view_readonly_cross_household_archived_and_anon_passed;
+rollback;
