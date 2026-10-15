@@ -70,12 +70,13 @@ export default function HouseholdHealthCenter({household,canEditFinance,onNaviga
    :'No detectamos vencimientos ni desviaciones críticas en este momento.';
 
  return <section className="household-health-center">
-  <div className="health-top"><div><p className="eyebrow">ESTADO DEL HOGAR</p><h2 className="page-title">Salud del hogar</h2><p className="muted">Tu diagnóstico financiero y el estado de los pendientes, documentos, mantenimiento y despensa.</p></div><button className="health-refresh" onClick={()=>load(false)}><RefreshCw/> Actualizar</button></div>
+  <div className="health-top"><div><p className="eyebrow">ESTADO DEL HOGAR</p><h2 className="page-title">Salud del hogar</h2><p className="muted">Finanzas, pendientes y operación del hogar.</p></div><button className="health-refresh" onClick={()=>load(false)}><RefreshCw/> Actualizar</button></div>
 
   {message&&<div className="finance-message">{message}</div>}
 
   <FinancialDiagnosis key={household.id} householdId={household.id} canEdit={canEditFinance} refreshKey={revision} onNavigate={onNavigate}/>
 
+  <details className="health-operational"><summary><span className="health-operation-mark"><ModuleIcon name="home" size={24}/></span><span><strong>Operación del hogar</strong><small>{heroLabel} · {snapshot.urgent_count} urgentes · cobertura {snapshot.coverage_score}%</small></span><ChevronRight/></summary><div className="health-operation-content">
   <section className={'health-hero '+heroStatus}>
    <div className="health-score-ring" style={{'--score':snapshot.overall_score} as CSSProperties}><div><strong>{snapshot.overall_score}</strong><span>/ 100</span></div></div>
    <div className="health-hero-copy"><p className="eyebrow">ÍNDICE OPERATIVO</p><h3>{heroLabel}</h3><p>{heroText}</p><div className="health-hero-tags"><span><Gauge/> Cobertura {snapshot.coverage_score}%</span><span className={snapshot.urgent_count?'urgent':''}><AlertTriangle/> {snapshot.urgent_count} urgentes</span><span><Sparkles/> {snapshot.recommendations.length} recomendación{snapshot.recommendations.length===1?'':'es'}</span></div></div>
@@ -122,6 +123,7 @@ export default function HouseholdHealthCenter({household,canEditFinance,onNaviga
    <div className="health-coverage-track"><span style={{width:snapshot.coverage_score+'%'}}/></div>
    <div className="health-coverage-modules">{snapshot.domains.map(domain=><button key={domain.key} className={domain.configured?'done':'pending'} onClick={()=>onNavigate(domain.tab)}>{domain.configured?<CheckCircle2/>:<AlertTriangle/>}<span>{domain.title}</span></button>)}</div>
   </section>
+  </div></details>
  </section>
 }
 

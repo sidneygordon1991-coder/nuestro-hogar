@@ -31,3 +31,9 @@ Los movimientos futuros no son ingresos/gastos/ahorro reales. Cada categoría us
 La evolución incluye tres meses completos y el actual marcado en curso, sin comparar porcentualmente un mes parcial con uno completo. Los datos faltantes se señalan; el análisis no implica conciliación bancaria. No se usa un servicio externo de IA.
 
 La migración `20261015194610_household_financial_diagnosis.sql` agrega dos RPC con permisos de invocador y campos opcionales compatibles con respaldos anteriores. Validación: `npm test -- --run`, `npm run build` y los bloques reversibles de `supabase/tests/household_financial_diagnosis.sql` (cálculos de cuentas, fechas futuras, reserva cero, aislamiento, lectura, archivo y respaldo anterior).
+
+### Experiencia visual compartida
+
+`experience.css` unifica superficies, tipografía, formularios, ventanas y navegación en ambos temas. Inicio combina balance, distribución de ingresos registrados y agenda, respetando los colores, favoritos y la prioridad de agenda elegidos por cada usuario. Finanzas conserva sus once secciones: cinco accesos principales y las adicionales en «Más» (el nombre de la sección activa permanece visible).
+
+`BalanceFlow` muestra gastos, ahorro y margen con importes reales; señala cuando gastos y ahorro superan los ingresos. Salud del hogar presenta indicadores y acciones compactos, con fórmula, motivos, histórico y operación disponibles mediante desplegables accesibles. El acceso por correo conserva sus flujos de contraseña, recuperación y verificación y usa una escena vectorial adaptable al tema, con movimiento reducido cuando el dispositivo lo solicita. La actualización visual no requiere migraciones ni modifica registros financieros.

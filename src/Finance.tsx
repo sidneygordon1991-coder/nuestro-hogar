@@ -1,3 +1,5 @@
+import FinanceNavigation from './FinanceNavigation';
+import BalanceFlow from './BalanceFlow';
 import {financeSection,type FinanceSection} from './lib/financeNavigation';
 import ModuleLoading from './ModuleLoading';
 import MonthlyIncomePlan from './MonthlyIncomePlan';
@@ -550,19 +552,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
 
   <div className="month-switch"><button aria-label="Mes anterior" onClick={()=>moveMonth(-1)}><ArrowLeft size={18}/></button><strong>{monthLabel(month)}</strong><button aria-label="Mes siguiente" onClick={()=>moveMonth(1)}><ArrowRight size={18}/></button></div>
 
-  <div className="finance-tabs">
-   <button className={tab==='summary'?'active':''} onClick={()=>setTab('summary')}>Resumen</button>
-   <button className={tab==='fortnight'?'active':''} onClick={()=>setTab('fortnight')}>Quincenas</button>
-   <button className={tab==='income'?'active':''} onClick={()=>setTab('income')}>Ingresos</button>
-   <button className={tab==='budget'?'active':''} onClick={()=>setTab('budget')}>Presupuesto</button>
-   <button className={tab==='transactions'?'active':''} onClick={()=>setTab('transactions')}>Movimientos</button>
-   <button className={tab==='recurring'?'active':''} onClick={()=>setTab('recurring')}>Recurrentes</button>
-   <button className={tab==='comparison'?'active':''} onClick={()=>setTab('comparison')}>Comparación</button>
-   <button className={tab==='contributions'?'active':''} onClick={()=>setTab('contributions')}>Aportes</button>
-   <button className={tab==='goals'?'active':''} onClick={()=>setTab('goals')}>Metas</button>
-   <button className={tab==='networth'?'active':''} onClick={()=>setTab('networth')}>Patrimonio</button>
-   <button className={tab==='accounts'?'active':''} onClick={()=>setTab('accounts')}>Cuentas</button>
-  </div>
+  <FinanceNavigation active={tab} onSelect={setTab}/>
 
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
@@ -571,8 +561,8 @@ export default function Finance({household,readOnly=false}:{household:Household;
   {tab==='income'&&<MonthlyIncomePlan key={household.id+':'+monthDate(month)} householdId={household.id} month={monthDate(month)} label={monthLabel(month)} summary={incomeSummary} readOnly={readOnly} loadError={incomePlanError||periodDataError} onReload={()=>load()} onSaved={plans=>{if(incomeScope.current===household.id+':'+monthDate(month))setIncomePlans(plans)}} onMovements={()=>{setCategoryFilter(null);setTransactionQuery('');setTransactionType('income');setTab('transactions')}}/>}
 
   {tab==='summary'&&<>
-   <button className="fortnight-shortcut" onClick={()=>setTab('fortnight')}>Ver primera quincena, segunda quincena y mes completo <ArrowRight size={18}/></button>
-   <section className="studio-finance-hero"><div><p className="eyebrow">TU DINERO, CON CLARIDAD</p><small>Disponible del mes</small><h3 className={totals.available<0?'negative':''}>{currency(totals.available)}</h3><p>Ingresos − gastos − ahorro registrado</p><span className="studio-previous">Mes anterior <b>{currency(previousMetric.balance)}</b></span></div><div className="studio-finance-orbit" aria-hidden="true"><span><ModuleIcon name="finance" size={57}/></span><i/><b/><em/></div><div className="studio-finance-hero-foot"><span>Balance de {monthLabel(month)}</span><button onClick={()=>setTab('accounts')}>Mis cuentas <ArrowUpRight size={16}/></button></div></section>
+   <button className="fortnight-shortcut" onClick={()=>setTab('fortnight')}><span><CalendarClock size={20}/></span><div><strong>Tu mes, quincena a quincena</strong><small>Del 1 al 15 · del 16 al cierre · visión mensual</small></div><ArrowRight size={18}/></button>
+   <section className="studio-finance-hero"><div><p className="eyebrow">TU DINERO, CON CLARIDAD</p><small>Balance registrado del mes</small><h3 className={totals.available<0?'negative':''}>{currency(totals.available)}</h3><p>Ingresos − gastos − ahorro registrado</p><span className="studio-previous">Mes anterior <b>{currency(previousMetric.balance)}</b></span></div><BalanceFlow income={totals.income} expense={totals.expense} saving={totals.saving} onOpen={()=>{setCategoryFilter(null);setTransactionType('all');setTransactionQuery('');setTab('transactions')}}/><div className="studio-finance-hero-foot"><span>Balance de {monthLabel(month)}</span><button onClick={()=>setTab('accounts')}>Mis cuentas <ArrowUpRight size={16}/></button></div></section>
    <div className="finance-kpis studio-finance-kpis"><Kpi label="Ingresos" value={currency(totals.income)} icon={<ArrowDownLeft/>} tone="good"/><Kpi label="Gastado" value={currency(totals.expense)} icon={<ArrowUpRight/>} tone="warn"/><Kpi label="Ahorrado" value={currency(totals.saving)} icon={<PiggyBank/>} tone="save"/></div>
    <div className="studio-finance-charts"><section className="finance-panel"><div className="panel-title"><div><p className="eyebrow">EN QUÉ SE VA</p><h3>Tu mapa de gastos</h3><small>Toca una categoría para ver sus movimientos.</small></div></div><SpendingDonut rows={spendingRows} selected={categoryFilter} onSelect={id=>{setCategoryFilter(id);setTransactionType('all');setTransactionQuery('');setTab('transactions')}}/></section><section className="finance-panel"><div className="panel-title"><div><p className="eyebrow">PASO A PASO</p><h3>Así evoluciona tu hogar</h3><small>Selecciona un mes para explorar sus cifras.</small></div></div><InteractiveTrend data={monthlyMetrics.slice(-6)} onMonthSelect={openChartMonth}/></section></div>
    <details className={'finance-panel studio-projection '+smartBudget.health}><summary><span className="studio-projection-icon">{smartBudget.health==='good'?<TrendingUp/>:<AlertTriangle/>}</span><span><small>DESPUÉS DE TU PLAN</small><strong>Cierre estimado <b className={smartBudget.projectedClose>=0?'positive':'negative'}>{currency(smartBudget.projectedClose)}</b></strong></span><ChevronRight size={18}/></summary><p className="muted">Incluye ingresos esperados, compromisos, ahorro y presupuesto pendiente.</p><div className="projection-grid"><div><small>Disponible hoy</small><strong>{currency(totals.available)}</strong></div><div><small>Compromisos por cubrir</small><strong>{currency(smartBudget.fixedCommitments)}</strong></div><div><small>Ahorro pendiente</small><strong>{currency(smartBudget.savingsRemaining)}</strong></div><div><small>Libre tras compromisos</small><strong>{currency(smartBudget.availableAfterCommitments)}</strong></div></div><div className="projection-footer"><span>Ingreso esperado <b>+{currency(smartBudget.expectedIncomeRemaining)}</b></span><span>Variables por usar <b>−{currency(smartBudget.variableRemaining)}</b></span></div><button className="studio-chart-open" onClick={()=>setTab('income')}>Ajustar ingresos esperados <ArrowUpRight size={15}/></button><button className="studio-chart-open" onClick={()=>setTab('budget')}>Ajustar mi presupuesto <ArrowUpRight size={15}/></button></details>
