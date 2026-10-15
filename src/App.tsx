@@ -1,3 +1,4 @@
+import {financeSection} from './lib/financeNavigation';
 import {useDialogFocus} from './lib/useDialogFocus';
 import DesktopRail from './DesktopRail';
 import {appearanceKey,readAppearance,type Appearance} from './lib/appearance';
@@ -55,11 +56,12 @@ export default function App(){
  useEffect(()=>{if(session)loadHouseholds();else{setHouseholds([]);setHousehold(null);setAccess(null)}},[session]);
  useEffect(()=>{const pop=()=>setTabState(normalizeTab(new URLSearchParams(window.location.search).get('tab')));window.addEventListener('popstate',pop);return()=>window.removeEventListener('popstate',pop)},[]);
  function setTab(next:string){
-  const normalized=normalizeTab(next);if(normalized===tab)return;
+  const [destination,section]=next.split(':');const normalized=normalizeTab(destination);if(normalized===tab&&!section)return;
   setTabState(normalized);
   const url=new URL(window.location.href);
   if(normalized==='inicio')url.searchParams.delete('tab');else url.searchParams.set('tab',normalized);
   url.searchParams.delete('quick');
+  if(normalized==='presupuesto'&&section)url.searchParams.set('finance',financeSection(section));else url.searchParams.delete('finance');
   window.history.pushState({},'',url);
   window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
  }
@@ -173,7 +175,7 @@ function Shell(p:any){
  {p.tab==='listas'&&<ListsCenter household={p.household} readOnly={level==='view'} onChanged={p.onRefresh}/>} 
  {p.tab==='calendario'&&<CalendarCenter household={p.household} readOnly={level==='view'} onChanged={p.onRefresh} onNavigate={p.setTab}/>} 
  {p.tab==='presupuesto'&&<Finance household={p.household} readOnly={level==='view'}/>} 
- {p.tab==='familia'&&<FamilyCenter household={p.household} onHouseholdRenamed={p.onHouseholdRenamed} onChanged={()=>{p.onRefresh();p.onAccessChanged?.()}}/>} {p.tab==='documentos'&&<DocumentVault household={p.household} readOnly={level==='view'}/>}  {p.tab==='comidas'&&<MealsCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='mantenimiento'&&<MaintenanceCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='salud'&&<HouseholdHealthCenter household={p.household} onNavigate={p.setTab}/>} {p.tab==='automatizaciones'&&<AutomationCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='cierre'&&<MonthlyCloseCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='planeacion'&&<PlanningCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>} {p.tab==='respaldos'&&<BackupCenter household={p.household}/>} {p.tab==='diagnostico'&&<DiagnosticCenter household={p.household} onNavigate={p.setTab}/>} 
+ {p.tab==='familia'&&<FamilyCenter household={p.household} onHouseholdRenamed={p.onHouseholdRenamed} onChanged={()=>{p.onRefresh();p.onAccessChanged?.()}}/>} {p.tab==='documentos'&&<DocumentVault household={p.household} readOnly={level==='view'}/>}  {p.tab==='comidas'&&<MealsCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='mantenimiento'&&<MaintenanceCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='salud'&&<HouseholdHealthCenter household={p.household} canEditFinance={p.access?.modules.finance==='edit'} onNavigate={p.setTab}/>} {p.tab==='automatizaciones'&&<AutomationCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='cierre'&&<MonthlyCloseCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='planeacion'&&<PlanningCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>} {p.tab==='respaldos'&&<BackupCenter household={p.household}/>} {p.tab==='diagnostico'&&<DiagnosticCenter household={p.household} onNavigate={p.setTab}/>}
  </Suspense>}{appearanceOpen&&<Suspense fallback={<ModuleFallback/>}><AppearanceDialog key={preferenceKey} value={appearance} access={p.access.modules} onSave={saveAppearance} onClose={()=>setAppearanceOpen(false)}/></Suspense>}
  </main><PwaInstallPrompt/><PwaUpdatePrompt/><nav><button className={p.tab==='inicio'?'active':''} onClick={()=>p.setTab('inicio')}><ModuleIcon name="home"/><span>Inicio</span></button><button disabled={p.access.modules.calendar==='none'} className={p.tab==='calendario'?'active':''} onClick={()=>p.setTab('calendario')}><ModuleIcon name="calendar"/><span>Calendario</span></button><button className="fab" onClick={()=>window.dispatchEvent(new CustomEvent('nh:quick-add'))} aria-label="Agregar rápido"><Plus/></button><button disabled={p.access.modules.finance==='none'} className={p.tab==='presupuesto'?'active':''} onClick={()=>p.setTab('presupuesto')}><ModuleIcon name="finance"/><span>Finanzas</span></button><button className={p.tab==='familia'?'active':''} onClick={()=>p.setTab('familia')}><ModuleIcon name="family"/><span>Familia</span></button></nav></div>
 }

@@ -1,0 +1,67 @@
+import {financePeriodSummary,inPeriod,toCents,type FinancePeriod,type ShareContext} from './financePeriods';
+import {buildFortnightReview,type ReviewSource} from './fortnightReview';
+import type {FinanceSection} from './financeNavigation';
+export type DiagnosisAccount={id:string;name:string;account_type:string;account_class:'asset'|'liability';balance:number|string;minimum_payment:number|string|null};
+export type DiagnosisHistory={month:string;income:number;expense:number;saving:number;transaction_count:number};
+export type DiagnosisData={month:string;server_date:string;generated_at:string;source:Omit<ReviewSource,'recurring'>&{recurring:(ReviewSource['recurring'][number]&{category_id:string|null})[]};accounts:DiagnosisAccount[];history:DiagnosisHistory[];reserve:{amount:number|null;target_months:number|null;confirmed_on:string|null}|null};
+export type DiagnosisAction={id:string;title:string;why:string;amount:number|null;target:FinanceSection|'reserve';priority:number};
+const sum=<T,>(rows:T[],get:(r:T)=>number|string|null|undefined)=>rows.reduce((s,r)=>s+toCents(get(r)),0)/100;
+export const diagnosisMoney=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:2}).format(n);
+export function buildFinancialDiagnosis(data:DiagnosisData,period:FinancePeriod){
+ const {source:s,month,server_date:today}=data;
+ const transactions=s.transactions.filter(t=>t.transaction_date<=today),savings=s.savings.filter(t=>t.contribution_date<=today);
+ const refs=Object.fromEntries(s.member_settings.map(r=>[r.user_id,Number(r.monthly_income)]));
+ const categoryCustom:ShareContext['categoryCustom']={};for(const r of s.category_member_settings)(categoryCustom[r.category_id]??={})[r.user_id]=Number(r.custom_share_percent);
+ const context:ShareContext={month,members:s.members,plans:s.income_plans,references:refs,method:s.settings?.split_method||'equal',custom:Object.fromEntries(s.member_settings.map(r=>[r.user_id,Number(r.custom_share_percent)])),rules:Object.fromEntries(s.category_settings.map(r=>[r.category_id,r])),categoryCustom};
+ const summarize=(p:FinancePeriod)=>financePeriodSummary(month,p,s.members,s.income_plans,refs,s.allocations,s.categories,transactions,savings,s.splits,context);
+ const monthly=summarize('month'),selected=summarize(period);
+ // Second-half forecast ends at month-end and retains first-half outstanding
+ // items. It uses the monthly actual flow once, rather than adding carry again.
+ const scope:FinancePeriod=period==='first'?'first':'month',projection=summarize(scope);
+ const recurring=new Map(s.recurring.map(r=>[r.id,r]));
+ const pending=s.occurrences.filter(o=>inPeriod(o.due_date,month,scope)&&o.status==='pending'&&(!o.transaction_id||!transactions.some(t=>t.id===o.transaction_id))&&recurring.get(o.recurring_transaction_id)?.type==='expense');
+ const pendingByCategory=new Map<string,number>();for(const o of pending){const r=recurring.get(o.recurring_transaction_id)!;const key=r.category_id||'';pendingByCategory.set(key,(pendingByCategory.get(key)||0)+toCents(r.amount))}
+ const budgetByCategory=new Map<string,number>();for(const r of projection.rows.filter(r=>r.group!=='saving'))budgetByCategory.set(r.category_id,(budgetByCategory.get(r.category_id)||0)+Math.max(0,toCents(r.planned)-toCents(r.actual)));
+ const remainingExpenses=[...new Set([...budgetByCategory.keys(),...pendingByCategory.keys()])].reduce((a,key)=>a+Math.max(budgetByCategory.get(key)||0,pendingByCategory.get(key)||0),0)/100;
+ const pendingIncome=sum(projection.people,r=>r.pending),remainingSaving=Math.max(0,toCents(projection.savingPlan)-toCents(projection.saving))/100;
+ const forecast=(toCents(projection.balance)+toCents(pendingIncome)-toCents(remainingExpenses)-toCents(remainingSaving))/100;
+ const liquidAccounts=data.accounts.filter(a=>a.account_class==='asset'&&['cash','checking','savings'].includes(a.account_type)),liquid=sum(liquidAccounts,r=>r.balance);
+ const debts=data.accounts.filter(a=>a.account_class==='liability'&&Number(a.balance)>0),debt=sum(debts,r=>r.balance),minimum=sum(debts,r=>r.minimum_payment),missingMinima=debts.filter(a=>a.minimum_payment==null).length;
+ const expenseMonths=data.history.filter(r=>r.expense>0),baseline=expenseMonths.length?sum(expenseMonths,r=>r.expense)/expenseMonths.length:monthly.budget;
+ const reserve=data.reserve?.amount==null?null:Number(data.reserve.amount),target=data.reserve?.target_months??3;
+ const coverage=reserve!==null&&baseline>0?reserve/baseline:null,shortfall=reserve!==null&&baseline>0?Math.max(0,toCents(baseline*target)-toCents(reserve))/100:null;
+ const age=data.reserve?.confirmed_on?Math.floor((Date.parse(today+'T12:00:00Z')-Date.parse(data.reserve.confirmed_on+'T12:00:00Z'))/86400000):null;
+ const warnings:string[]=[];
+ const missingPlans=s.members.filter(m=>!s.income_plans.some(p=>p.user_id===m.user_id&&p.month===month)).length;
+ if(missingPlans)warnings.push(`${missingPlans} integrante(s) sin ingreso esperado confirmado para este mes; se usa su referencia mensual si existe.`);
+ if(!s.allocations.some(a=>a.month===month&&s.categories.find(c=>c.id===a.category_id)?.budget_group!=='saving'))warnings.push('Falta un presupuesto mensual de gastos; la proyección puede omitir compromisos.');
+ if(period!=='month'&&(selected.unallocatedIncome>0||selected.unallocatedBudget>0))warnings.push('Hay importes mensuales sin distribuir entre quincenas. No se reparten automáticamente.');
+ if(s.transactions.some(t=>t.transaction_date>today)||s.savings.some(t=>t.contribution_date>today))warnings.push('Los movimientos con fecha futura se excluyen de lo recibido, gastado y ahorrado.');
+ if(s.occurrences.some(o=>o.status==='paid'&&inPeriod(o.due_date,month,scope)&&(!o.transaction_id||!transactions.some(t=>t.id===o.transaction_id))))warnings.push('Hay pagos marcados como pagados sin un movimiento verificable a la fecha; revisa los recurrentes.');
+ if(s.occurrences.some(o=>o.status==='pending'&&o.transaction_id&&transactions.some(t=>t.id===o.transaction_id)))warnings.push('Hay recurrentes pendientes con un movimiento ya registrado: verifica su estado; no se cuentan de nuevo como pagos pendientes.');
+ const reviewSource:ReviewSource={...s,transactions,savings};
+ const reviewIssues=(scope==='first'?[buildFortnightReview(month,'first',reviewSource)]:[buildFortnightReview(month,'first',reviewSource),buildFortnightReview(month,'second',reviewSource)]).flatMap(r=>r.issues);
+ for(const issue of reviewIssues.filter(i=>['missing-occurrences','payments-unknown','recurring-income-pending','unattributed-income','splits-incomplete'].includes(i.id)))if(!warnings.includes(issue.text))warnings.push(issue.text);
+ if(monthly.expected>0&&minimum>monthly.expected)warnings.push('Las cuotas mínimas registradas superan el ingreso mensual esperado. Revisa cómo cubrirlas y si todos los ingresos están confirmados.');
+ if(missingMinima)warnings.push(`${missingMinima} deuda(s) con saldo sin cuota mínima registrada; la presión de deuda está incompleta.`);
+ const overdue=pending.filter(o=>o.due_date<today),overdueAmount=sum(overdue,o=>recurring.get(o.recurring_transaction_id)!.amount);
+ const ready=!missingPlans&&s.allocations.some(a=>a.month===month&&s.categories.find(c=>c.id===a.category_id)?.budget_group!=='saving');
+ const actions:DiagnosisAction[]=[];
+ const add=(id:string,title:string,why:string,amount:number|null,target:DiagnosisAction['target'],priority:number)=>actions.push({id,title,why,amount,target,priority});
+ if(overdue.length)add('overdue','Revisa los pagos vencidos',`${overdue.length} compromiso(s) pendiente(s) con fecha anterior al corte. Confirma su estado antes de registrar un pago.`,overdueAmount,'recurring',1);
+ if(liquidAccounts.length&&liquid<0)add('liquidity','Revisa el saldo de tus cuentas','La suma de efectivo, cuentas corrientes y de ahorro está por debajo de cero según el registro.',-liquid,'accounts',2);
+ if(forecast<0)add('deficit','Ajusta el plan para cubrir la diferencia','Los ingresos pendientes por persona no alcanzan para el presupuesto restante, los recurrentes y el ahorro planeado.',-forecast,'budget',3);
+ if(monthly.expected>0&&minimum>monthly.expected)add('debt-pressure','Revisa la capacidad para cubrir tus cuotas','Las cuotas mínimas registradas superan el ingreso esperado del mes. Confirma tus ingresos y revisa que todas las cuotas estén en el plan.',Math.max(0,toCents(minimum)-toCents(monthly.expected))/100,'accounts',3);
+ if(!ready)add('complete','Completa ingresos y presupuesto','Confirma el ingreso de cada persona, incluso si es cero, y los gastos del mes para obtener una proyección más completa.',null,missingPlans?'income':'budget',4);
+ if(warnings.some(w=>/recurrent|verificable/.test(w)))add('payments','Verifica los compromisos recurrentes','Hay vencimientos o cobros que necesitan confirmación para completar el cálculo.',null,'recurring',5);
+ if(pendingIncome>0)add('income','Confirma los ingresos pendientes','Es la suma de lo que aún falta recibir de cada integrante; los extras de otra persona no cancelan ese pendiente.',pendingIncome,'income',6);
+ if(period!=='month'&&(selected.unallocatedBudget>0||selected.unallocatedIncome>0))add('halves','Distribuye el plan entre quincenas','Asigna los importes del mes a los días 1–15 y 16–cierre para afinar esta vista.',null,'fortnight',7);
+ if(missingMinima)add('debt','Completa las cuotas de tus deudas','Registra las cuotas mínimas faltantes y comprueba que estén contempladas en el presupuesto o recurrentes.',null,'accounts',8);
+ if(reserve===null||age===null||age>30)add('reserve',reserve===null?'Confirma tu fondo de emergencia':'Actualiza tu reserva declarada','Indica solamente el dinero separado para emergencias. El saldo total de tus cuentas puede tener otros destinos.',reserve,'reserve',9);
+ else if(shortfall!==null&&shortfall>0)add('reserve-gap','Acércate a tu meta de reserva',`Diferencia estimada para tu objetivo personal de ${target} meses. Puedes ajustar el objetivo y aportar según tu capacidad.`,shortfall,'reserve',10);
+ if(!actions.length)add('review','Revisa el plan y sus movimientos','Comprueba que los ingresos, gastos y cuotas del mes estén completos y que los saldos coincidan con tus cuentas.',null,'transactions',11);
+ if(actions.length<3&&!actions.some(a=>a.id==='debt')&&debt>0)add('debt-review','Revisa las cuotas dentro del presupuesto','Las cuotas registradas se muestran como indicador y no se descuentan otra vez de la proyección.',minimum,'accounts',12);
+ if(actions.length<3&&!actions.some(a=>a.target==='reserve'))add('reserve-review','Revisa tu objetivo de reserva','La cobertura usa gastos registrados o, si faltan, el presupuesto mensual. Ajusta la meta a tu hogar.',reserve,'reserve',13);
+ const status=overdue.length?'Atender compromisos':!ready?'Completa tu diagnóstico':forecast<0?'Revisar el margen':warnings.length?'Proyección con datos por revisar':'Con margen según el plan';
+ return {selected,monthly,projection,scope,pendingIncome,remainingExpenses,remainingSaving,forecast,liquid,liquidCount:liquidAccounts.length,debt,minimum,missingMinima,debtRatio:monthly.expected>0?minimum/monthly.expected*100:null,baseline,baselineMonths:expenseMonths.length,reserve,target,coverage,shortfall,age,overdueAmount,warnings,ready,status,tone:overdue.length||forecast<0?'danger':!ready||warnings.length?'warning':'success',actions:actions.sort((a,b)=>a.priority-b.priority).slice(0,3)};
+}

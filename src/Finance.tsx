@@ -1,3 +1,4 @@
+import {financeSection,type FinanceSection} from './lib/financeNavigation';
 import ModuleLoading from './ModuleLoading';
 import MonthlyIncomePlan from './MonthlyIncomePlan';
 import FortnightBudget from './FortnightBudget';
@@ -45,7 +46,8 @@ const pct=(a:number,b:number)=>b>0?Math.min(100,Math.round((a/b)*100)):0;
 const dueDateForMonth=(d:Date,dueDay:number)=>{const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return isoDate(new Date(d.getFullYear(),d.getMonth(),Math.min(Math.max(1,dueDay),last)))};
 
 export default function Finance({household,readOnly=false}:{household:Household;readOnly?:boolean}){
- const [tab,setTab]=useState<'summary'|'fortnight'|'income'|'budget'|'transactions'|'recurring'|'comparison'|'contributions'|'goals'|'networth'|'accounts'>('summary');
+ const [tab,setTab]=useState<FinanceSection>(()=>financeSection(new URLSearchParams(window.location.search).get('finance')));
+ useEffect(()=>{const restore=()=>setTab(financeSection(new URLSearchParams(window.location.search).get('finance')));window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore)},[]);
  const [categoryFilter,setCategoryFilter]=useState<string|null>(null),[transactionQuery,setTransactionQuery]=useState(''),[transactionType,setTransactionType]=useState('all');
  const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');

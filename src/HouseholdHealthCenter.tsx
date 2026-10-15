@@ -1,6 +1,7 @@
+import FinancialDiagnosis from './FinancialDiagnosis';
 import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
-import {useEffect,useState,type CSSProperties} from 'react';
+import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import {AlertTriangle,CheckCircle2,ChevronRight,Gauge,Package,RefreshCw,Sparkles,TrendingUp} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import './HouseholdHealthCenter.css';
@@ -17,8 +18,9 @@ type HealthHistory={snapshot_date:string;overall_score:number;finance_score:numb
 
 const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
 
-export default function HouseholdHealthCenter({household,onNavigate}:{household:Household;onNavigate:(tab:string)=>void}){
+export default function HouseholdHealthCenter({household,canEditFinance,onNavigate}:{household:Household;canEditFinance:boolean;onNavigate:(tab:string)=>void}){
  const [snapshot,setSnapshot]=useState<Snapshot|null>(null),[history,setHistory]=useState<HealthHistory[]>([]),[loading,setLoading]=useState(true),[message,setMessage]=useState('');
+ const sequence=useRef(0),currentHousehold=useRef(household.id);currentHousehold.current=household.id;const [revision,setRevision]=useState(0);
 
  useEffect(()=>{let channel:any;let active=true;(async()=>{await load();if(!active)return;
   channel=supabase.channel('household-health-'+household.id)
@@ -31,15 +33,25 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
    .on('postgres_changes',{event:'*',schema:'public',table:'pantry_items',filter:'household_id=eq.'+household.id},()=>load(false))
    .on('postgres_changes',{event:'*',schema:'public',table:'meal_plan_entries',filter:'household_id=eq.'+household.id},()=>load(false))
    .on('postgres_changes',{event:'*',schema:'public',table:'events',filter:'household_id=eq.'+household.id},()=>load(false))
+   .on('postgres_changes',{event:'*',schema:'public',table:'finance_income_plans',filter:'household_id=eq.'+household.id},()=>load(false))
+   .on('postgres_changes',{event:'*',schema:'public',table:'finance_member_settings',filter:'household_id=eq.'+household.id},()=>load(false))
+   .on('postgres_changes',{event:'*',schema:'public',table:'finance_household_settings',filter:'household_id=eq.'+household.id},()=>load(false))
+   .on('postgres_changes',{event:'*',schema:'public',table:'finance_accounts',filter:'household_id=eq.'+household.id},()=>load(false))
+   .on('postgres_changes',{event:'*',schema:'public',table:'finance_transfers',filter:'household_id=eq.'+household.id},()=>load(false))
+   .on('postgres_changes',{event:'*',schema:'public',table:'recurring_transaction_occurrences',filter:'household_id=eq.'+household.id},()=>load(false))
+   .on('postgres_changes',{event:'*',schema:'public',table:'recurring_transactions',filter:'household_id=eq.'+household.id},()=>load(false))
+   .on('postgres_changes',{event:'*',schema:'public',table:'budget_categories',filter:'household_id=eq.'+household.id},()=>load(false))
    .subscribe();
- })();return()=>{active=false;if(channel)supabase.removeChannel(channel)}},[household.id]);
+ })();return()=>{active=false;sequence.current++;if(channel)supabase.removeChannel(channel)}},[household.id]);
 
  async function load(showLoader=true){
-  if(showLoader)setLoading(true);setMessage('');
+  const seq=++sequence.current,id=household.id;if(showLoader)setLoading(true);setMessage('');setRevision(r=>r+1);
   const {data,error}=await supabase.rpc('get_household_health_dashboard',{p_household_id:household.id});
+  if(seq!==sequence.current||id!==currentHousehold.current)return;
   if(error){setMessage(error.message);setSnapshot(null);if(showLoader)setLoading(false);return}
   setSnapshot(data as Snapshot);
   const historyR=await supabase.from('household_health_snapshots').select('snapshot_date,overall_score,finance_score,organization_score,documents_score,maintenance_score,pantry_score').eq('household_id',household.id).order('snapshot_date').limit(60);
+  if(seq!==sequence.current||id!==currentHousehold.current)return;
   if(historyR.error)setMessage(historyR.error.message);else setHistory((historyR.data||[]) as HealthHistory[]);
   if(showLoader)setLoading(false);
  }
@@ -58,9 +70,11 @@ export default function HouseholdHealthCenter({household,onNavigate}:{household:
    :'No detectamos vencimientos ni desviaciones críticas en este momento.';
 
  return <section className="household-health-center">
-  <div className="health-top"><div><p className="eyebrow">ESTADO DEL HOGAR</p><h2 className="page-title">Salud del hogar</h2><p className="muted">Un resumen operativo de finanzas, pendientes, documentos, mantenimiento y despensa.</p></div><button className="health-refresh" onClick={()=>load(false)}><RefreshCw/> Actualizar</button></div>
+  <div className="health-top"><div><p className="eyebrow">ESTADO DEL HOGAR</p><h2 className="page-title">Salud del hogar</h2><p className="muted">Tu diagnóstico financiero y el estado de los pendientes, documentos, mantenimiento y despensa.</p></div><button className="health-refresh" onClick={()=>load(false)}><RefreshCw/> Actualizar</button></div>
 
   {message&&<div className="finance-message">{message}</div>}
+
+  <FinancialDiagnosis key={household.id} householdId={household.id} canEdit={canEditFinance} refreshKey={revision} onNavigate={onNavigate}/>
 
   <section className={'health-hero '+heroStatus}>
    <div className="health-score-ring" style={{'--score':snapshot.overall_score} as CSSProperties}><div><strong>{snapshot.overall_score}</strong><span>/ 100</span></div></div>
