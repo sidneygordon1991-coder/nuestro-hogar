@@ -1,4 +1,4 @@
-export type IncomePlan={user_id:string;month:string;expected_amount:number|string};
+export type IncomePlan={user_id:string;month:string;expected_amount:number|string;first_half_amount?:number|string|null;second_half_amount?:number|string|null};
 export type IncomeMember={user_id:string;full_name:string};
 type IncomeMovement={type:string;amount:number|string;transaction_date:string;paid_by:string|null};
 const cents=(value:number|string)=>{const n=Number(value);return Number.isFinite(n)&&n>=0?Math.round(n*100):0};
@@ -21,7 +21,7 @@ export function monthlyIncomeSummary(month:string,members:IncomeMember[],plans:I
  }
  const rows=members.map(member=>{
   const plan=saved.get(member.user_id),expected=cents(plan?plan.expected_amount:references[member.user_id]||0),actual=received.get(member.user_id)||0;
-  return {...member,hasPlan:Boolean(plan),expected:expected/100,received:actual/100,pending:Math.max(0,expected-actual)/100,extra:Math.max(0,actual-expected)/100};
+  return {...member,hasPlan:Boolean(plan),first_half_amount:plan?.first_half_amount??null,second_half_amount:plan?.second_half_amount??null,expected:expected/100,received:actual/100,pending:Math.max(0,expected-actual)/100,extra:Math.max(0,actual-expected)/100};
  });
  const expected=rows.reduce((sum,row)=>sum+cents(row.expected),0),pending=rows.reduce((sum,row)=>sum+cents(row.pending),0),attributed=rows.reduce((sum,row)=>sum+cents(row.received),0);
  return {rows,expected:expected/100,received:totalReceived/100,pending:pending/100,unassigned:(totalReceived-attributed)/100,hasPlan:rows.some(row=>row.hasPlan)};

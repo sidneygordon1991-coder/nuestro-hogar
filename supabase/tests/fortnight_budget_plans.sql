@@ -1,0 +1,95 @@
+-- Run each BEGIN/ROLLBACK block separately. Uses existing identities only.
+-- No test financial records, memberships or changes survive ROLLBACK.
+begin;
+select set_config('qa.fort.a',(select user_id::text from public.household_members where role='owner' order by joined_at limit 1),true);
+select set_config('qa.fort.b',(select user_id::text from public.household_members where role='owner' and user_id<>current_setting('qa.fort.a')::uuid order by joined_at limit 1),true);
+select set_config('request.jwt.claim.sub',current_setting('qa.fort.a'),true);
+select set_config('qa.fort.hh',public.create_household('QA fortnight rollback')::text,true);
+insert into public.household_members(household_id,user_id,role) values(current_setting('qa.fort.hh')::uuid,current_setting('qa.fort.b')::uuid,'adult');
+set local role authenticated;
+insert into public.budget_categories(household_id,name,icon) values(current_setting('qa.fort.hh')::uuid,'QA fortnight category','wallet');
+select set_config('qa.fort.cat',(select id::text from public.budget_categories where household_id=current_setting('qa.fort.hh')::uuid and name='QA fortnight category'),true);
+insert into public.finance_income_plans(household_id,month,user_id,expected_amount,first_half_amount,second_half_amount) values
+ (current_setting('qa.fort.hh')::uuid,'2098-02-01',current_setting('qa.fort.a')::uuid,1000,800,200),
+ (current_setting('qa.fort.hh')::uuid,'2098-02-01',current_setting('qa.fort.b')::uuid,1000,200,800);
+insert into public.finance_household_settings(household_id,split_method) values(current_setting('qa.fort.hh')::uuid,'income') on conflict(household_id) do update set split_method='income';
+do $$declare h uuid:=current_setting('qa.fort.hh')::uuid;a uuid:=current_setting('qa.fort.a')::uuid;b uuid:=current_setting('qa.fort.b')::uuid;c uuid:=current_setting('qa.fort.cat')::uuid;t uuid;
+begin
+ if (select ratio from public.finance_split_weights(h,'2098-02-15',c) where user_id=a)<>.8 then raise exception 'First half ratio incorrect';end if;
+ if (select ratio from public.finance_split_weights(h,'2098-02-16',c) where user_id=a)<>.2 then raise exception 'Second half ratio incorrect';end if;
+ t:=public.quick_add_transaction(h,'QA first half',100,'expense','2098-02-15',c,null,a,true);
+ if (select share_amount from public.transaction_splits where transaction_id=t and user_id=a)<>80 then raise exception 'Quick add first half split incorrect';end if;
+ update public.finance_income_plans set first_half_amount=500,second_half_amount=500 where household_id=h and month='2098-02-01';
+ if (select share_amount from public.transaction_splits where transaction_id=t and user_id=a)<>80 then raise exception 'Plan rewrote historical splits';end if;
+ update public.finance_income_plans set first_half_amount=case when user_id=a then 800 else 200 end,second_half_amount=case when user_id=a then 200 else 800 end where household_id=h and month='2098-02-01';
+ t:=public.quick_add_transaction(h,'QA second half',100,'expense','2098-02-16',c,null,b,true);
+ if (select share_amount from public.transaction_splits where transaction_id=t and user_id=a)<>20 then raise exception 'Quick add second half split incorrect';end if;
+ t:=public.quick_add_transaction(h,'QA personal expense',100,'expense','2098-02-16',c,null,b,false);
+ if (select count(*) from public.transaction_splits where transaction_id=t)<>1 or (select share_amount from public.transaction_splits where transaction_id=t and user_id=b)<>100 then raise exception 'Personal split incorrect';end if;
+ insert into public.finance_category_settings(household_id,category_id,split_method) values(h,c,'equal');
+ if (select ratio from public.finance_split_weights(h,'2098-02-15',c) where user_id=a)<>.5 then raise exception 'Category override ignored';end if;
+ update public.finance_category_settings set split_method='custom' where household_id=h and category_id=c;
+ insert into public.finance_category_member_settings(household_id,category_id,user_id,custom_share_percent) values(h,c,a,25),(h,c,b,75);
+ if (select ratio from public.finance_split_weights(h,'2098-02-15',c) where user_id=a)<>.25 then raise exception 'Custom override ignored';end if;
+ update public.finance_category_settings set split_method='personal',responsible_user_id=b where household_id=h and category_id=c;
+ t:=public.quick_add_transaction(h,'QA category personal',.01,'expense','2098-02-16',c,null,a,true);
+ if (select sum(share_amount) from public.transaction_splits where transaction_id=t)<>.01 or (select share_amount from public.transaction_splits where transaction_id=t and user_id=b)<>.01 then raise exception 'Personal rule cent lost';end if;
+ update public.finance_category_settings set split_method='inherit',responsible_user_id=null where household_id=h and category_id=c;
+ update public.finance_income_plans set first_half_amount=null where household_id=h and user_id=b;
+ if (select ratio from public.finance_split_weights(h,'2098-02-15',c) where user_id=a)<>.5 or (select source from public.finance_split_weights(h,'2098-02-15',c) where user_id=a)<>'monthly' then raise exception 'Incomplete plan fallback incorrect';end if;
+ begin update public.finance_income_plans set first_half_amount=1001 where household_id=h and user_id=b;raise exception 'Overallocated income accepted';exception when check_violation then null;end;
+ begin update public.finance_income_plans set first_half_amount=-1 where household_id=h and user_id=b;raise exception 'Negative income accepted';exception when check_violation then null;end;
+ begin update public.finance_income_plans set first_half_amount='NaN'::numeric where household_id=h and user_id=b;raise exception 'NaN income accepted';exception when check_violation then null;end;
+ begin insert into public.budget_allocations(household_id,category_id,month,planned_amount,first_half_amount,second_half_amount) values(h,c,'2098-02-01',100,60,41);raise exception 'Overallocated budget accepted';exception when check_violation then null;end;
+ insert into public.budget_allocations(household_id,category_id,month,planned_amount,first_half_amount,second_half_amount) values(h,c,'2098-02-01',100,60,40);
+ if not exists(select 1 from jsonb_array_elements(public.build_household_backup_snapshot(h)->'tables'->'budget_allocations') row where row->>'category_id'=c::text and (row->>'first_half_amount')::numeric=60 and (row->>'second_half_amount')::numeric=40) then raise exception 'Budget halves omitted from backup';end if;
+end$$;
+select true as period_rules_cents_constraints_and_history_passed;
+rollback;
+
+begin;
+select set_config('qa.fort.hh',(select household_id::text from public.household_members where role='owner' order by joined_at limit 1),true);
+select set_config('qa.fort.owner',(select user_id::text from public.household_members where household_id=current_setting('qa.fort.hh')::uuid and role='owner' limit 1),true);
+select set_config('request.jwt.claim.sub',current_setting('qa.fort.owner'),true);
+set local role authenticated;
+select set_config('qa.fort.snapshot',jsonb_set(public.build_household_backup_snapshot(current_setting('qa.fort.hh')::uuid),'{tables,finance_income_plans}',jsonb_build_array(jsonb_build_object('household_id',current_setting('qa.fort.hh'),'month','2098-01-01','user_id',auth.uid(),'expected_amount',200.25,'first_half_amount',80.10,'second_half_amount',120.15,'created_at',now(),'updated_at',now())))::text,true);
+select set_config('qa.fort.backup',public.import_household_backup(current_setting('qa.fort.hh')::uuid,current_setting('qa.fort.snapshot')::jsonb,'QA fortnight backup rollback')::text,true);
+select public.restore_household_backup_missing(current_setting('qa.fort.backup')::uuid);
+select public.restore_household_backup_missing(current_setting('qa.fort.backup')::uuid);
+do $$begin if not exists(select 1 from public.finance_income_plans where household_id=current_setting('qa.fort.hh')::uuid and month='2098-01-01' and first_half_amount=80.10 and second_half_amount=120.15) then raise exception 'Fortnight backup restore failed';end if;end$$;
+select true as fortnight_backup_restore_passed;
+rollback;
+
+begin;
+select set_config('qa.fort.a',(select user_id::text from public.household_members where role='owner' order by joined_at limit 1),true);
+select set_config('qa.fort.b',(select user_id::text from public.household_members where role='owner' and user_id<>current_setting('qa.fort.a')::uuid order by joined_at limit 1),true);
+select set_config('request.jwt.claim.sub',current_setting('qa.fort.a'),true);
+select set_config('qa.fort.hh',public.create_household('QA fortnight permissions rollback')::text,true);
+insert into public.household_members(household_id,user_id,role) values(current_setting('qa.fort.hh')::uuid,current_setting('qa.fort.b')::uuid,'guest');
+insert into public.household_member_access(household_id,user_id,module,access_level) values(current_setting('qa.fort.hh')::uuid,current_setting('qa.fort.b')::uuid,'finance','view');
+set local role authenticated;
+insert into public.finance_income_plans(household_id,month,user_id,expected_amount,first_half_amount,second_half_amount) values(current_setting('qa.fort.hh')::uuid,'2098-01-01',auth.uid(),100,40,60);
+select set_config('request.jwt.claim.sub',current_setting('qa.fort.b'),true);
+select * from public.finance_split_weights(current_setting('qa.fort.hh')::uuid,'2098-01-15');
+update public.finance_income_plans set first_half_amount=10 where household_id=current_setting('qa.fort.hh')::uuid;
+do $$begin
+ if not exists(select 1 from public.finance_income_plans where household_id=current_setting('qa.fort.hh')::uuid and first_half_amount=40) then raise exception 'Read-only update accepted';end if;
+ begin perform public.quick_add_transaction(current_setting('qa.fort.hh')::uuid,'QA denied',1,'expense');raise exception 'Read-only transaction accepted';exception when raise_exception then if sqlerrm='Read-only transaction accepted' then raise;end if;end;
+end$$;
+reset role;
+update platform_security.household_controls set status='archived' where household_id=current_setting('qa.fort.hh')::uuid;
+select set_config('request.jwt.claim.sub',current_setting('qa.fort.a'),true);
+set local role authenticated;
+do $$begin begin update public.finance_income_plans set first_half_amount=10 where household_id=current_setting('qa.fort.hh')::uuid;exception when insufficient_privilege then null;end;end$$;
+do $$begin if not exists(select 1 from public.finance_income_plans where household_id=current_setting('qa.fort.hh')::uuid and first_half_amount=40) then raise exception 'Archived update accepted';end if;end$$;
+reset role;
+update platform_security.household_controls set status='active' where household_id=current_setting('qa.fort.hh')::uuid;
+select set_config('request.jwt.claim.sub',current_setting('qa.fort.b'),true);
+update public.household_member_access set access_level='none' where household_id=current_setting('qa.fort.hh')::uuid and user_id=current_setting('qa.fort.b')::uuid and module='finance';
+set local role authenticated;
+do $$begin begin perform public.finance_split_weights(current_setting('qa.fort.hh')::uuid,'2098-01-15');raise exception 'No-access weights exposed';exception when insufficient_privilege then null;end;end$$;
+reset role;
+set local role anon;
+do $$begin begin perform public.finance_split_weights(current_setting('qa.fort.hh')::uuid,'2098-01-15');raise exception 'Anonymous weights exposed';exception when insufficient_privilege then null;end;end$$;
+select true as readonly_archived_noaccess_and_anon_passed;
+rollback;

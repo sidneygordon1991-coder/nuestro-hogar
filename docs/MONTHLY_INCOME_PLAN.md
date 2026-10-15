@@ -4,7 +4,7 @@ Finanzas > Ingresos usa el selector mensual de Finanzas. Cada integrante tiene u
 
 Guardar el plan solo escribe `finance_income_plans`, con clave única `(household_id, month, user_id)`. No crea movimientos, cobros recurrentes ni repartos. Un plan guardado de cero se conserva como cero y no se sustituye por la referencia. Cambiar el mes conserva los planes anteriores.
 
-Los meses sin plan toman como punto de partida el ingreso general de referencia configurado en Aportes. Este importe sigue siendo la base de las reglas proporcionales; editar el plan mensual no cambia esas reglas ni recalcula gastos existentes. En la pestaña Aportes se indica esta diferencia y se ofrece un acceso al plan mensual.
+Los meses sin plan toman como punto de partida el ingreso general de referencia configurado en Aportes. Con la planificación quincenal, los nuevos repartos proporcionales usan el ingreso esperado de la quincena cuando está completo; si falta distribuirlo, usan el plan mensual guardado y después la referencia. Editar el plan no recalcula gastos existentes. Ver `FORTNIGHT_BUDGET.md`.
 
 Esperado y Pendiente usan los valores guardados; los cambios del formulario se aplican al guardar. Recibido proviene únicamente de movimientos de tipo `income` cuya fecha cae en el mes. Los ingresos sin persona o de integrantes que ya no pertenecen al hogar se incluyen en el total recibido y se señalan aparte. Un excedente de una persona no cancela lo que aún se espera recibir de otra. El cierre estimado de Finanzas agrega los importes pendientes por persona al balance real, conservando la separación entre lo recibido y lo proyectado.
 
