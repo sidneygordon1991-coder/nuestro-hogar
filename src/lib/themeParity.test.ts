@@ -4,7 +4,7 @@ import mainRaw from '../main.tsx?raw';
 import appRaw from '../App.tsx?raw';
 // @ts-ignore Vitest runs in Node; application tsconfig intentionally excludes Node types.
 import {readFileSync} from 'node:fs';
-const names=['experience','FinancialDiagnosis','notifications','monthly-income','guided-fortnight-close','studio','premium','styles','AutomationCenter','BackupCenter','DiagnosticCenter','HouseholdHealthCenter','MonthlyCloseCenter','PlanningCenter'];
+const names=['finance-management','experience','FinancialDiagnosis','notifications','monthly-income','guided-fortnight-close','studio','premium','styles','AutomationCenter','BackupCenter','DiagnosticCenter','HouseholdHealthCenter','MonthlyCloseCenter','PlanningCenter'];
 const sheets=names.map(name=>({name,root:parse(readFileSync(new URL('../'+name+'.css',import.meta.url),'utf8'))}));
 const palette=parse(readFileSync(new URL('../theme-light.css',import.meta.url),'utf8'));
 const palettes=palette.nodes.filter(node=>node.type==='rule'&&(node.selector==='html'||node.selector==='html[data-theme="light"]')).map(node=>{

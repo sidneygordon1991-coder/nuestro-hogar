@@ -37,3 +37,11 @@ La migración `20261015194610_household_financial_diagnosis.sql` agrega dos RPC 
 `experience.css` unifica superficies, tipografía, formularios, ventanas y navegación en ambos temas. Inicio combina balance, distribución de ingresos registrados y agenda, respetando los colores, favoritos y la prioridad de agenda elegidos por cada usuario. Finanzas conserva sus once secciones: cinco accesos principales y las adicionales en «Más» (el nombre de la sección activa permanece visible).
 
 `BalanceFlow` muestra gastos, ahorro y margen con importes reales; señala cuando gastos y ahorro superan los ingresos. Salud del hogar presenta indicadores y acciones compactos, con fórmula, motivos, histórico y operación disponibles mediante desplegables accesibles. El acceso por correo conserva sus flujos de contraseña, recuperación y verificación y usa una escena vectorial adaptable al tema, con movimiento reducido cuando el dispositivo lo solicita. La actualización visual no requiere migraciones ni modifica registros financieros.
+
+### Corregir aportes y recurrentes
+
+En **Finanzas → Más → Metas**, el historial de **Aportes de ahorro** permite filtrar por meta/mes, editar monto, fecha o destino y eliminar con confirmación. La corrección mantiene el autor original y recalcula el ahorro y el progreso; las cuentas de solo lectura no muestran controles de escritura.
+
+En **Finanzas → Más → Recurrentes**, **Tu programación recurrente** permite editar todos los datos y eliminar una repetición. Editar actualiza únicamente sus vencimientos pendientes, ajustando el día al último día válido de cada mes. Eliminar desactiva la programación y cancela sus pendientes; conserva los movimientos pagados y sus importes/descripciones históricos. Las correcciones de movimientos pagados se reflejan también en su detalle histórico. Las ventanas detectan cambios concurrentes y conservan el borrador si falla el guardado. El pago de un vencimiento es atómico e idempotente.
+
+Las migraciones `finance_entry_management` y `finance_entry_helper_access` agregan detalles históricos opcionales, sincronización y RPC de invocador con permisos de Finanzas, sin claves elevadas en el cliente. Los escenarios de base de datos se documentan en `supabase/tests/finance_entry_management.sql`, con transacciones reversibles.

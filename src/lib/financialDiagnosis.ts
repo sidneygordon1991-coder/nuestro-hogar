@@ -1,3 +1,4 @@
+import {occurrenceDetails} from './recurringDetails';
 import {financePeriodSummary,inPeriod,toCents,type FinancePeriod,type ShareContext} from './financePeriods';
 import {buildFortnightReview,type ReviewSource} from './fortnightReview';
 import type {FinanceSection} from './financeNavigation';
@@ -19,8 +20,9 @@ export function buildFinancialDiagnosis(data:DiagnosisData,period:FinancePeriod)
  // items. It uses the monthly actual flow once, rather than adding carry again.
  const scope:FinancePeriod=period==='first'?'first':'month',projection=summarize(scope);
  const recurring=new Map(s.recurring.map(r=>[r.id,r]));
- const pending=s.occurrences.filter(o=>inPeriod(o.due_date,month,scope)&&o.status==='pending'&&(!o.transaction_id||!transactions.some(t=>t.id===o.transaction_id))&&recurring.get(o.recurring_transaction_id)?.type==='expense');
- const pendingByCategory=new Map<string,number>();for(const o of pending){const r=recurring.get(o.recurring_transaction_id)!;const key=r.category_id||'';pendingByCategory.set(key,(pendingByCategory.get(key)||0)+toCents(r.amount))}
+ const recurringFor=(o:ReviewSource['occurrences'][number])=>{const r=recurring.get(o.recurring_transaction_id);return r?occurrenceDetails(r,o.details_snapshot):undefined};
+ const pending=s.occurrences.filter(o=>inPeriod(o.due_date,month,scope)&&o.status==='pending'&&(!o.transaction_id||!transactions.some(t=>t.id===o.transaction_id))&&recurringFor(o)?.type==='expense');
+ const pendingByCategory=new Map<string,number>();for(const o of pending){const r=recurringFor(o)!;const key=r.category_id||'';pendingByCategory.set(key,(pendingByCategory.get(key)||0)+toCents(r.amount))}
  const budgetByCategory=new Map<string,number>();for(const r of projection.rows.filter(r=>r.group!=='saving'))budgetByCategory.set(r.category_id,(budgetByCategory.get(r.category_id)||0)+Math.max(0,toCents(r.planned)-toCents(r.actual)));
  const remainingExpenses=[...new Set([...budgetByCategory.keys(),...pendingByCategory.keys()])].reduce((a,key)=>a+Math.max(budgetByCategory.get(key)||0,pendingByCategory.get(key)||0),0)/100;
  const pendingIncome=sum(projection.people,r=>r.pending),remainingSaving=Math.max(0,toCents(projection.savingPlan)-toCents(projection.saving))/100;
@@ -44,7 +46,7 @@ export function buildFinancialDiagnosis(data:DiagnosisData,period:FinancePeriod)
  for(const issue of reviewIssues.filter(i=>['missing-occurrences','payments-unknown','recurring-income-pending','unattributed-income','splits-incomplete'].includes(i.id)))if(!warnings.includes(issue.text))warnings.push(issue.text);
  if(monthly.expected>0&&minimum>monthly.expected)warnings.push('Las cuotas mínimas registradas superan el ingreso mensual esperado. Revisa cómo cubrirlas y si todos los ingresos están confirmados.');
  if(missingMinima)warnings.push(`${missingMinima} deuda(s) con saldo sin cuota mínima registrada; la presión de deuda está incompleta.`);
- const overdue=pending.filter(o=>o.due_date<today),overdueAmount=sum(overdue,o=>recurring.get(o.recurring_transaction_id)!.amount);
+ const overdue=pending.filter(o=>o.due_date<today),overdueAmount=sum(overdue,o=>recurringFor(o)!.amount);
  const ready=!missingPlans&&s.allocations.some(a=>a.month===month&&s.categories.find(c=>c.id===a.category_id)?.budget_group!=='saving');
  const actions:DiagnosisAction[]=[];
  const add=(id:string,title:string,why:string,amount:number|null,target:DiagnosisAction['target'],priority:number)=>actions.push({id,title,why,amount,target,priority});

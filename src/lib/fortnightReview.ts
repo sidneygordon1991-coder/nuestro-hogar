@@ -1,9 +1,10 @@
+import {occurrenceDetails,type OccurrenceDetails} from './recurringDetails';
 import {financePeriodSummary,inPeriod,toCents,type PeriodAllocation,type ShareContext} from './financePeriods';
 import type {IncomePlan,IncomeMember} from './monthlyIncome';
 
 export type ReviewHalf='first'|'second';
 type Movement=Parameters<typeof financePeriodSummary>[7][number]&{description?:string};
-type Occurrence={id:string;recurring_transaction_id:string;due_date:string;status:'pending'|'paid'|'skipped';transaction_id:string|null};
+type Occurrence={id:string;recurring_transaction_id:string;due_date:string;status:'pending'|'paid'|'skipped';transaction_id:string|null;details_snapshot?:OccurrenceDetails};
 type Recurring={id:string;description:string;amount:number|string;type:'income'|'expense';active?:boolean;due_day?:number;created_at?:string};
 export type ReviewSource={members:IncomeMember[];income_plans:IncomePlan[];allocations:PeriodAllocation[];categories:{id:string;name:string;budget_group:string}[];transactions:Movement[];savings:Parameters<typeof financePeriodSummary>[8];splits:Parameters<typeof financePeriodSummary>[9];settings:{split_method:ShareContext['method']}|null;member_settings:{user_id:string;monthly_income:number|string;custom_share_percent:number|string}[];category_settings:{category_id:string;split_method:ShareContext['rules'][string]['split_method'];responsible_user_id?:string}[];category_member_settings:{category_id:string;user_id:string;custom_share_percent:number|string}[];recurring:Recurring[];occurrences:Occurrence[]};
 export type ReviewRecord={household_id:string;month:string;period:ReviewHalf;source_fingerprint:string;snapshot:ReviewSnapshot;notes:string|null;reviewed_by:string|null;reviewed_at:string};
@@ -24,7 +25,7 @@ export function buildFortnightReview(month:string,period:ReviewHalf,source:Revie
  const context:ShareContext={month,members:source.members,plans:source.income_plans,references:refs,method:source.settings?.split_method||'equal',custom,rules:Object.fromEntries(source.category_settings.map(r=>[r.category_id,r])),categoryCustom};
  const summary=financePeriodSummary(month,period,source.members,source.income_plans,refs,source.allocations,source.categories,source.transactions,source.savings,source.splits,context);
  const txs=source.transactions.filter(t=>inPeriod(t.transaction_date,month,period)),memberIds=new Set(source.members.map(m=>m.user_id));
- const payments=source.occurrences.filter(o=>inPeriod(o.due_date,month,period)).map(o=>{const r=source.recurring.find(r=>r.id===o.recurring_transaction_id);return {id:o.id,description:r?.description||'Compromiso sin detalle disponible',amount:Number(r?.amount||0),due_date:o.due_date,type:r?.type||'unknown',status:o.status}});
+ const payments=source.occurrences.filter(o=>inPeriod(o.due_date,month,period)).map(o=>{const template=source.recurring.find(r=>r.id===o.recurring_transaction_id),r=template?occurrenceDetails(template,o.details_snapshot):undefined;return {id:o.id,description:r?.description||'Compromiso sin detalle disponible',amount:Number(r?.amount||0),due_date:o.due_date,type:r?.type||'unknown',status:o.status}});
  const pending=payments.filter(p=>p.status==='pending'&&p.type==='expense');
  const pendingIncome=summary.people.reduce((s,p)=>s+toCents(p.pending),0)/100;
  const issues:ReviewIssue[]=[];
