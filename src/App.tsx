@@ -64,7 +64,8 @@ export default function App(){
  const isMaster=Boolean(session&&masterUserId===session.user.id);
  useEffect(()=>{let live=true;setMasterUserId('');setMasterLoading(true);if(!session){setMasterLoading(false);return}supabase.rpc('get_my_platform_access').then(({data,error})=>{if(live){setMasterUserId(!error&&data===true?session.user.id:'');setMasterLoading(false)}});return()=>{live=false}},[session?.user.id]);
  useEffect(()=>{supabase.auth.getSession().then(({data})=>{setSession(data.session);setLoading(false)});const {data}=supabase.auth.onAuthStateChange((event,s)=>{setSession(s);if(event==='PASSWORD_RECOVERY')setRecovery(true);if(event==='SIGNED_OUT'){setRecovery(false);clearLocalDrafts()}});return()=>data.subscription.unsubscribe()},[]);
- useEffect(()=>{if(session)loadHouseholds();else{setHouseholds([]);setHousehold(null);setAccess(null)}},[session]);
+ // Auth can confirm the same session on focus; membership loading follows account identity.
+ useEffect(()=>{if(session)loadHouseholds();else{setHouseholds([]);setHousehold(null);setAccess(null)}},[session?.user.id]);
  useEffect(()=>{const pop=()=>setTabState(normalizeTab(new URLSearchParams(window.location.search).get('tab')));window.addEventListener('popstate',pop);return()=>window.removeEventListener('popstate',pop)},[]);
  function setTab(next:string){
   const [destination,section]=next.split(':');const normalized=normalizeTab(destination);if(normalized===tab&&!section)return;
