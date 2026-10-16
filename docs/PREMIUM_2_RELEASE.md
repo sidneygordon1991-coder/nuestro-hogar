@@ -2,7 +2,7 @@
 
 ## Estado
 
-Implementada en `feat/nuestro-hogar-2-premium`, sin merge ni despliegue. Producción conserva la versión de origen `f1498322` (PWA v21). La propuesta prepara PWA v22 y una migración opcional de ahorro; no cambia usuarios, sesiones, archivos o registros reales al compilarla o probarla.
+Entrega autorizada para pruebas el 16 de octubre de 2026 (UTC). La migración de ahorro está aplicada en el backend y verificada con su esquema completo. El cliente PWA v22 se publica mediante el PR #1 y el flujo de Pages de `main`; comprobar el resultado del despliegue en GitHub Actions antes de dar por disponible la interfaz. La versión anterior es `f1498322` (PWA v21).
 
 La auditoría y los resultados por fase están en `PREMIUM_2_AUDIT.md`. No se debe presentar esta propuesta como una edición comercial certificada o como una activación ya hecha.
 
@@ -22,7 +22,7 @@ Las pruebas SQL aisladas usan PGlite y roles/helpers sintéticos. Verifican el S
 
 La comprobación de pull requests en `.github/workflows/quality.yml` ejecuta pruebas, build y navegador sin despliegue. `deploy-pages.yml` mantiene su publicación desde `main`. Crear un pull request de esta rama no publica la aplicación.
 
-## Activar retiros, cuando se autorice
+## Activación y comprobaciones
 
 1. Revisar y respaldar esquema/datos y archivos mediante los mecanismos del proyecto autorizado. El ZIP de código no es un respaldo de datos.
 2. Probar `20261016044336_savings_ledger_withdrawals.sql` sobre un backend de prueba compatible, con las políticas, auditoría y restricciones de archivado reales. Verificar edición, eliminación, restauración, usuarios de lectura, hogares ajenos y concurrencia de retiros. No ejecutar indiscriminadamente las migraciones históricas sobre producción o una base vacía.
@@ -45,5 +45,14 @@ Antes de registrar retiros, es posible volver al cliente anterior conservando el
 
 - Los avisos del asesor sobre funciones privilegiadas y extensiones siguen documentados; no se cambian masivamente sin evaluar dependencias y autorización.
 - El reparto personal en Finanzas no equivale a privacidad por movimiento. El aislamiento por hogar y los documentos privados se conservan. Una privacidad financiera por registro necesita diseño y revisión de todas las rutas del servidor, reportes, búsquedas y respaldos.
-- Falta validar la migración con el backend completo y concurrencia real antes de habilitar retiros. Los resultados locales no certifican entrega SMTP/push ni todos los estados posibles de todos los módulos.
+- La integración con el backend completo pasó mediante `supabase/tests/savings_ledger_integration.sql`, con rollback de identidades y hogares sintéticos. Queda una prueba de carga con múltiples conexiones concurrentes y una recuperación completa de archivos/datos; se verificaron el bloqueo de meta, el orden diferido de restauración del libro y la inclusión de negativos en el respaldo. Estos resultados no certifican SMTP/push ni todos los estados posibles de todos los módulos.
 - La PWA mantiene caché de interfaz; no se incorpora una cola general de cambios sin conexión ni sincronización bancaria.
+
+## Evidencia de activación del backend
+
+- Migración aplicada sin reescribir contribuciones existentes; huella del libro sin cambios antes/después.
+- Integración real: aporte y retiro, reintento idéntico, conflicto de solicitud, sobregiro actual y retroactivo, edición/eliminación/movimiento que invalidaría el saldo, inserción directa, precisión y fechas, restauración diferida de filas, respaldo con retiros y ausencia de transacciones bancarias inventadas.
+- Permisos reales: propietario, lector, usuario ajeno, anónimo y hogar archivado. Ningún usuario sintético persistió.
+- RLS, auditoría, integridad de referencias y protección de archivados siguen activos. Las dos RPC nuevas son SECURITY INVOKER y no permiten ejecución anónima.
+- Asesor de seguridad: mismos avisos de base (50 funciones privilegiadas existentes, dos extensiones públicas y una tabla privada con RLS sin políticas). Ninguna función privilegiada nueva.
+- 191 pruebas locales aprobadas. La revisión previa de CI aprobó también los 14 escenarios de navegador.
