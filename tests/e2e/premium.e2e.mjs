@@ -20,11 +20,11 @@ for(const theme of ['light','dark'])test(`all modules, guides, layouts and acces
 });
 
 test('home and Finance agree; future movements remain visible without becoming actual income',async({browser})=>{
- const s=await setup(browser,{rich:true});
+ const s=await setup(browser,{rich:true,futureMovement:true});
  try{
   await ready(s,'');const balance=await s.page.locator('.control-hero-copy h2').innerText();
   await ready(s,'presupuesto');await expect(s.page.locator('.studio-finance-hero h3')).toHaveText(balance);
-  await expect(s.page.locator('.finance-cutoff-note')).toContainText('hasta');
+  await expect(s.page.locator('.finance-cutoff-note')).toContainText('fecha futura');await chooseFinance(s,'Movimientos');await expect(s.page.getByText('Ingreso con fecha futura',{exact:true})).toBeVisible();await expect(s.page.locator('.transaction-row').filter({hasText:'Ingreso con fecha futura'})).toContainText('excluido del balance real');
   await chooseFinance(s,'Ingresos');await expect(s.page.getByRole('heading',{name:'Lo que esperamos recibir'})).toBeVisible();
   await ready(s,'');await expect(s.page.getByRole('group',{name:'Lo siguiente para tu dinero'})).toHaveCount(0);
   await expect(s.page.locator('.home-money-answers')).toBeVisible();
