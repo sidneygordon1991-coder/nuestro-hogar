@@ -52,3 +52,8 @@
  .home-money-answers span {grid-column:1;}
 }
 @media(prefers-reduced-motion:reduce) {.workspace-title *, .home-money-answers * {animation:none!important;transition:none!important;}}
+
+.app.app-studio .goal-footer {flex-wrap:wrap;gap:10px;}
+.app.app-studio .goal-footer>div {display:flex;flex-wrap:wrap;gap:7px;min-width:0;}
+.app.app-studio .goal-footer input {width:110px;flex:1;min-width:80px;}
+.app.app-studio .goal-footer button {min-height:40px;min-width:40px;width:auto;padding:8px 12px;}
