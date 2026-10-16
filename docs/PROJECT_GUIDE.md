@@ -338,7 +338,7 @@ El código contiene los recursos y la estructura para seguir evolucionando la ap
 
 ### Retiros de ahorro: preparados, todavía sin activar
 
-La migración `20261016044336_savings_ledger_withdrawals.sql` conserva los aportes existentes y permite movimientos negativos como retiros. El servidor bloquea por meta, impide sobregiros por fecha y protege también ediciones o eliminaciones de aportes que financian un retiro posterior. Usa funciones con permisos del invocador y reintentos idempotentes.
+La migración `20261016052021_savings_ledger_withdrawals.sql` conserva los aportes existentes y permite movimientos negativos como retiros. El servidor bloquea por meta, impide sobregiros por fecha y protege también ediciones o eliminaciones de aportes que financian un retiro posterior. Usa funciones con permisos del invocador y reintentos idempotentes.
 
 El cliente pregunta si esa capacidad existe antes de mostrar Retirar. Si la migración no se ha aplicado, sigue permitiendo aportes y oculta la nueva opción. El retiro libera ahorro reservado y no crea un ingreso, gasto o transferencia bancaria. Si no existe presupuesto de ahorro positivo, no inventa una obligación de reponer lo retirado.
 

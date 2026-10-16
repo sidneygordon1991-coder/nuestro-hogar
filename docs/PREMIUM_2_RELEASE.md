@@ -25,7 +25,7 @@ La comprobación de pull requests en `.github/workflows/quality.yml` ejecuta pru
 ## Activación y comprobaciones
 
 1. Revisar y respaldar esquema/datos y archivos mediante los mecanismos del proyecto autorizado. El ZIP de código no es un respaldo de datos.
-2. Probar `20261016044336_savings_ledger_withdrawals.sql` sobre un backend de prueba compatible, con las políticas, auditoría y restricciones de archivado reales. Verificar edición, eliminación, restauración, usuarios de lectura, hogares ajenos y concurrencia de retiros. No ejecutar indiscriminadamente las migraciones históricas sobre producción o una base vacía.
+2. Probar `20261016052021_savings_ledger_withdrawals.sql` sobre un backend de prueba compatible, con las políticas, auditoría y restricciones de archivado reales. Verificar edición, eliminación, restauración, usuarios de lectura, hogares ajenos y concurrencia de retiros. No ejecutar indiscriminadamente las migraciones históricas sobre producción o una base vacía.
 3. Confirmar que las contribuciones existentes permanecen positivas, con el mismo autor, fecha, destino e importe. La migración no las reescribe.
 4. Tras aprobación, aplicar la migración revisada al proyecto correcto. La función `get_savings_ledger_capability` permite al cliente detectar la capacidad. Si no está disponible, el cliente conserva aportes y no ofrece retiros.
 5. Publicar el cliente aprobado desde `main`, esperar el despliegue y verificar la actualización PWA v22, correo, master/MFA y permisos con cuentas de prueba autorizadas.
@@ -56,3 +56,5 @@ Antes de registrar retiros, es posible volver al cliente anterior conservando el
 - RLS, auditoría, integridad de referencias y protección de archivados siguen activos. Las dos RPC nuevas son SECURITY INVOKER y no permiten ejecución anónima.
 - Asesor de seguridad: mismos avisos de base (50 funciones privilegiadas existentes, dos extensiones públicas y una tabla privada con RLS sin políticas). Ninguna función privilegiada nueva.
 - 191 pruebas locales aprobadas. La revisión previa de CI aprobó también los 14 escenarios de navegador.
+
+El identificador local `20261016052021` coincide con el registro efectivo del servidor. Sustituye el nombre provisional de la propuesta; no ejecutar ambas versiones ni volver a aplicar la migración ya registrada.
