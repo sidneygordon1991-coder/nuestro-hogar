@@ -1,3 +1,4 @@
+import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import FileBackupPanel from './FileBackupPanel';
 import ModuleIcon from './ModuleIcon';
@@ -157,7 +158,7 @@ export default function BackupCenter({household}:{household:Household}){
  if(loading)return <ModuleLoading/>;
 
  return <section className="backup-center">
-  <div className="backup-top"><div><p className="eyebrow">SEGURIDAD DE DATOS</p><h2 className="page-title">Respaldos y recuperación</h2><p className="muted">Exporta tu información, conserva fotografías completas y recupera eliminaciones accidentales.</p></div><button className="backup-primary" onClick={()=>setShowCreate(true)}><ModuleIcon name="backups"/> Crear respaldo</button></div>
+  <div className="backup-top"><WorkspaceTitle module="backups" eyebrow="SEGURIDAD DE DATOS" title="Respaldos y recuperación" description="Exporta tu información, conserva fotografías completas y recupera eliminaciones accidentales."/><button className="backup-primary" onClick={()=>setShowCreate(true)}><ModuleIcon name="backups"/> Crear respaldo</button></div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
   <div className="backup-kpis">

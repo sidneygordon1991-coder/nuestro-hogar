@@ -1,3 +1,4 @@
+import WorkspaceTitle from './WorkspaceTitle';
 import FinancialDiagnosis from './FinancialDiagnosis';
 import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
@@ -70,7 +71,7 @@ export default function HouseholdHealthCenter({household,canEditFinance,onNaviga
    :'No detectamos vencimientos ni desviaciones críticas en este momento.';
 
  return <section className="household-health-center">
-  <div className="health-top"><div><p className="eyebrow">ESTADO DEL HOGAR</p><h2 className="page-title">Salud del hogar</h2><p className="muted">Finanzas, pendientes y operación del hogar.</p></div><button className="health-refresh" onClick={()=>load(false)}><RefreshCw/> Actualizar</button></div>
+  <div className="health-top"><WorkspaceTitle module="health" eyebrow="ESTADO DEL HOGAR" title="Salud del hogar" description="Finanzas, pendientes y operación del hogar."/><button className="health-refresh" onClick={()=>load(false)}><RefreshCw/> Actualizar</button></div>
 
   {message&&<div className="finance-message">{message}</div>}
 

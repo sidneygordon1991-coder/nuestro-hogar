@@ -1,3 +1,4 @@
+import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import DocumentThumbnail from './DocumentThumbnail';
 import ModuleIcon from './ModuleIcon';
@@ -132,7 +133,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
 
  return <section className="document-vault">
   <div className="document-top">
-   <div><p className="eyebrow">BÓVEDA DEL HOGAR</p><h2 className="page-title">Documentos</h2><p className="muted">Archivos importantes, vencimientos y garantías en un solo lugar privado.</p></div>
+   <WorkspaceTitle module="documents" eyebrow="BÓVEDA DEL HOGAR" title="Documentos" description="Archivos importantes, vencimientos y garantías en un solo lugar privado."/>
    {!readOnly&&<button className="finance-new" onClick={startNew}><Plus/> Documento</button>}
   </div>
 
@@ -146,7 +147,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
 
   <div className="document-toolbar">
    <label className="document-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar por nombre, número, entidad o etiqueta"/></label>
-   <select value={category} onChange={e=>setCategory(e.target.value as any)}><option value="all">Todas las categorías</option>{categories.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select>
+   <select aria-label="Filtrar documentos por categoría" value={category} onChange={e=>setCategory(e.target.value as any)}><option value="all">Todas las categorías</option>{categories.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select>
   </div>
 
   <div className="document-category-strip">

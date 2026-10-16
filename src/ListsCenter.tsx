@@ -1,3 +1,4 @@
+import WorkspaceTitle from './WorkspaceTitle';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
 import {ArrowLeft,CalendarClock,Check,CheckCircle2,ChevronRight,Plus,ShoppingCart,Trash2,X} from 'lucide-react';
@@ -51,9 +52,9 @@ export default function ListsCenter({household,onChanged,readOnly=false}:{househ
 
  async function addItem(e:FormEvent<HTMLFormElement>){
   if(readOnly){setMessage('Modo solo lectura.');return}
-  e.preventDefault();if(!selectedList)return;setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
+  e.preventDefault();if(!selectedList||busy)return;const form=e.currentTarget;setBusy(true);setMessage('');const f=new FormData(form);
   const {error}=await supabase.from('list_items').insert({household_id:household.id,list_id:selectedList.id,text:String(f.get('text')).trim(),quantity:String(f.get('quantity')||'').trim()||null,assigned_to:String(f.get('assigned_to')||'')||null,due_date:String(f.get('due_date')||'')||null,notes:String(f.get('notes')||'').trim()||null,sort_order:selectedItems.length});
-  setBusy(false);if(error){setMessage(error.message);return}(e.currentTarget as HTMLFormElement).reset();await load(false);
+  setBusy(false);if(error){setMessage(error.message);return}form.reset();await load(false);
  }
 
  async function toggleItem(item:ListItem){
@@ -86,12 +87,12 @@ export default function ListsCenter({household,onChanged,readOnly=false}:{househ
  const memberName=(id:string|null)=>members.find(m=>m.user_id===id)?.full_name||'Sin asignar';
 
  if(selectedList)return <section className="lists-v2">
-  <div className="list-detail-head"><button className="icon-button" onClick={()=>setSelected(null)}><ArrowLeft/></button><div><p className="eyebrow">{listTypeLabel(selectedList.list_type)}</p><h2 className="page-title">{selectedList.title}</h2><p className="muted">{pendingCount} pendiente{pendingCount===1?'':'s'} · {selectedItems.length} elemento{selectedItems.length===1?'':'s'}</p></div>{!readOnly&&<button className="icon-button danger" onClick={deleteList}><Trash2/></button>}</div>
+  <div className="list-detail-head"><button className="icon-button" aria-label="Volver a mis listas" onClick={()=>setSelected(null)}><ArrowLeft/></button><div><p className="eyebrow">{listTypeLabel(selectedList.list_type)}</p><h2 className="page-title">{selectedList.title}</h2><p className="muted">{pendingCount} pendiente{pendingCount===1?'':'s'} · {selectedItems.length} elemento{selectedItems.length===1?'':'s'}</p></div>{!readOnly&&<button className="icon-button danger" aria-label="Eliminar lista" onClick={deleteList}><Trash2/></button>}</div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
   {!readOnly&&<form className="list-item-form" onSubmit={addItem}>
-   <div className="list-item-main-input"><input name="text" placeholder={selectedList.list_type==='shopping'?'Ej. Leche, verduras, café':'Agregar pendiente'} required/><input name="quantity" placeholder="Cant."/></div>
-   <div className="list-item-options"><select name="assigned_to" defaultValue=""><option value="">Sin asignar</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select><input name="due_date" type="date" min={today()}/><input name="notes" placeholder="Nota opcional"/><button disabled={busy}><Plus/> Agregar</button></div>
+   <div className="list-item-main-input"><input name="text" aria-label="Nuevo elemento" placeholder={selectedList.list_type==='shopping'?'Ej. Leche, verduras, café':'Agregar pendiente'} required/><input name="quantity" aria-label="Cantidad" placeholder="Cant."/></div>
+   <div className="list-item-options"><select name="assigned_to" aria-label="Responsable" defaultValue=""><option value="">Sin asignar</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select><input name="due_date" aria-label="Fecha del pendiente" type="date" min={today()}/><input name="notes" aria-label="Nota del elemento" placeholder="Nota opcional"/><button disabled={busy}><Plus/> Agregar</button></div>
   </form>}
 
   <div className="list-progress-card"><div><strong>{selectedItems.length?Math.round(selectedItems.filter(i=>i.completed).length/selectedItems.length*100):0}%</strong><span>completado</span></div><div className="progress"><span style={{width:(selectedItems.length?Math.round(selectedItems.filter(i=>i.completed).length/selectedItems.length*100):0)+'%'}}/></div>{!readOnly&&selectedItems.some(i=>i.completed)&&<button onClick={clearCompleted}>Limpiar completados</button>}</div>
@@ -106,7 +107,7 @@ export default function ListsCenter({household,onChanged,readOnly=false}:{househ
  </section>;
 
  return <section className="lists-v2">
-  <div className="finance-top"><div><p className="eyebrow">NUESTRO HOGAR</p><h2 className="page-title">Listas</h2><p className="muted">Compras, tareas y pendientes compartidos en tiempo real.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>setShowNew(true)}><Plus/> Lista</button>}</div>
+  <div className="finance-top"><WorkspaceTitle module="lists" eyebrow="NUESTRO HOGAR" title="Listas" description="Compras, tareas y pendientes compartidos en tiempo real."/>{!readOnly&&<button className="finance-new" onClick={()=>setShowNew(true)}><Plus/> Lista</button>}</div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
   <div className="lists-overview">{lists.map(list=>{const listItems=items.filter(i=>i.list_id===list.id),done=listItems.filter(i=>i.completed).length,progress=listItems.length?Math.round(done/listItems.length*100):0;return <button className="list-card-v2" key={list.id} onClick={()=>setSelected(list.id)}><span className={'list-card-icon '+list.list_type}>{list.list_type==='shopping'?<ShoppingCart/>:list.list_type==='tasks'?<CheckCircle2/>:<ModuleIcon name="lists"/>}</span><div className="list-card-copy"><strong>{list.title}</strong><small>{listItems.length-done} pendientes · {listItems.length} total</small><div className="progress"><span style={{width:progress+'%'}}/></div></div><div className="list-card-progress"><b>{progress}%</b><ChevronRight/></div></button>})}</div>
   {!lists.length&&!busy&&<div className="list-empty-v2"><ModuleIcon name="lists"/><strong>Aún no hay listas</strong><span>{readOnly?'No hay listas compartidas disponibles.':'Crea una lista de compras, tareas o pendientes.'}</span>{!readOnly&&<button onClick={()=>setShowNew(true)}><Plus/> Crear primera lista</button>}</div>}

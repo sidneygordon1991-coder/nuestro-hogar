@@ -2,18 +2,18 @@
 
 PWA familiar construida con React + TypeScript + Supabase.
 
-## Funcional en esta V1
-- Registro e inicio de sesión con Supabase Auth.
-- Crear un hogar o unirse con código de invitación.
-- Dashboard responsive estilo app móvil.
-- Listas compartidas.
-- Calendario familiar.
-- Presupuesto: ingresos, gastos y balance.
-- Área familiar con código de invitación.
-- RLS por hogar en Supabase.
+## Estado y documentación
+
+La rama `feat/nuestro-hogar-2-premium` contiene una propuesta revisable de la versión 2.0. No está desplegada y su migración de retiros no se aplica automáticamente.
+
+- [Guía del proyecto, interfaz y código](docs/PROJECT_GUIDE.md)
+- [Auditoría y resultados por fase](docs/PREMIUM_2_AUDIT.md)
+- [Revisión y activación de la propuesta](docs/PREMIUM_2_RELEASE.md)
+
+La aplicación reúne Inicio, Finanzas (once secciones), Agenda, Familia, Listas, Documentos, Comidas, Mantenimiento, Planeación, Salud del hogar, Cierre mensual, Automatizaciones, Respaldos y Diagnóstico. Incluye acceso por correo verificado, master/MFA, cuotas de archivos, notificaciones y personalización. La PWA y el aislamiento por hogar se conservan.
 
 ## Ejecutar localmente
-1. `npm install`
+1. `npm ci`
 2. Copia `.env.example` a `.env.local` si deseas manejar las variables localmente.
 3. `npm run dev`
 

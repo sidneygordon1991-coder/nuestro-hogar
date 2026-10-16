@@ -1,3 +1,4 @@
+import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
@@ -121,16 +122,16 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
 
  return <section className="monthly-close-center">
   <div className="monthly-close-top">
-   <div><p className="eyebrow">CIERRE MENSUAL</p><h2 className="page-title">Resumen del hogar</h2><p className="muted">Convierte cada mes en una fotografía comparable de finanzas, organización y operación del hogar.</p></div>
+   <WorkspaceTitle module="monthly_close" eyebrow="CIERRE MENSUAL" title="Resumen del hogar" description="Convierte cada mes en una fotografía comparable de finanzas, organización y operación del hogar."/>
    <div className="monthly-close-actions"><button onClick={copySummary}><Copy/> Copiar resumen</button><button onClick={()=>load()}><RefreshCw/> Actualizar</button></div>
   </div>
 
   {message&&<div className="finance-message">{message}</div>}
 
   <div className="monthly-close-period">
-   <button onClick={()=>moveMonth(-1)}><ChevronLeft/></button>
+   <button aria-label="Mes anterior" onClick={()=>moveMonth(-1)}><ChevronLeft/></button>
    <div><small>{closure?'MES CERRADO':isCurrent?'VISTA PREVIA':'PENDIENTE DE CIERRE'}</small><strong>{monthLabel(month)}</strong>{!closure&&isCurrent&&<span>Datos al {shortDate(snapshot.period_end)}</span>}{closure&&<span>Cerrado {new Date(closure.closed_at).toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'}).replace('.','')}</span>}</div>
-   <button onClick={()=>moveMonth(1)} disabled={!canNext}><ChevronRight/></button>
+   <button aria-label="Mes siguiente" onClick={()=>moveMonth(1)} disabled={!canNext}><ChevronRight/></button>
   </div>
 
   <button className="primary compact" disabled={busy} onClick={async()=>{setBusy(true);try{const {downloadMonthlyPdf}=await import('./lib/monthlyPdf');await downloadMonthlyPdf(household.name,snapshot,{reflection:closure?.reflection??reflection,focus:closure?.next_month_focus??focus.filter(Boolean),closed:Boolean(closure)})}catch(error){setMessage(error instanceof Error?error.message:'No se pudo generar el PDF.')}finally{setBusy(false)}}}><Download size={17}/> Descargar resumen PDF</button>
