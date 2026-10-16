@@ -1,3 +1,4 @@
+import WorkspaceTitle from './WorkspaceTitle';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
 import {ArrowLeft,CalendarClock,Check,CheckCircle2,ChevronRight,Plus,ShoppingCart,Trash2,X} from 'lucide-react';
@@ -106,7 +107,7 @@ export default function ListsCenter({household,onChanged,readOnly=false}:{househ
  </section>;
 
  return <section className="lists-v2">
-  <div className="finance-top"><div><p className="eyebrow">NUESTRO HOGAR</p><h2 className="page-title">Listas</h2><p className="muted">Compras, tareas y pendientes compartidos en tiempo real.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>setShowNew(true)}><Plus/> Lista</button>}</div>
+  <div className="finance-top"><WorkspaceTitle module="lists" eyebrow="NUESTRO HOGAR" title="Listas" description="Compras, tareas y pendientes compartidos en tiempo real."/>{!readOnly&&<button className="finance-new" onClick={()=>setShowNew(true)}><Plus/> Lista</button>}</div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
   <div className="lists-overview">{lists.map(list=>{const listItems=items.filter(i=>i.list_id===list.id),done=listItems.filter(i=>i.completed).length,progress=listItems.length?Math.round(done/listItems.length*100):0;return <button className="list-card-v2" key={list.id} onClick={()=>setSelected(list.id)}><span className={'list-card-icon '+list.list_type}>{list.list_type==='shopping'?<ShoppingCart/>:list.list_type==='tasks'?<CheckCircle2/>:<ModuleIcon name="lists"/>}</span><div className="list-card-copy"><strong>{list.title}</strong><small>{listItems.length-done} pendientes · {listItems.length} total</small><div className="progress"><span style={{width:progress+'%'}}/></div></div><div className="list-card-progress"><b>{progress}%</b><ChevronRight/></div></button>})}</div>
   {!lists.length&&!busy&&<div className="list-empty-v2"><ModuleIcon name="lists"/><strong>Aún no hay listas</strong><span>{readOnly?'No hay listas compartidas disponibles.':'Crea una lista de compras, tareas o pendientes.'}</span>{!readOnly&&<button onClick={()=>setShowNew(true)}><Plus/> Crear primera lista</button>}</div>}

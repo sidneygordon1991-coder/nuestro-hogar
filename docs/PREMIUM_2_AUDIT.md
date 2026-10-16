@@ -36,7 +36,7 @@ Las verificaciones de navegador usarán hogares y usuarios ficticios con peticio
 ## Registro de fases
 
 1. Auditoría: línea base y hallazgos documentados; rama creada.
-2. Interfaz: pendiente.
+2. Interfaz: `WorkspaceTitle.tsx`, `lib/moduleGuides.ts`, `refinement.css`, importación en `main.tsx`, cabeceras de los 13 módulos y contrato de temas. Pruebas de esta fase: 166 unitarias y compilación aprobadas. Navegador con datos ficticios: 13 módulos por 2 temas por 4 anchos (320/390/768/1440), ayudas desplegables, sin desbordamientos ni errores JS. Revisión visual de Documentos móvil y Planeación escritorio. No cambió el esquema. La prueba de anchos no implica revisar manualmente cada control.
 3. Finanzas: pendiente.
 4. Diagnóstico: pendiente.
 5. Resto de módulos: pendiente.

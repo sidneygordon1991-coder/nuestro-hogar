@@ -1,3 +1,4 @@
+import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
@@ -121,7 +122,7 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
 
  return <section className="monthly-close-center">
   <div className="monthly-close-top">
-   <div><p className="eyebrow">CIERRE MENSUAL</p><h2 className="page-title">Resumen del hogar</h2><p className="muted">Convierte cada mes en una fotografía comparable de finanzas, organización y operación del hogar.</p></div>
+   <WorkspaceTitle module="monthly_close" eyebrow="CIERRE MENSUAL" title="Resumen del hogar" description="Convierte cada mes en una fotografía comparable de finanzas, organización y operación del hogar."/>
    <div className="monthly-close-actions"><button onClick={copySummary}><Copy/> Copiar resumen</button><button onClick={()=>load()}><RefreshCw/> Actualizar</button></div>
   </div>
 

@@ -1,3 +1,4 @@
+import WorkspaceTitle from './WorkspaceTitle';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
 import {Check,ChevronLeft,ChevronRight,Clock3,Pencil,Plus,ReceiptText,Trash2,X} from 'lucide-react';
@@ -67,7 +68,7 @@ export default function CalendarCenter({household,onChanged,onNavigate,readOnly=
  function shiftMonth(n:number){setSelectedDay(null);setMonth(d=>new Date(d.getFullYear(),d.getMonth()+n,1))}
 
  return <section className="calendar-v2">
-  <div className="finance-top"><div><p className="eyebrow">AGENDA FAMILIAR</p><h2 className="page-title">Calendario</h2><p className="muted">Eventos, tareas, cumpleaños y pagos en un mismo lugar.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>newEvent()}><Plus/> Evento</button>}</div>
+  <div className="finance-top"><WorkspaceTitle module="calendar" eyebrow="AGENDA FAMILIAR" title="Calendario" description="Eventos, tareas, cumpleaños y pagos en un mismo lugar."/>{!readOnly&&<button className="finance-new" onClick={()=>newEvent()}><Plus/> Evento</button>}</div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
   <div className="calendar-layout">

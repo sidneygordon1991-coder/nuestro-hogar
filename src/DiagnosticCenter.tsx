@@ -1,3 +1,4 @@
+import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useState} from 'react';
@@ -103,7 +104,7 @@ export default function DiagnosticCenter({household,onNavigate}:{household:House
 
  return <section className="diagnostic-center">
   <div className="diagnostic-top">
-   <div><p className="eyebrow">CALIDAD Y CONFIABILIDAD</p><h2 className="page-title">Centro de diagnóstico</h2><p className="muted">Verifica integridad de datos, sincronización, PWA, errores de cliente y preparación del dispositivo.</p></div>
+   <WorkspaceTitle module="diagnostics" eyebrow="CALIDAD Y CONFIABILIDAD" title="Centro de diagnóstico" description="Verifica integridad de datos, sincronización, PWA, errores de cliente y preparación del dispositivo."/>
    <div className="diagnostic-actions"><button onClick={runMaintenance} disabled={!!busy}><ModuleIcon name="maintenance"/>{busy==='maintenance'?'Ejecutando...':'Mantenimiento seguro'}</button><button className="primary" onClick={()=>runDiagnostics(false)} disabled={!!busy}><RefreshCw/>{busy==='diagnose'?'Analizando...':'Ejecutar diagnóstico'}</button></div>
   </div>
   {message&&<div className="finance-message">{message}</div>}

@@ -1,3 +1,4 @@
+import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import RecipePhoto from './RecipePhoto';
 import ModuleIcon from './ModuleIcon';
@@ -235,7 +236,7 @@ export default function MealsCenter({household,onNavigate,readOnly=false}:{house
  if(loading)return <ModuleLoading/>;
 
  return <section className="meals-center">
-  <div className="finance-top"><div><p className="eyebrow">COCINA Y HOGAR</p><h2 className="page-title">Comidas</h2><p className="muted">Plan semanal, recetas, despensa y compras conectadas entre sí.</p></div>{!readOnly&&<button className="finance-new" onClick={()=>tab==='planner'?openPlan(today,'dinner'):tab==='recipes'?startRecipe():startPantry()}><Plus/>{tab==='planner'?'Planificar':tab==='recipes'?'Receta':'Producto'}</button>}</div>
+  <div className="finance-top"><WorkspaceTitle module="meals" eyebrow="COCINA Y HOGAR" title="Comidas" description="Plan semanal, recetas, despensa y compras conectadas entre sí."/>{!readOnly&&<button className="finance-new" onClick={()=>tab==='planner'?openPlan(today,'dinner'):tab==='recipes'?startRecipe():startPantry()}><Plus/>{tab==='planner'?'Planificar':tab==='recipes'?'Receta':'Producto'}</button>}</div>
 
   <div className="meals-tabs"><button className={tab==='planner'?'active':''} onClick={()=>setTab('planner')}><ModuleIcon name="calendar"/> Plan semanal</button><button className={tab==='recipes'?'active':''} onClick={()=>setTab('recipes')}><ModuleIcon name="meals"/> Recetas</button><button className={tab==='pantry'?'active':''} onClick={()=>setTab('pantry')}><Package/> Despensa</button></div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
