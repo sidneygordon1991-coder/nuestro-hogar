@@ -183,7 +183,7 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
  },[results]);
 
  return <div className="global-command-center">
-  <button className="global-search-trigger" onClick={openSearch} title="Buscar en Nuestro Hogar"><Search/><span>Buscar</span><kbd>⌘K</kbd></button>
+  <button className="global-search-trigger" aria-label="Buscar en Nuestro Hogar" onClick={openSearch} title="Buscar en Nuestro Hogar"><Search/><span>Buscar</span><kbd>⌘K</kbd></button>
   {hasQuickEdit&&<button className="global-add-trigger" onClick={openQuick} title="Agregar rápido"><Plus/></button>}
 
   {mode&&<><button className="global-command-scrim" onClick={close} aria-label="Cerrar"/><section ref={panel} className={'global-command-panel global-command-panel--'+mode} role="dialog" aria-modal="true" aria-labelledby="global-command-title">

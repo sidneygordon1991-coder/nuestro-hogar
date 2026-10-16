@@ -1,3 +1,4 @@
+import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import AssetIllustration from './AssetIllustration';
@@ -127,7 +128,7 @@ export default function MaintenanceCenter({household,onNavigate,readOnly=false}:
  if(loading)return <ModuleLoading/>;
 
  return <section className="maintenance-center">
-  <div className="finance-top"><WorkspaceTitle module="maintenance" eyebrow="CASA Y VEHÍCULOS" title="Mantenimiento" description="Servicios, reparaciones, seguros, garantías y kilometraje conectados con Agenda, Documentos y Alertas."/>{!readOnly&&<button className="finance-new" onClick={()=>startSchedule()}><Plus/> Plan</button>}</div>
+  <WorkspaceHeading className="finance-top"><WorkspaceTitle module="maintenance" eyebrow="CASA Y VEHÍCULOS" title="Mantenimiento" description="Servicios, reparaciones, seguros, garantías y kilometraje conectados con Agenda, Documentos y Alertas."/>{!readOnly&&<button className="finance-new" onClick={()=>startSchedule()}><Plus/> Plan</button>}</WorkspaceHeading>
 
   <div className="maintenance-tabs"><button className={tab==='summary'?'active':''} onClick={()=>setTab('summary')}><ModuleIcon name="home"/> Resumen</button><button className={tab==='assets'?'active':''} onClick={()=>setTab('assets')}><Car/> Activos</button><button className={tab==='plans'?'active':''} onClick={()=>setTab('plans')}><ModuleIcon name="maintenance"/> Planes</button><button className={tab==='history'?'active':''} onClick={()=>setTab('history')}><History/> Historial</button></div>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}

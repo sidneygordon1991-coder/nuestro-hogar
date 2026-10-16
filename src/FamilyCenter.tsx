@@ -1,3 +1,4 @@
+import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
@@ -132,7 +133,7 @@ export default function FamilyCenter({household,onChanged,onHouseholdRenamed}:{h
  }
 
  return <section className="family-v3">
-  <div className="finance-top"><WorkspaceTitle module="family" eyebrow="MODO FAMILIA" title="Mi familia" description="Roles, responsabilidades, permisos y trazabilidad de lo que cambia en el hogar."/>{me&&<button className="finance-new" onClick={()=>setEditing(true)}><UserRound/> Mi perfil</button>}</div>
+  <WorkspaceHeading className="finance-top"><WorkspaceTitle module="family" eyebrow="MODO FAMILIA" title="Mi familia" description="Roles, responsabilidades, permisos y trazabilidad de lo que cambia en el hogar."/>{me&&<button className="finance-new" onClick={()=>setEditing(true)}><UserRound/> Mi perfil</button>}</WorkspaceHeading>
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
   <section className="family-access-panel"><div className="family-section-head"><div><p className="eyebrow">CONFIGURACIÓN</p><h3>Nombre de la familia</h3><p>{household.name}</p></div>{myAccess.can_manage_members&&<button className="member-edit" onClick={()=>setRenamingHousehold(true)}>Editar nombre</button>}</div></section>

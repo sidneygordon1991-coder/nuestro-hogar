@@ -1,3 +1,4 @@
+import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import DocumentThumbnail from './DocumentThumbnail';
@@ -132,10 +133,10 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
  if(loading)return <ModuleLoading/>;
 
  return <section className="document-vault">
-  <div className="document-top">
+  <WorkspaceHeading className="document-top">
    <WorkspaceTitle module="documents" eyebrow="BÓVEDA DEL HOGAR" title="Documentos" description="Archivos importantes, vencimientos y garantías en un solo lugar privado."/>
    {!readOnly&&<button className="finance-new" onClick={startNew}><Plus/> Documento</button>}
-  </div>
+  </WorkspaceHeading>
 
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
