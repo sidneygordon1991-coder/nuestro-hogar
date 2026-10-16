@@ -6,3 +6,5 @@
 .lists-v2 .list-detail-head{grid-template-columns:38px minmax(0,1fr) auto}.lists-v2 .list-detail-head>div:not(.list-head-actions){min-width:0}.lists-v2 .list-item-v2{grid-template-columns:36px minmax(0,1fr) auto}.list-row-actions svg{width:16px;height:16px}.list-head-actions .icon-button{flex-shrink:0}
 
 .weekly-shopping-actions>button{margin:0;font-size:14px;line-height:1.4}
+
+.list-item-submit{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:42px;background:var(--nh-action);color:var(--nh-on-action);border:0;border-radius:12px;font-weight:700;margin:9px 0}.list-item-submit svg{width:16px;height:16px}.list-options-details>summary{cursor:pointer;font-size:12px;color:var(--nh-muted);padding:8px 0}.lists-v2 .list-item-options{grid-template-columns:repeat(3,minmax(0,1fr))}.app:has(.list-item-form) .pwa-install{display:none}@media(max-width:600px){.lists-v2 .list-item-options{grid-template-columns:minmax(0,1fr)}}

@@ -61,8 +61,8 @@ export default function ListsCenter({household,onChanged,readOnly=false}:{househ
  async function addItem(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(!selectedList)return;const form=e.currentTarget;
   try{const payload=fields(new FormData(form),selectedList.list_type==='shopping'?'none':newFrequency);
-   await mutate(()=>supabase.from('list_items').insert({...payload,household_id:household.id,list_id:selectedList.id,sort_order:selectedItems.length}),()=>{form.reset();setNewFrequency('none')});
-  }catch(e:any){setMessage(e.message)}
+   await mutate(()=>supabase.from('list_items').insert({...payload,household_id:household.id,list_id:selectedList.id,sort_order:selectedItems.length}),()=>{form.reset();const options=form.querySelector('details');if(options)options.open=false;setNewFrequency('none')});
+  }catch(e:any){setMessage(e.message);const options=form.querySelector('details');if(options)options.open=true}
  }
  async function saveItem(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(!editingItem)return;
@@ -83,10 +83,11 @@ export default function ListsCenter({household,onChanged,readOnly=false}:{househ
   {selectedList?<>
    <div className="list-detail-head"><button className="icon-button" aria-label="Volver a mis listas" onClick={()=>{setSelected(null);setNewFrequency('none')}}><ArrowLeft/></button><div><p className="eyebrow">{listTypeLabel(selectedList.list_type)}</p><h2 className="page-title">{selectedList.title}</h2><p className="muted">{pendingCount} pendiente{pendingCount===1?'':'s'} · {selectedItems.length} elemento{selectedItems.length===1?'':'s'}</p></div>{!readOnly&&<div className="list-head-actions"><button className="icon-button" disabled={busy} aria-label="Editar nombre de lista" onClick={()=>setEditingList(selectedList)}><Pencil/></button><button className="icon-button danger" disabled={busy} aria-label="Eliminar lista" onClick={deleteList}><Trash2/></button></div>}</div>
    {notice}
-   {!readOnly&&<form className="list-item-form" onSubmit={addItem}>
+   {!readOnly&&<form className="list-item-form" noValidate onSubmit={addItem}>
     <div className="list-item-main-input"><input name="text" aria-label="Nuevo elemento" placeholder={selectedList.list_type==='shopping'?'Ej. Leche, verduras, café':'Agregar pendiente'} maxLength={500} required/><input name="quantity" aria-label="Cantidad" placeholder="Cant." maxLength={100}/></div>
-    <div className="list-item-options"><select name="assigned_to" aria-label="Responsable" defaultValue=""><option value="">Sin asignar</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select><input name="due_date" aria-label="Fecha del pendiente" type="date" required={newFrequency!=='none'}/><input name="notes" aria-label="Nota del elemento" placeholder="Nota opcional" maxLength={2000}/><button disabled={busy}><Plus/> Agregar</button></div>
-    {selectedList.list_type!=='shopping'&&<RoutineFields frequency={newFrequency} setFrequency={setNewFrequency} members={members}/>}
+    <button className="list-item-submit" disabled={busy}><Plus/> Agregar</button>
+    <details className="list-options-details"><summary>Responsable, fecha y opciones</summary><div className="list-item-options"><select name="assigned_to" aria-label="Responsable" defaultValue=""><option value="">Sin asignar</option>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select><input name="due_date" aria-label="Fecha del pendiente" type="date" required={newFrequency!=='none'}/><input name="notes" aria-label="Nota del elemento" placeholder="Nota opcional" maxLength={2000}/></div>
+    {selectedList.list_type!=='shopping'&&<RoutineFields frequency={newFrequency} setFrequency={setNewFrequency} members={members}/>}</details>
    </form>}
    {selectedList.shopping_week&&<p className="daily-agenda-caption">Lista del menú semanal. Al sincronizar desde Comidas, solo se recalculan las cantidades automáticas pendientes. Se conservan los elementos manuales y las compras completadas.</p>}
    <div className="list-progress-card"><div><strong>{selectedItems.length?Math.round((selectedItems.length-pendingCount)/selectedItems.length*100):0}%</strong><span>completado</span></div><div className="progress"><span style={{width:(selectedItems.length?Math.round((selectedItems.length-pendingCount)/selectedItems.length*100):0)+'%'}}/></div>{!readOnly&&selectedItems.some(i=>i.completed)&&<button disabled={busy} onClick={()=>{if(window.confirm('¿Eliminar los elementos completados? Las próximas tareas de las rutinas se conservan.'))mutate(()=>supabase.from('list_items').delete().eq('list_id',selectedList.id).eq('household_id',household.id).eq('completed',true))}}>Limpiar completados</button>}</div>
