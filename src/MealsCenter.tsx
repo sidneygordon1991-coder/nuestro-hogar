@@ -1,3 +1,4 @@
+import WeeklyShoppingDialog from './WeeklyShoppingDialog';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import RecipePhoto from './RecipePhoto';
@@ -46,7 +47,8 @@ const pantryCategoryLabel=(id:PantryCategory)=>pantryCategories.find(x=>x.id===i
 const pantryLocationLabel=(id:PantryLocation)=>pantryLocations.find(x=>x.id===id)?.label||'Otro';
 const mealTypeLabel=(id:MealType)=>mealTypes.find(x=>x.id===id)?.label||'Comida';
 
-export default function MealsCenter({household,onNavigate,readOnly=false}:{household:Household;onNavigate?:(tab:string)=>void;readOnly?:boolean}){
+export default function MealsCenter({household,onNavigate,readOnly=false,canManageShopping=false}:{household:Household;onNavigate?:(tab:string)=>void;readOnly?:boolean;canManageShopping?:boolean}){
+ const [shoppingOpen,setShoppingOpen]=useState(false);
  const [tab,setTab]=useState<'planner'|'recipes'|'pantry'>('planner');
  const [week,setWeek]=useState(()=>startOfWeek(new Date()));
  const [pantry,setPantry]=useState<PantryItem[]>([]),[recipes,setRecipes]=useState<Recipe[]>([]),[ingredients,setIngredients]=useState<Ingredient[]>([]),[meals,setMeals]=useState<MealPlan[]>([]);
@@ -242,6 +244,7 @@ export default function MealsCenter({household,onNavigate,readOnly=false}:{house
   {message&&<div className="finance-message">{message}<button onClick={()=>setMessage('')}><X size={15}/></button></div>}
 
   {tab==='planner'&&<>
+   <div className="weekly-shopping-launch"><div><strong>Una compra para toda la semana</strong><small>Ingredientes consolidados, con las porciones y la despensa de tu hogar.</small></div><button onClick={()=>setShoppingOpen(true)}><ShoppingCart size={18}/> Preparar compra semanal</button></div>
    <div className="meal-week-head"><button aria-label="Semana anterior" onClick={()=>setWeek(w=>addDays(w,-7))}><ChevronLeft/></button><div><small>SEMANA</small><strong>{fmtDate(iso(week))} — {fmtDate(iso(addDays(week,6)))}</strong></div><button aria-label="Semana siguiente" onClick={()=>setWeek(w=>addDays(w,7))}><ChevronRight/></button></div>
    <div className="meal-overview-kpis"><div><span><ModuleIcon name="calendar"/></span><small>Comidas planificadas</small><strong>{meals.filter(m=>m.status==='planned').length}</strong></div><div><span><CheckCircle2/></span><small>Preparadas</small><strong>{meals.filter(m=>m.status==='prepared').length}</strong></div><div><span><ShoppingCart/></span><small>Stock bajo</small><strong>{lowStock.length}</strong></div><div><span><Clock3/></span><small>Vencen en 7 días</small><strong>{expiringSoon.length}</strong></div></div>
 
@@ -266,6 +269,7 @@ export default function MealsCenter({household,onNavigate,readOnly=false}:{house
    {!pantryFiltered.length&&<div className="document-empty"><Package/><strong>{pantry.length?'No encontramos productos':'Despensa vacía'}</strong><span>{pantry.length?'Prueba con otra búsqueda.':'Registra lo que ya tienen en casa para evitar compras duplicadas.'}</span>{!pantry.length&&!readOnly&&<button onClick={()=>startPantry()}><Plus/> Agregar primer producto</button>}</div>}
   </>}
 
+  {shoppingOpen&&<WeeklyShoppingDialog key={household.id+iso(week)} householdId={household.id} week={iso(week)} canSave={canManageShopping} onClose={()=>setShoppingOpen(false)} onOpenLists={onNavigate?()=>onNavigate('listas'):undefined}/>}
   {showPantryForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closePantry()}}><div className="finance-modal"><div className="modal-head"><h3>{editingPantry?'Editar producto':'Nuevo producto'}</h3><button onClick={closePantry}><X/></button></div><form className="finance-form" onSubmit={savePantry}>
    <label>Producto<input name="name" defaultValue={editingPantry?.name||''} placeholder="Ej. Arroz" required/></label>
    <div className="two"><label>Categoría<select name="category" defaultValue={editingPantry?.category||'other'}>{pantryCategories.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label><label>Ubicación<select name="location" defaultValue={editingPantry?.location||'pantry'}>{pantryLocations.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label></div>
