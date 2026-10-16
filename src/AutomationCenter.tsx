@@ -1,3 +1,4 @@
+import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
@@ -92,7 +93,7 @@ export default function AutomationCenter({household,onNavigate,readOnly=false}:{
  if(loading)return <ModuleLoading/>;
 
  return <section className="automation-center">
-  <div className="automation-top"><WorkspaceTitle module="automations" eyebrow="AUTOMATIZACIONES" title="Reglas del hogar" description="Decide qué debe vigilar Nuestro Hogar y qué acciones puede ejecutar automáticamente."/>{!readOnly&&<button className="automation-run" onClick={runNow} disabled={running}><Play/>{running?'Evaluando...':'Ejecutar ahora'}</button>}</div>
+  <WorkspaceHeading className="automation-top"><WorkspaceTitle module="automations" eyebrow="AUTOMATIZACIONES" title="Reglas del hogar" description="Decide qué debe vigilar Nuestro Hogar y qué acciones puede ejecutar automáticamente."/>{!readOnly&&<button className="automation-run" onClick={runNow} disabled={running}><Play/>{running?'Evaluando...':'Ejecutar ahora'}</button>}</WorkspaceHeading>
 
   {message&&<div className="finance-message">{message}</div>}
 

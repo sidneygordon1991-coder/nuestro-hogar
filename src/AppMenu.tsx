@@ -1,7 +1,7 @@
 import {useFocusTrap} from './lib/useFocusTrap';
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {ChevronRight,Download,Monitor,Menu,Moon,Settings2,ShieldCheck,Sun,X} from 'lucide-react';
+import {ChevronRight,Download,Monitor,Menu,Moon,Palette,Settings2,ShieldCheck,Sun,X} from 'lucide-react';
 
 type AccessLevel='none'|'view'|'edit';
 type Theme='system'|'dark'|'light';
@@ -32,7 +32,7 @@ const groups:{label:string;items:Item[]}[]=[
  ]}
 ];
 
-export default function AppMenu({currentTab,access,onNavigate,isMaster=false}:{currentTab:string;access:Record<string,AccessLevel>;onNavigate:(tab:string)=>void;isMaster?:boolean}){
+export default function AppMenu({currentTab,access,onNavigate,onPersonalize,isMaster=false}:{currentTab:string;access:Record<string,AccessLevel>;onNavigate:(tab:string)=>void;isMaster?:boolean;onPersonalize?:()=>void}){
  const [open,setOpen]=useState(false),[theme,setTheme]=useState<Theme>(()=>readThemePreference());
  const panel=useRef<HTMLElement>(null);useFocusTrap(panel,open,()=>setOpen(false));
  const available=useMemo(()=>groups.map(group=>group.label==='Administración'&&isMaster?{...group,items:[...group.items,{tab:'master',label:'Panel master',description:'Familias y almacenamiento',icon:<ShieldCheck/>} as Item]}:group).map(group=>({...group,items:group.items.filter(item=>!item.module||access[item.module]!=='none')})).filter(group=>group.items.length),[access,isMaster]);
@@ -62,7 +62,7 @@ export default function AppMenu({currentTab,access,onNavigate,isMaster=false}:{c
    <aside ref={panel} className="app-menu-drawer" role="dialog" aria-modal="true" aria-label="Navegación de Nuestro Hogar">
     <div className="app-menu-head"><div><p className="eyebrow">NUESTRO HOGAR</p><h2>Todo en un lugar</h2></div><button onClick={()=>setOpen(false)} aria-label="Cerrar"><X/></button></div>
     <div className="app-menu-groups">{available.map(group=><section key={group.label}><small>{group.label}</small><div>{group.items.map(item=><button key={item.tab} className={currentTab===item.tab?'active':''} onClick={()=>go(item.tab)}><span>{item.icon}</span><div><strong>{item.label}</strong><em>{item.description}</em></div><ChevronRight/></button>)}</div></section>)}</div>
-    <section className="app-menu-theme"><div><span><Settings2/></span><div><strong>Apariencia</strong><small>Se guarda en este dispositivo</small></div></div><div className="theme-segment"><button className={theme==='system'?'active':''} onClick={()=>chooseTheme('system')}><Monitor/>Auto</button><button className={theme==='dark'?'active':''} onClick={()=>chooseTheme('dark')}><Moon/>Oscuro</button><button className={theme==='light'?'active':''} onClick={()=>chooseTheme('light')}><Sun/>Claro</button></div></section><button className="menu-install-action" onClick={()=>{setOpen(false);window.dispatchEvent(new CustomEvent('nh:install-help'))}}><Download size={17}/> Instalar Nuestro Hogar</button>
+    {onPersonalize&&<button className="menu-install-action" onClick={()=>{setOpen(false);onPersonalize()}}><Palette size={17}/> Personalizar mi espacio</button>}<section className="app-menu-theme"><div><span><Settings2/></span><div><strong>Apariencia</strong><small>Se guarda en este dispositivo</small></div></div><div className="theme-segment"><button className={theme==='system'?'active':''} onClick={()=>chooseTheme('system')}><Monitor/>Auto</button><button className={theme==='dark'?'active':''} onClick={()=>chooseTheme('dark')}><Moon/>Oscuro</button><button className={theme==='light'?'active':''} onClick={()=>chooseTheme('light')}><Sun/>Claro</button></div></section><button className="menu-install-action" onClick={()=>{setOpen(false);window.dispatchEvent(new CustomEvent('nh:install-help'))}}><Download size={17}/> Instalar Nuestro Hogar</button>
    </aside>
   </>}
  </>;

@@ -1,3 +1,4 @@
+import WorkspaceHeading from './WorkspaceHeading';
 import BudgetCategoryProgress from './BudgetCategoryProgress';
 import SavingsEntryDialog from './SavingsEntryDialog';
 import {buildCashFlow} from './lib/cashFlow';
@@ -548,10 +549,10 @@ export default function Finance({household,readOnly=false}:{household:Household;
  if(loading)return <ModuleLoading/>;
 
  return <section className={'finance-v2 '+(readOnly?'read-only':'')}>
-  <div className="finance-top">
+  <WorkspaceHeading className="finance-top">
    <WorkspaceTitle module="finance" eyebrow="FINANZAS DEL HOGAR" title="Finanzas" description="Tu dinero, a tu manera: individual, en pareja o en familia."/>
    {!readOnly&&<button className="finance-new" onClick={()=>setShowTxForm(true)}><Plus size={18}/> Movimiento</button>}
-  </div>
+  </WorkspaceHeading>
 
   <div className="month-switch"><button aria-label="Mes anterior" onClick={()=>moveMonth(-1)}><ArrowLeft size={18}/></button><strong>{monthLabel(month)}</strong><button aria-label="Mes siguiente" onClick={()=>moveMonth(1)}><ArrowRight size={18}/></button></div>
 

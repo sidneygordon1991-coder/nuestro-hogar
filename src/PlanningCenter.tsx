@@ -1,3 +1,4 @@
+import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
@@ -132,7 +133,7 @@ export default function PlanningCenter({household,onNavigate,readOnly=false}:{ho
  const summary=plan?.summary||{active:0,at_risk:0,due_soon:0,completed:0,monthly_required:0};
 
  return <section className="planning-center">
-  <div className="planning-top"><WorkspaceTitle module="planning" eyebrow="PLANEACIÓN DEL HOGAR" title="Roadmap de objetivos" description="Convierte metas de 1, 3, 6 y 12 meses en pasos, fechas y montos concretos."/>{!readOnly&&<button className="planning-new" onClick={()=>startGoal()}><Plus/> Nuevo objetivo</button>}</div>
+  <WorkspaceHeading className="planning-top"><WorkspaceTitle module="planning" eyebrow="PLANEACIÓN DEL HOGAR" title="Roadmap de objetivos" description="Convierte metas de 1, 3, 6 y 12 meses en pasos, fechas y montos concretos."/>{!readOnly&&<button className="planning-new" onClick={()=>startGoal()}><Plus/> Nuevo objetivo</button>}</WorkspaceHeading>
   {message&&<div className="finance-message">{message}</div>}
 
   <div className="planning-kpis">

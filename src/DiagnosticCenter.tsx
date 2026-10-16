@@ -1,3 +1,4 @@
+import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
@@ -103,10 +104,10 @@ export default function DiagnosticCenter({household,onNavigate}:{household:House
  if(!result)return <section className="diagnostic-center"><div className="document-empty"><ModuleIcon name="diagnostics"/><strong>No pudimos ejecutar el diagnóstico</strong><span>{message||'Intenta nuevamente.'}</span><button onClick={()=>runDiagnostics(true)}><RefreshCw/> Reintentar</button></div></section>;
 
  return <section className="diagnostic-center">
-  <div className="diagnostic-top">
+  <WorkspaceHeading className="diagnostic-top">
    <WorkspaceTitle module="diagnostics" eyebrow="CALIDAD Y CONFIABILIDAD" title="Centro de diagnóstico" description="Verifica integridad de datos, sincronización, PWA, errores de cliente y preparación del dispositivo."/>
    <div className="diagnostic-actions"><button onClick={runMaintenance} disabled={!!busy}><ModuleIcon name="maintenance"/>{busy==='maintenance'?'Ejecutando...':'Mantenimiento seguro'}</button><button className="primary" onClick={()=>runDiagnostics(false)} disabled={!!busy}><RefreshCw/>{busy==='diagnose'?'Analizando...':'Ejecutar diagnóstico'}</button></div>
-  </div>
+  </WorkspaceHeading>
   {message&&<div className="finance-message">{message}</div>}
 
   <section className={'diagnostic-hero '+result.status}>

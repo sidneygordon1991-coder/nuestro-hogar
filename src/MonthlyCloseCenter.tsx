@@ -1,3 +1,4 @@
+import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
@@ -121,10 +122,10 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
  const statusCopy=snapshot.status==='excellent'?'Un mes muy sólido. Mantengan las decisiones que están funcionando.':snapshot.status==='good'?'El mes terminó bien, con algunos puntos concretos para optimizar.':snapshot.status==='watch'?'El mes deja oportunidades claras de ajuste para el siguiente período.':'Conviene priorizar las acciones señaladas antes de asumir nuevos compromisos.';
 
  return <section className="monthly-close-center">
-  <div className="monthly-close-top">
+  <WorkspaceHeading className="monthly-close-top">
    <WorkspaceTitle module="monthly_close" eyebrow="CIERRE MENSUAL" title="Resumen del hogar" description="Convierte cada mes en una fotografía comparable de finanzas, organización y operación del hogar."/>
    <div className="monthly-close-actions"><button onClick={copySummary}><Copy/> Copiar resumen</button><button onClick={()=>load()}><RefreshCw/> Actualizar</button></div>
-  </div>
+  </WorkspaceHeading>
 
   {message&&<div className="finance-message">{message}</div>}
 
