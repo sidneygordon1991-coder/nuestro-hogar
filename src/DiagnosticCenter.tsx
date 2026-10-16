@@ -42,9 +42,9 @@ export default function DiagnosticCenter({household,onNavigate}:{household:House
    notifications:'Notification'in window?Notification.permission:'unsupported'} as DeviceState;
   try{
    if('serviceWorker'in navigator){
-    const registration=await navigator.serviceWorker.ready;
+    const registration=await navigator.serviceWorker.getRegistration(import.meta.env.BASE_URL);
     next.serviceWorkerControlled=!!navigator.serviceWorker.controller;
-    next.pushActive=!!(await registration.pushManager?.getSubscription());
+    next.pushActive=!!(await registration?.pushManager?.getSubscription());
    }
   }catch{}
   try{

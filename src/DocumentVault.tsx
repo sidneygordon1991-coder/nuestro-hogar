@@ -147,7 +147,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
 
   <div className="document-toolbar">
    <label className="document-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar por nombre, número, entidad o etiqueta"/></label>
-   <select value={category} onChange={e=>setCategory(e.target.value as any)}><option value="all">Todas las categorías</option>{categories.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select>
+   <select aria-label="Filtrar documentos por categoría" value={category} onChange={e=>setCategory(e.target.value as any)}><option value="all">Todas las categorías</option>{categories.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select>
   </div>
 
   <div className="document-category-strip">

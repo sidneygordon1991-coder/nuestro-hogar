@@ -1,3 +1,4 @@
+import {useFocusTrap} from './lib/useFocusTrap';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowDownLeft,ArrowUpRight,Car,Check,Package,Plus,ReceiptText,Search,ShoppingCart,X} from 'lucide-react';
@@ -23,7 +24,8 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
  const [query,setQuery]=useState(''),[results,setResults]=useState<SearchResult[]>([]),[searching,setSearching]=useState(false);
  const [categories,setCategories]=useState<Category[]>([]),[accounts,setAccounts]=useState<Account[]>([]),[lists,setLists]=useState<ListRow[]>([]),[assets,setAssets]=useState<Asset[]>([]),[members,setMembers]=useState<Member[]>([]),[userId,setUserId]=useState('');
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
- const searchInput=useRef<HTMLInputElement|null>(null);
+ const searchInput=useRef<HTMLInputElement|null>(null),panel=useRef<HTMLElement>(null);
+ useFocusTrap(panel,Boolean(mode),close);
 
  useEffect(()=>{
   const key=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openSearch()}};
@@ -184,7 +186,7 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
   <button className="global-search-trigger" onClick={openSearch} title="Buscar en Nuestro Hogar"><Search/><span>Buscar</span><kbd>⌘K</kbd></button>
   {hasQuickEdit&&<button className="global-add-trigger" onClick={openQuick} title="Agregar rápido"><Plus/></button>}
 
-  {mode&&<><button className="global-command-scrim" onClick={close} aria-label="Cerrar"/><section className={'global-command-panel global-command-panel--'+mode} role="dialog" aria-modal="true" aria-labelledby="global-command-title">
+  {mode&&<><button className="global-command-scrim" onClick={close} aria-label="Cerrar"/><section ref={panel} className={'global-command-panel global-command-panel--'+mode} role="dialog" aria-modal="true" aria-labelledby="global-command-title">
    <div className="global-command-head">
     <div><p className="eyebrow">{mode==='search'?'BUSCADOR GLOBAL':'AGREGAR RÁPIDO'}</p><h3 id="global-command-title">{mode==='search'?'Encuentra cualquier cosa':'¿Qué quieres registrar?'}</h3></div>
     <button onClick={close} aria-label="Cerrar ventana"><X/></button>
