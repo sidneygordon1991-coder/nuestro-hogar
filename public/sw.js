@@ -1,4 +1,4 @@
-const CACHE='nuestro-hogar-v26';
+const CACHE='nuestro-hogar-v27';
 const BASE='/nuestro-hogar/';
 const SHELL=[BASE,BASE+'manifest.webmanifest',BASE+'icon.svg',BASE+'icon-192.png',BASE+'icon-512.png',BASE+'icon-premium.svg',BASE+'icon-premium-192.png',BASE+'icon-premium-512.png',BASE+'icon-premium-maskable-512.png',BASE+'apple-touch-icon-premium.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)))});
