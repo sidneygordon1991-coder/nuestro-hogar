@@ -1,5 +1,5 @@
 import type {SupabaseClient} from '@supabase/supabase-js';
-export type PlatformFamily={id:string;name:string;status:'active'|'archived';quota_bytes:number;used_bytes:number;members:number;member_limit:number;movements:number;files:number;created_at:string};
+export type PlatformFamily={id:string;name:string;status:'active'|'archived';quota_bytes:number;used_bytes:number;members:number;member_limit:number;movements:number;files:number;latest_backup_at?:string|null;open_errors_7d?:number;created_at:string};
 export type PlatformMember={user_id:string;name:string|null;email:string;role:string};
 export type PlatformAudit={id:number;action:string;detail:{reason?:string;status?:string;role?:string};created_at:string;household_name:string|null;actor_name:string|null};
 export type PlatformOverview={plan:string;database_bytes:number;database_limit_bytes:number;storage_bytes:number;allocated_bytes:number;storage_limit_bytes:number;households:PlatformFamily[];audit:PlatformAudit[]};

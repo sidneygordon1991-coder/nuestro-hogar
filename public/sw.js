@@ -1,6 +1,6 @@
-const CACHE='nuestro-hogar-v25';
+const CACHE='nuestro-hogar-v26';
 const BASE='/nuestro-hogar/';
-const SHELL=[BASE,BASE+'manifest.webmanifest',BASE+'icon.svg',BASE+'icon-192.png',BASE+'icon-512.png'];
+const SHELL=[BASE,BASE+'manifest.webmanifest',BASE+'icon.svg',BASE+'icon-192.png',BASE+'icon-512.png',BASE+'icon-premium.svg',BASE+'icon-premium-192.png',BASE+'icon-premium-512.png',BASE+'icon-premium-maskable-512.png',BASE+'apple-touch-icon-premium.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{
@@ -25,7 +25,7 @@ self.addEventListener('push',event=>{
  const title=data.title||'Nuestro Hogar';
  const options={
   body:data.body||'',
-  icon:data.icon||BASE+'icon-192.png',
+  icon:data.icon||BASE+'icon-premium-192.png',
   badge:data.badge||BASE+'icon-192.png',
   tag:data.tag||'nuestro-hogar',
   data:data.data||{url:BASE},

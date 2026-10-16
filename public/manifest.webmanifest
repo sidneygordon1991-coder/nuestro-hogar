@@ -10,25 +10,25 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/nuestro-hogar/icon-192.png",
+      "src": "/nuestro-hogar/icon-premium-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/nuestro-hogar/icon-512.png",
+      "src": "/nuestro-hogar/icon-premium-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/nuestro-hogar/icon-512.png",
+      "src": "/nuestro-hogar/icon-premium-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/nuestro-hogar/icon.svg",
+      "src": "/nuestro-hogar/icon-premium.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
@@ -41,7 +41,7 @@
       "url": "/nuestro-hogar/?tab=presupuesto",
       "icons": [
         {
-          "src": "/nuestro-hogar/icon-192.png",
+          "src": "/nuestro-hogar/icon-premium-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -53,7 +53,7 @@
       "url": "/nuestro-hogar/?tab=calendario",
       "icons": [
         {
-          "src": "/nuestro-hogar/icon-192.png",
+          "src": "/nuestro-hogar/icon-premium-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -65,11 +65,12 @@
       "url": "/nuestro-hogar/?quick=1",
       "icons": [
         {
-          "src": "/nuestro-hogar/icon-192.png",
+          "src": "/nuestro-hogar/icon-premium-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
       ]
     }
-  ]
+  ],
+  "id": "/nuestro-hogar/"
 }

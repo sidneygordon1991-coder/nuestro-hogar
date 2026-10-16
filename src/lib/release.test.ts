@@ -15,16 +15,17 @@ describe('commercial release safeguards',()=>{
   it('ships installable raster icons with a maskable option',()=>{
     const manifest=JSON.parse(manifestRaw);
     expect(manifest.icons).toEqual(expect.arrayContaining([
-      expect.objectContaining({src:'/nuestro-hogar/icon-192.png',sizes:'192x192',type:'image/png'}),
-      expect.objectContaining({src:'/nuestro-hogar/icon-512.png',sizes:'512x512',type:'image/png',purpose:'any'}),
-      expect.objectContaining({src:'/nuestro-hogar/icon-512.png',sizes:'512x512',type:'image/png',purpose:'maskable'})
+      expect.objectContaining({src:'/nuestro-hogar/icon-premium-192.png',sizes:'192x192',type:'image/png'}),
+      expect.objectContaining({src:'/nuestro-hogar/icon-premium-512.png',sizes:'512x512',type:'image/png',purpose:'any'}),
+      expect.objectContaining({src:'/nuestro-hogar/icon-premium-maskable-512.png',sizes:'512x512',type:'image/png',purpose:'maskable'})
     ]));
     expect(indexRaw).toContain('apple-touch-icon');
-    expect(indexRaw).toContain('icon-192.png');
+    expect(indexRaw).toContain('apple-touch-icon-premium.png');
+    expect(manifest.id).toBe(manifest.start_url);
   });
 
   it('keeps the service worker lifecycle and offline shell protections',()=>{
-    expect(serviceWorkerRaw).toContain("nuestro-hogar-v25");
+    expect(serviceWorkerRaw).toContain("nuestro-hogar-v26");
     expect(serviceWorkerRaw).toContain("self.clients.claim()");
     expect(serviceWorkerRaw).toContain("SKIP_WAITING");
     expect(serviceWorkerRaw).toContain("icon-192.png");
