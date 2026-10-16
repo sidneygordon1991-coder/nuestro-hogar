@@ -2,8 +2,9 @@ import {describe,expect,it} from 'vitest';
 import {appearanceKey,defaultAppearance,normalizeAppearance} from './appearance';
 describe('device appearance preferences',()=>{
  it('accepts valid preferences and removes unknown or duplicate favorite modules',()=>{
-  expect(normalizeAppearance({accent:'forest',focus:'plans',favorites:['listas','bad','listas','familia']})).toEqual({accent:'forest',focus:'plans',favorites:['listas','familia'],cover:''});
+  expect(normalizeAppearance({accent:'forest',focus:'plans',favorites:['listas','bad','listas','familia']})).toEqual({accent:'forest',focus:'plans',view:'complete',favorites:['listas','familia'],cover:''});
  });
+ it('keeps the complete experience by default and accepts essential navigation',()=>{expect(normalizeAppearance({}).view).toBe('complete');expect(normalizeAppearance({view:'essential'}).view).toBe('essential')});
  it('rejects remote, SVG and oversized covers while retaining supported raster data',()=>{
   for(const cover of ['https://example.invalid/photo.png','data:image/svg+xml;base64,AAAA','data:image/png;base64,'+'A'.repeat(900001)])expect(normalizeAppearance({cover}).cover).toBe('');
   expect(normalizeAppearance({cover:'data:image/png;base64,AAAA'}).cover).toBe('data:image/png;base64,AAAA');

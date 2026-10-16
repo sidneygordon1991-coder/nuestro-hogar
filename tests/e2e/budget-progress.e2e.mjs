@@ -17,9 +17,9 @@ async function fixture(browser,theme='light'){
   await route.fulfill({json:allocations});
  });
  await s.page.route('**/rest/v1/transactions?**',route=>route.fulfill({json:transactions}));
- await s.page.route('**/rest/v1/rpc/quick_add_transaction',route=>{
-  const p=route.request().postDataJSON(),id='new-expense';
-  transactions.push({...movement(id,p.p_category_id,p.p_amount,p.p_transaction_date),description:p.p_description});
+ await s.page.route('**/rest/v1/rpc/save_transaction_once',route=>{
+  const p=route.request().postDataJSON().p_values,id='new-expense';
+  transactions.push({...movement(id,p.category_id,p.amount,p.date),description:p.description});
   return route.fulfill({json:id});
  });
  return {...s,transactions};

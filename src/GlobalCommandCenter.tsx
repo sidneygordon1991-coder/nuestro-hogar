@@ -1,3 +1,4 @@
+import DraftForm from './DraftForm';
 import {useFocusTrap} from './lib/useFocusTrap';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
@@ -76,23 +77,13 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
 
  function openResult(row:SearchResult){close();onNavigate(row.action_tab)}
 
- async function saveTransaction(e:FormEvent<HTMLFormElement>,type:'expense'|'income'){
-  e.preventDefault();setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
-  const amount=Number(f.get('amount')||0);
-  const {error}=await supabase.rpc('quick_add_transaction',{
-   p_household_id:household.id,
-   p_description:String(f.get('description')||'').trim(),
-   p_amount:amount,
-   p_type:type,
-   p_transaction_date:String(f.get('date')||iso()),
-   p_category_id:String(f.get('category_id')||'')||null,
-   p_account_id:String(f.get('account_id')||'')||null,
-   p_paid_by:userId||null,
-   p_is_shared:f.get('is_shared')==='on',
-   p_notes:String(f.get('notes')||'').trim()||null
-  });
-  if(error){setBusy(false);setMessage(error.message);return}
-  success((type==='expense'?'Gasto':'Ingreso')+' guardado: '+money(amount));
+ async function saveTransaction(form:HTMLFormElement,requestId:string,type:'expense'|'income'):Promise<boolean>{
+  setBusy(true);setMessage('');const f=new FormData(form),amount=Number(f.get('amount')||0);
+  try{
+   const {data,error}=await supabase.rpc('save_transaction_once',{p_household_id:household.id,p_request_id:requestId,p_values:{description:String(f.get('description')||'').trim(),amount,type,date:String(f.get('date')||iso()),category_id:String(f.get('category_id')||'')||null,account_id:String(f.get('account_id')||'')||null,paid_by:userId||null,is_shared:f.get('is_shared')==='on',notes:String(f.get('notes')||'').trim()||null,recurring:false}});
+   if(error||!data){setMessage(error?.message||'No se confirmó el movimiento.');return false}
+   success((type==='expense'?'Gasto':'Ingreso')+' guardado: '+money(amount));return true;
+  }catch{setMessage('No se confirmó el guardado. Reintenta con este borrador.');return false}finally{setBusy(false)}
  }
 
  async function ensureList(title:string,listType:string){
@@ -213,7 +204,7 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
       <QuickCard icon={<Search/>} tone="search" title="Buscar" subtitle="Encuentra cualquier información permitida" onClick={openSearch}/>
      </div>:<div className="quick-form-wrap">
       <button className="quick-back" onClick={()=>{setAction(null);setMessage('')}}>‹ Volver a acciones</button>
-      {(action==='expense'||action==='income')&&<TransactionForm type={action} categories={categories} accounts={accounts} busy={busy} onSubmit={e=>saveTransaction(e,action)}/>}
+      {(action==='expense'||action==='income')&&<TransactionForm key={household.id+userId+action} householdId={household.id} userId={userId} errorMessage={message} type={action} categories={categories} accounts={accounts} busy={busy} onSubmit={(form,requestId)=>saveTransaction(form,requestId,action)}/>}
       {action==='task'&&<TaskForm lists={lists} members={members} busy={busy} onSubmit={saveTask}/>}
       {action==='shopping'&&<ShoppingForm busy={busy} onSubmit={saveShopping}/>}
       {action==='event'&&<EventForm members={members} busy={busy} onSubmit={saveEvent}/>}
@@ -227,9 +218,9 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
 
 function QuickCard({icon,tone,title,subtitle,onClick}:{icon:React.ReactNode;tone:string;title:string;subtitle:string;onClick:()=>void}){return <button className={'quick-action-card '+tone} onClick={onClick}><span>{icon}</span><div><strong>{title}</strong><small>{subtitle}</small></div><Plus/></button>}
 
-function TransactionForm({type,categories,accounts,busy,onSubmit}:{type:'expense'|'income';categories:Category[];accounts:Account[];busy:boolean;onSubmit:(e:FormEvent<HTMLFormElement>)=>void}){
+function TransactionForm({type,categories,accounts,busy,onSubmit,householdId,userId,errorMessage}:{householdId:string;userId:string;errorMessage:string;type:'expense'|'income';categories:Category[];accounts:Account[];busy:boolean;onSubmit:(form:HTMLFormElement,requestId:string)=>Promise<boolean>}){
  const isExpense=type==='expense';
- return <form className="finance-form global-quick-form" onSubmit={onSubmit}><div className="quick-form-title"><span className={isExpense?'expense':'income'}>{isExpense?<ArrowDownLeft/>:<ArrowUpRight/>}</span><div><p className="eyebrow">{isExpense?'GASTO':'INGRESO'}</p><h3>{isExpense?'Registrar gasto':'Registrar ingreso'}</h3></div></div>
+ return <DraftForm className="finance-form global-quick-form" userId={userId} householdId={householdId} kind={'quick-'+type} errorMessage={errorMessage} onSubmit={onSubmit}><div className="quick-form-title"><span className={isExpense?'expense':'income'}>{isExpense?<ArrowDownLeft/>:<ArrowUpRight/>}</span><div><p className="eyebrow">{isExpense?'GASTO':'INGRESO'}</p><h3>{isExpense?'Registrar gasto':'Registrar ingreso'}</h3></div></div>
   <label>Descripción<input name="description" placeholder={isExpense?'Ej. Supermercado':'Ej. Salario'} required/></label>
   <div className="two"><label>Monto<input name="amount" type="number" min=".01" step=".01" placeholder="0.00" required/></label><label>Fecha<input name="date" type="date" defaultValue={iso()} required/></label></div>
   <div className="two"><label>Categoría<select name="category_id" defaultValue=""><option value="">Sin categoría</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Cuenta<select name="account_id" defaultValue=""><option value="">Sin cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label></div>
@@ -237,7 +228,7 @@ function TransactionForm({type,categories,accounts,busy,onSubmit}:{type:'expense
   {isExpense&&<label className="check-line"><input type="checkbox" name="is_shared" defaultChecked/> Gasto compartido según las reglas de aportes</label>}
   {!isExpense&&<input type="hidden" name="is_shared" value="on"/>}
   <button className="finance-primary" disabled={busy}><Check/>{busy?'Guardando...':'Guardar '+(isExpense?'gasto':'ingreso')}</button>
- </form>
+ </DraftForm>
 }
 
 function TaskForm({lists,members,busy,onSubmit}:{lists:ListRow[];members:Member[];busy:boolean;onSubmit:(e:FormEvent<HTMLFormElement>)=>void}){
