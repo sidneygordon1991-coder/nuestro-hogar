@@ -43,7 +43,7 @@ async function flow(browser,options={}){
 test('daily board combines meals and maintenance, avoids linked duplicates and filters responsibility',async({browser})=>{
  const s=await flow(browser);try{
   await ready(s,'');const board=s.page.getByRole('region',{name:'Hoy y esta semana'});
-  await expect(board.getByText('Lavar ropa',{exact:true})).toBeVisible();await expect(board.getByText('Revisión de casa',{exact:true})).toHaveCount(1);await expect(board.getByText('Ensalada de la casa',{exact:true})).toBeVisible();
+  await expect(board.getByText('Lavar ropa',{exact:true})).toBeVisible();await expect(s.page.locator('.home-priority-strip')).toContainText('Tienes pendientes por revisar');await expect(board.getByText('Revisión de casa',{exact:true})).toHaveCount(1);await expect(board.getByText('Ensalada de la casa',{exact:true})).toBeVisible();
   await board.getByRole('button',{name:'Esta semana',exact:true}).click();await expect(board.getByText('Ensalada compartida',{exact:true})).toBeVisible();
   await board.getByLabel('Filtrar actividades por responsable').selectOption(uid);await expect(board.getByText('Limpiar ventanas',{exact:true})).toHaveCount(0);await expect(board.getByText('Ensalada compartida',{exact:true})).toBeVisible();await healthy(s);
  }finally{await s.context.close()}
