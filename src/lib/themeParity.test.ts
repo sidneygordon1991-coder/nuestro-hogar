@@ -18,6 +18,7 @@ function luminance(hex:string){
  .reduce((sum,value,index)=>sum+value*[.2126,.7152,.0722][index],0);
 }
 function contrast(a:string,b:string){const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function heroGloss(hex:string){return '#'+[1,3,5].map(i=>Math.round(parseInt(hex.slice(i,i+2),16)*.92+255*.08).toString(16).padStart(2,'0')).join('')}
 
 describe('whole-project theme contract',()=>{
  it('loads one shared palette before React and exposes the current switch state',()=>{
@@ -55,7 +56,10 @@ describe('whole-project theme contract',()=>{
    });
    for(const text of ['text','muted','accent','blue','purple','success','warning','danger'])for(const surface of ['page','surface','subtle','raised','accent-soft'])expect(contrast(roles['--nh-'+text],roles['--nh-'+surface]),`${accent}/${theme}: ${text} on ${surface}`).toBeGreaterThanOrEqual(4.5);
    for(const stop of ['action','action-end'])expect(contrast(roles['--nh-on-action'],roles['--nh-'+stop]),`${accent}/${theme}: ${stop}`).toBeGreaterThanOrEqual(4.5);
-   for(const stop of ['hero-start','hero','hero-end'])expect(contrast(roles['--nh-hero-text'],roles['--nh-'+stop]),`${accent}/${theme}: ${stop}`).toBeGreaterThanOrEqual(4.5);
+   for(const stop of ['hero-start','hero','hero-end']){
+    expect(contrast(roles['--nh-hero-text'],roles['--nh-'+stop]),`${accent}/${theme}: ${stop}`).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(roles['--nh-hero-text'],heroGloss(roles['--nh-'+stop])),`${accent}/${theme}: ${stop} with gloss`).toBeGreaterThanOrEqual(4.5);
+   }
    for(const stop of ['brand','brand-end'])expect(contrast(roles['--nh-brand-muted'],roles['--nh-'+stop]),`${accent}/${theme}: ${stop}`).toBeGreaterThanOrEqual(4.5);
   }
  });

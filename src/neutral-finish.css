@@ -4,7 +4,7 @@
 .app.app-studio .premium-rail{background:linear-gradient(165deg,var(--nh-brand),var(--nh-brand-end));border-color:var(--nh-brand)}
 .app.app-studio .premium-margin{background:linear-gradient(118deg,var(--nh-hero-start),var(--nh-hero) 57%,var(--nh-hero-end));border-color:var(--nh-hero-end);box-shadow:0 10px 28px var(--nh-shadow)}
 .premium-margin::before{width:290px;height:290px;right:-170px;top:-80px;border-width:1px;opacity:.25}
-.premium-margin::after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(150deg,var(--nh-highlight),transparent 47%)}
+.premium-margin::after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(150deg,color-mix(in srgb,var(--nh-hero-text) 8%,transparent),transparent 47%)}
 .app.app-studio :is(.premium-register,.rail-add,.premium-mobile-quick),.palette-sample.appearance-palette-preview{background:linear-gradient(115deg,var(--nh-action),var(--nh-action-end));color:var(--nh-on-action)}
 .app.app-studio .premium-rail .rail-add{background:linear-gradient(115deg,var(--nh-hero),var(--nh-hero-end));color:var(--nh-hero-text)}
 .app.app-studio .premium-rail .premium-rail-main.active{background:linear-gradient(115deg,var(--nh-hero),var(--nh-hero-end));color:var(--nh-hero-text)}
