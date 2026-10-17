@@ -35,7 +35,7 @@ describe('image-reference color schemes',()=>{
   ]){
    const values=declarations(selector);
    for(const token of required)expect(values).toHaveProperty('--nh-'+token);
-   expect(values['--nh-accent']).toMatch(/^#[\\da-f]{6}$/i);
+   expect(values['--nh-accent']).toMatch(/^#[0-9a-f]{6}$/i);
    expect(contrast(values['--nh-on-action'],values['--nh-action'])).toBeGreaterThanOrEqual(4.5);
   }
  });
