@@ -4,7 +4,7 @@ import mainRaw from '../main.tsx?raw';
 import appRaw from '../App.tsx?raw';
 // @ts-ignore Vitest runs in Node; application tsconfig intentionally excludes Node types.
 import {readFileSync} from 'node:fs';
-const names=['neutral-finish','premium-home','connected-finance','workspace-header','budget-progress','daily-flow','refinement','finance-management','experience','FinancialDiagnosis','notifications','monthly-income','guided-fortnight-close','studio','premium','styles','AutomationCenter','BackupCenter','DiagnosticCenter','HouseholdHealthCenter','MonthlyCloseCenter','PlanningCenter'];
+const names=['shell','home','connected-finance','workspace-header','budget-progress','daily-flow','refinement','finance-management','experience','FinancialDiagnosis','notifications','monthly-income','guided-fortnight-close','studio','premium','styles','AutomationCenter','BackupCenter','DiagnosticCenter','HouseholdHealthCenter','MonthlyCloseCenter','PlanningCenter'];
 const sheets=names.map(name=>({name,root:parse(readFileSync(new URL('../'+name+'.css',import.meta.url),'utf8'))}));
 const palette=parse(readFileSync(new URL('../theme-light.css',import.meta.url),'utf8'));
 const palettes=palette.nodes.filter(node=>node.type==='rule'&&(node.selector==='html'||node.selector==='html[data-theme="light"]')).map(node=>{
@@ -47,7 +47,7 @@ describe('whole-project theme contract',()=>{
   }
   expect(contrast(roles['--nh-on-action'],roles['--nh-action'])).toBeGreaterThanOrEqual(4.5);
  });
- it.each(['ocean','forest','graphite','aurora','iris'])('%s keeps readable text in both themes and never recolors the neutral canvas',accent=>{
+ it.each(['forest','ocean','graphite','iris'])('%s keeps readable text in both themes and never recolors the neutral canvas',accent=>{
   for(const theme of ['dark','light']){
    const roles={...palettes[theme==='dark'?0:1]};
    palette.walkRules(rule=>{
@@ -64,7 +64,7 @@ describe('whole-project theme contract',()=>{
   }
  });
  it.each([
-  ['Inicio','control-hero','control-money'],['Finanzas','finance-panel','balance-track'],
+  ['Inicio','home-card','home-kpi'],['Finanzas','finance-panel','balance-track'],
   ['Familia','family-member-card','family-permission-row select'],['Agenda','calendar-panel','calendar-cell'],
   ['Listas','list-card-v2','list-item-v2'],['Documentos','document-card','document-kpis>div'],
   ['Comidas','meal-day','recipe-card'],['Mantenimiento','maintenance-asset-card','maintenance-kpis>div'],

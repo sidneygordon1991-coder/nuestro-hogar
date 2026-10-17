@@ -5,7 +5,10 @@ import {buildCashFlow,type CashFlowSource} from './lib/cashFlow';
 import type {HomeFinance as FinanceHome} from './lib/homeOverview';
 import {financeSection} from './lib/financeNavigation';
 import {useDialogFocus} from './lib/useDialogFocus';
+import {lazyWithReload} from './lib/lazyRetry';
+import {fetchAllRows,pagedResult} from './lib/paging';
 import DesktopRail from './DesktopRail';
+import BrandMark from './BrandMark';
 import {appearanceKey,readAppearance,type Appearance} from './lib/appearance';
 import ModuleIcon from './ModuleIcon';
 import EmailAuth from './EmailAuth';
@@ -14,33 +17,32 @@ import HouseholdWelcome from './HouseholdWelcome';
 import './sharing.css';
 import HouseholdStorageNote from './HouseholdStorageNote';
 import './master.css';
-import {FormEvent,lazy,Suspense,useEffect,useMemo,useRef,useState} from 'react';import {CheckCircle2,ChevronDown,Sun,Moon,Eye,LogOut,Plus,ReceiptText,ShieldOff,ShoppingCart} from 'lucide-react';import {supabase} from './lib/supabase';import GlobalCommandCenter from './GlobalCommandCenter';import {AppErrorBoundary,ClientErrorReporter} from './AppDiagnostics';import AppMenu,{toggleTheme,useEffectiveTheme} from './AppMenu';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import PwaUpdatePrompt from './PwaUpdatePrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';import {validateStrongPassword} from './lib/authSecurity';
+import {FormEvent,Suspense,useEffect,useRef,useState} from 'react';import {ChevronDown,Sun,Moon,Eye,ShieldOff} from 'lucide-react';import {supabase} from './lib/supabase';import GlobalCommandCenter from './GlobalCommandCenter';import {AppErrorBoundary,ClientErrorReporter} from './AppDiagnostics';import AppMenu,{toggleTheme,useEffectiveTheme} from './AppMenu';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import PwaUpdatePrompt from './PwaUpdatePrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';import {validateStrongPassword} from './lib/authSecurity';
 
-const HomeDashboard=lazy(()=>import('./HomeDashboard'));
-const AppearanceDialog=lazy(()=>import('./AppearancePanel'));
-const MasterPanel=lazy(()=>import('./MasterPanel'));
-const Finance=lazy(()=>import('./Finance'));
-const ListsCenter=lazy(()=>import('./ListsCenter'));
-const CalendarCenter=lazy(()=>import('./CalendarCenter'));
-const FamilyCenter=lazy(()=>import('./FamilyCenter'));
-const DocumentVault=lazy(()=>import('./DocumentVault'));
-const MealsCenter=lazy(()=>import('./MealsCenter'));
-const MaintenanceCenter=lazy(()=>import('./MaintenanceCenter'));
-const HouseholdHealthCenter=lazy(()=>import('./HouseholdHealthCenter'));
-const AutomationCenter=lazy(()=>import('./AutomationCenter'));
-const MonthlyCloseCenter=lazy(()=>import('./MonthlyCloseCenter'));
-const PlanningCenter=lazy(()=>import('./PlanningCenter'));
-const BackupCenter=lazy(()=>import('./BackupCenter'));
-const DiagnosticCenter=lazy(()=>import('./DiagnosticCenter'));
+const HomeDashboard=lazyWithReload(()=>import('./HomeDashboard'));
+const AppearanceDialog=lazyWithReload(()=>import('./AppearancePanel'));
+const MasterPanel=lazyWithReload(()=>import('./MasterPanel'));
+const Finance=lazyWithReload(()=>import('./Finance'));
+const ListsCenter=lazyWithReload(()=>import('./ListsCenter'));
+const CalendarCenter=lazyWithReload(()=>import('./CalendarCenter'));
+const FamilyCenter=lazyWithReload(()=>import('./FamilyCenter'));
+const DocumentVault=lazyWithReload(()=>import('./DocumentVault'));
+const MealsCenter=lazyWithReload(()=>import('./MealsCenter'));
+const MaintenanceCenter=lazyWithReload(()=>import('./MaintenanceCenter'));
+const HouseholdHealthCenter=lazyWithReload(()=>import('./HouseholdHealthCenter'));
+const AutomationCenter=lazyWithReload(()=>import('./AutomationCenter'));
+const MonthlyCloseCenter=lazyWithReload(()=>import('./MonthlyCloseCenter'));
+const PlanningCenter=lazyWithReload(()=>import('./PlanningCenter'));
+const BackupCenter=lazyWithReload(()=>import('./BackupCenter'));
+const DiagnosticCenter=lazyWithReload(()=>import('./DiagnosticCenter'));
 
 type Household={id:string;name:string;invite_code:string};
 type ListRow={id:string;title:string};
 type EventRow={id:string;title:string;event_date:string;start_time:string|null};
-type Tx={id:string;description:string;amount:number;type:string;transaction_date:string;category_id:string|null};
+type Tx={id:string;description:string;amount:number;type:string;transaction_date:string;category_id:string|null;paid_by?:string|null;is_shared?:boolean|null};
 type AccessLevel='none'|'view'|'edit';
 type HouseholdAccess={role:string;can_manage_members:boolean;can_view_audit:boolean;modules:Record<string,AccessLevel>};
 
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
 const localIso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
 const today=()=>localIso();
 const currentMonth=()=>{const d=new Date(),start=new Date(d.getFullYear(),d.getMonth(),1),end=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:localIso(start),end:localIso(end),month:localIso(start)}};
@@ -79,7 +81,9 @@ export default function App(){
   window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
  }
  useEffect(()=>{if(household){setAccess(null);setAccessError('');loadAccess(household.id);loadData(household.id)}},[household?.id,session?.user.id]);
- useEffect(()=>{if(household)loadData(household.id)},[tab]);
+ // Returning to Inicio refreshes its summary; the first render is already covered by the household effect.
+ const previousTab=useRef(tab);
+ useEffect(()=>{if(previousTab.current!==tab&&tab==='inicio'&&household)loadData(household.id);previousTab.current=tab},[tab]);
  async function loadHouseholds(){
   const sequence=++householdsSequence.current;const userId=session?.user.id;if(!userId)return;setHouseholdsLoading(true);setHouseholdsError('');
   const {data,error}=await supabase.from('household_members').select('household_id, households(id,name,invite_code)').eq('user_id',userId);
@@ -95,15 +99,15 @@ export default function App(){
   const [listR,eventR,txR,catR,allocR,contR,recR,occR,memberFinanceR,goalR,goalContR,planR,membersR]=await Promise.all([
    supabase.from('lists').select('id,title').eq('household_id',id).order('created_at',{ascending:false}),
    supabase.from('events').select('id,title,event_date,start_time').eq('household_id',id).gte('event_date',today()).order('event_date').limit(6),
-   supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by').eq('household_id',id).gte('transaction_date',period.start).lte('transaction_date',period.end).order('transaction_date',{ascending:false}),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,is_shared').eq('household_id',id).gte('transaction_date',period.start).lte('transaction_date',period.end).order('transaction_date',{ascending:false}).order('id').range(from,to))),
    supabase.from('budget_categories').select('id,name,icon,budget_group').eq('household_id',id),
    supabase.from('budget_allocations').select('category_id,planned_amount,month,first_half_amount,second_half_amount').eq('household_id',id).eq('month',period.month),
-   supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id).gte('contribution_date',period.start).lte('contribution_date',period.end),
-   supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,created_at').eq('household_id',id).eq('active',true),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('goal_id,amount,contribution_date,created_by').eq('household_id',id).gte('contribution_date',period.start).lte('contribution_date',period.end).order('id').range(from,to))),
+   supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,paid_by,is_shared,created_at').eq('household_id',id).eq('active',true),
    supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status,transaction_id,details_snapshot').eq('household_id',id).eq('period_month',period.month),
    supabase.from('finance_member_settings').select('user_id,monthly_income').eq('household_id',id),
    supabase.from('savings_goals').select('id,name,target_amount,target_date,icon').eq('household_id',id).eq('active',true).order('target_date',{ascending:true,nullsFirst:false}),
-   supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id).order('id').range(from,to))),
    supabase.from('finance_income_plans').select('user_id,month,expected_amount,first_half_amount,second_half_amount').eq('household_id',id).eq('month',period.month),
    supabase.from('household_members').select('user_id').eq('household_id',id)
   ]);
@@ -139,6 +143,7 @@ function UpdatePassword({onDone}:{onDone:()=>void}){
   e.preventDefault();setBusy(true);setMsg('');
   const f=new FormData(e.currentTarget),password=String(f.get('password')),confirm=String(f.get('confirm'));
   if(password!==confirm){setBusy(false);setMsg('Las contraseñas no coinciden.');return}
+  const strength=validateStrongPassword(password);if(!strength.ok){setBusy(false);setMsg(strength.message);return}
   const {error}=await supabase.auth.updateUser({password});
   setBusy(false);
   if(error)setMsg(error.message);else{setMsg('Contraseña actualizada correctamente.');setTimeout(onDone,700)}
@@ -167,7 +172,7 @@ function Shell(p:any){
 
  const module=tabModule(p.tab),level=module?p.access?.modules?.[module]:null,denied=level==='none';
  useEffect(()=>{const url=new URL(window.location.href);if(url.searchParams.get('quick')!=='1')return;const timer=window.setTimeout(()=>window.dispatchEvent(new CustomEvent('nh:quick-add')),180);url.searchParams.delete('quick');window.history.replaceState({},'',url);return()=>window.clearTimeout(timer)},[p.household.id]);
- return <WorkspaceHeadingSlot.Provider value={headingSlot}><div className="app app-studio" data-accent={appearance.accent} data-module={p.tab}><DesktopRail essential={appearance.view==='essential'} favorites={appearance.favorites} currentTab={p.tab} access={p.access.modules} isMaster={p.isMaster} onNavigate={p.setTab} onAppearance={()=>setAppearanceOpen(true)}/><a className="skip-link" href="#main-content">Saltar al contenido</a><header className="workspace-header"><div className="workspace-household"><div className="workspace-household-copy"><div className="home-select-wrap"><span className="home-select-label" aria-hidden="true">{p.household.name}</span><select className="home-select" aria-label="Cambiar de familia" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={18}/></div><time dateTime={today()} title={new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}>{new Date().toLocaleDateString('es-GT',{weekday:'short',day:'numeric',month:'short'})}</time></div><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={effectiveTheme==='dark'} title={effectiveTheme==='light'?'Tema de día · cambiar a noche':'Tema de noche · cambiar a día'}><Sun className="theme-sun" size={18}/><Moon className="theme-moon" size={18}/></button></div><div className="header-actions"><AppMenu essential={appearance.view==='essential'} favorites={appearance.favorites} onPersonalize={()=>setAppearanceOpen(true)} isMaster={p.isMaster} currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar onClick={()=>p.setTab('familia')}/></div><div className="workspace-header-slot" ref={setHeadingSlot}/></header>
+ return <WorkspaceHeadingSlot.Provider value={headingSlot}><div className="app app-studio" data-accent={appearance.accent} data-module={p.tab}><DesktopRail essential={appearance.view==='essential'} favorites={appearance.favorites} currentTab={p.tab} access={p.access.modules} isMaster={p.isMaster} onNavigate={p.setTab} onAppearance={()=>setAppearanceOpen(true)}/><a className="skip-link" href="#main-content">Saltar al contenido</a><header className="workspace-header"><div className="workspace-household"><div className="home-select-wrap household-pill">{appearance.cover?<img className="household-pill-photo" src={appearance.cover} alt=""/>:<span className="household-pill-photo" aria-hidden="true"><BrandMark size={16}/></span>}<span className="home-select-label" aria-hidden="true">{p.household.name}</span><select className="home-select" aria-label="Cambiar de familia" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={16} aria-hidden="true"/></div><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={effectiveTheme==='dark'} title={effectiveTheme==='light'?'Tema de día · cambiar a noche':'Tema de noche · cambiar a día'}><span className="theme-sun"><Sun size={16}/></span><span className="theme-moon"><Moon size={16}/></span></button></div><div className="header-actions"><AppMenu essential={appearance.view==='essential'} favorites={appearance.favorites} onPersonalize={()=>setAppearanceOpen(true)} isMaster={p.isMaster} currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar onClick={()=>p.setTab('familia')}/></div><div className="workspace-header-slot" ref={setHeadingSlot}/></header>
  <main className="content" id="main-content" tabIndex={-1}><ConnectionStatus/>
  <HouseholdWelcome household={p.household} canManage={p.access.can_manage_members} onChanged={()=>{p.onRefresh();p.onAccessChanged?.()}}/>
  <HouseholdStorageNote householdId={p.household.id} version={p.tab+JSON.stringify(p.access.modules)}/>
@@ -187,16 +192,3 @@ function tabModule(tab:string){return({listas:'lists',calendario:'calendar',pres
 const VALID_TABS=new Set(['inicio','listas','calendario','presupuesto','familia','documentos','comidas','mantenimiento','salud','automatizaciones','cierre','planeacion','respaldos','diagnostico','master']);
 function normalizeTab(tab:string|null){return tab&&VALID_TABS.has(tab)?tab:'inicio'}
 function ModuleFallback(){return <div className="studio-skeleton" role="status" aria-label="Cargando módulo"><span/><i/><div><b/><b/><b/></div><i/><i/></div>}
-
-function Icon({kind}:{kind:string}){const map:any={list:<CheckCircle2/>,calendar:<ModuleIcon name="calendar"/>,budget:<ModuleIcon name="finance"/>,family:<ModuleIcon name="family"/>,docs:<ReceiptText/>,birthday:<ModuleIcon name="calendar"/>,meal:<ShoppingCart/>,recipe:<ReceiptText/>};return <span className={'ico '+kind}>{map[kind]}</span>}
-
-function Page({title,subtitle,children}:{title:string;subtitle:string;children:any}){return <section><p className="eyebrow">NUESTRO HOGAR</p><h2 className="page-title">{title}</h2><p className="muted">{subtitle}</p>{children}</section>}
-
-function Lists({household,lists,refresh}:any){const [title,setTitle]=useState('');async function add(e:FormEvent){e.preventDefault();if(!title.trim())return;await supabase.from('lists').insert({household_id:household.id,title:title.trim()});setTitle('');refresh()}return <Page title="Listas" subtitle="Compras, pendientes y todo lo que quieran recordar."><form className="quick" onSubmit={add}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Nueva lista"/><button><Plus size={18}/></button></form><div className="stack">{lists.map((l:ListRow)=><article className="row" key={l.id}><span className="rowicon"><CheckCircle2/></span><div><strong>{l.title}</strong><small>Lista compartida</small></div></article>)}{!lists.length&&<Empty text="Aún no hay listas."/ >}</div></Page>}
-
-function Events({household,events,refresh}:any){const [show,setShow]=useState(false);async function add(e:FormEvent<HTMLFormElement>){e.preventDefault();const f=new FormData(e.currentTarget);await supabase.from('events').insert({household_id:household.id,title:String(f.get('title')),event_date:String(f.get('date')),start_time:String(f.get('time')||'')||null});setShow(false);refresh()}return <Page title="Calendario" subtitle="Los próximos momentos importantes de la familia."><button className="primary compact" onClick={()=>setShow(!show)}><Plus size={17}/> Nuevo evento</button>{show&&<form className="panel formgrid" onSubmit={add}><input name="title" placeholder="Evento" required/><input name="date" type="date" defaultValue={today()} required/><input name="time" type="time"/><button>Guardar</button></form>}<div className="stack">{events.map((e:EventRow)=><article className="row" key={e.id}><span className="datebox">{new Date(e.event_date+'T12:00').getDate()}<small>{new Date(e.event_date+'T12:00').toLocaleDateString('es-GT',{month:'short'})}</small></span><div><strong>{e.title}</strong><small>{e.start_time?.slice(0,5)||'Todo el día'}</small></div></article>)}{!events.length&&<Empty text="No hay eventos próximos."/ >}</div></Page>}
-
-function Budget({household,txs,refresh}:any){const [show,setShow]=useState(false);const expense=useMemo(()=>txs.filter((x:Tx)=>x.type==='expense').reduce((a:number,b:Tx)=>a+Number(b.amount),0),[txs]);const income=useMemo(()=>txs.filter((x:Tx)=>x.type==='income').reduce((a:number,b:Tx)=>a+Number(b.amount),0),[txs]);async function add(e:FormEvent<HTMLFormElement>){e.preventDefault();const f=new FormData(e.currentTarget);await supabase.from('transactions').insert({household_id:household.id,description:String(f.get('description')),amount:Number(f.get('amount')),type:String(f.get('type')),transaction_date:String(f.get('date'))});setShow(false);refresh()}return <Page title="Presupuesto" subtitle="Una vista sencilla de las finanzas compartidas."><div className="finance"><div><span>Ingresos</span><strong>{money(income)}</strong></div><div><span>Gastos</span><strong>{money(expense)}</strong></div><div><span>Balance</span><strong>{money(income-expense)}</strong></div></div><button className="primary compact" onClick={()=>setShow(!show)}><Plus size={17}/> Movimiento</button>{show&&<form className="panel formgrid" onSubmit={add}><input name="description" placeholder="Descripción" required/><input name="amount" type="number" step="0.01" min="0.01" placeholder="Monto" required/><select name="type"><option value="expense">Gasto</option><option value="income">Ingreso</option></select><input name="date" type="date" defaultValue={today()} required/><button>Guardar</button></form>}<div className="stack">{txs.map((t:Tx)=><article className="row" key={t.id}><span className={'moneydot '+t.type}>{t.type==='income'?'+':'−'}</span><div className="grow"><strong>{t.description}</strong><small>{new Date(t.transaction_date+'T12:00').toLocaleDateString('es-GT')}</small></div><b>{t.type==='income'?'+':'−'}{money(Number(t.amount))}</b></article>)}{!txs.length&&<Empty text="Aún no hay movimientos."/ >}</div></Page>}
-
-function Family({household}:any){return <Page title="Mi familia" subtitle="Comparte este código para invitar a otra persona a tu hogar."><div className="invite"><span>CÓDIGO DE INVITACIÓN</span><strong>{household.invite_code}</strong><button onClick={()=>navigator.clipboard.writeText(household.invite_code)}>Copiar código</button></div><button className="logout" onClick={()=>supabase.auth.signOut()}><LogOut size={17}/> Cerrar sesión</button></Page>}
-function Empty({text}:{text:string}){return <div className="empty">{text}</div>}

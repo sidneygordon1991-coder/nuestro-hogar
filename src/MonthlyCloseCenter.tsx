@@ -2,9 +2,10 @@ import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import ModuleIcon from './ModuleIcon';
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {AlertTriangle,ArrowDownRight,ArrowUpRight,CalendarCheck2,Check,CheckCircle2,ChevronLeft,ChevronRight,Copy,Download,Minus,Plus,ReceiptText,RefreshCw,Sparkles,Target,TrendingUp} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {formatMoney} from './lib/money';
 import './MonthlyCloseCenter.css';
 
 type Household={id:string;name:string;invite_code:string};
@@ -21,7 +22,7 @@ type CloseSnapshot={
 type CloseRow={id:string;month:string;status:'closed';snapshot:CloseSnapshot;reflection:string|null;next_month_focus:string[];closed_at:string;closed_by:string|null};
 type HistoryRow={id:string;month:string;snapshot:CloseSnapshot;closed_at:string};
 
-const currency=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(Number(n||0));
+const currency=(n:number)=>formatMoney(Number(n||0));
 const monthKey=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
 const monthLabel=(value:string|Date)=>{
  const d=value instanceof Date?value:new Date(value+'T12:00');
@@ -35,29 +36,33 @@ export default function MonthlyCloseCenter({household,onNavigate,readOnly=false}
  const [snapshot,setSnapshot]=useState<CloseSnapshot|null>(null),[closure,setClosure]=useState<CloseRow|null>(null),[history,setHistory]=useState<HistoryRow[]>([]);
  const [reflection,setReflection]=useState(''),[focus,setFocus]=useState<string[]>([]);
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const request=useRef(0);
 
  useEffect(()=>{load()},[household.id,month.getFullYear(),month.getMonth()]);
 
  async function load(showLoader=true){
-  if(showLoader)setLoading(true);setMessage('');
+  // Only a full (user-initiated) load clears the message; reloads after saving keep 'Mes cerrado…' visible.
+  const req=++request.current;if(showLoader){setLoading(true);setMessage('')}
   const key=monthKey(month);
   const [closeR,historyR]=await Promise.all([
    supabase.from('monthly_household_closures').select('id,month,status,snapshot,reflection,next_month_focus,closed_at,closed_by').eq('household_id',household.id).eq('month',key).maybeSingle(),
-   supabase.from('monthly_household_closures').select('id,month,snapshot,closed_at').eq('household_id',household.id).order('month',{ascending:true}).limit(18)
+   supabase.from('monthly_household_closures').select('id,month,snapshot,closed_at').eq('household_id',household.id).order('month',{ascending:false}).limit(18)
   ]);
-  if(closeR.error||historyR.error){setMessage(closeR.error?.message||historyR.error?.message||'No se pudo cargar el cierre mensual.');if(showLoader)setLoading(false);return}
+  if(req!==request.current)return;
+  if(closeR.error||historyR.error){setMessage(closeR.error?.message||historyR.error?.message||'No se pudo cargar el cierre mensual.');setLoading(false);return}
   const existing=(closeR.data||null) as CloseRow|null;
-  setClosure(existing);setHistory((historyR.data||[]) as HistoryRow[]);
+  setClosure(existing);setHistory(((historyR.data||[]) as HistoryRow[]).slice().reverse());
   if(existing){
    setSnapshot(existing.snapshot);setReflection(existing.reflection||'');setFocus((existing.next_month_focus||[]).filter(Boolean));
   }else{
    const built=await supabase.rpc('build_monthly_household_close',{p_household_id:household.id,p_month:key});
+   if(req!==request.current)return;
    if(built.error){setMessage(built.error.message);setSnapshot(null)}
    else{
     const snap=built.data as CloseSnapshot;setSnapshot(snap);setReflection('');setFocus((snap.suggested_focus||[]).filter(Boolean).slice(0,5));
    }
   }
-  if(showLoader)setLoading(false);
+  setLoading(false);
  }
 
  const nowMonth=currentMonth(),isCurrent=monthKey(month)===monthKey(nowMonth),isFuture=month>nowMonth;

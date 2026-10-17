@@ -17,3 +17,84 @@ describe('five primary spaces preserve authorized controls',()=>{
  it('routes financial sections and household modules to the correct space',()=>{expect(workspaceGroup('presupuesto','accounts')).toBe('money');expect(workspaceGroup('presupuesto','goals')).toBe('plan');expect(workspaceGroup('presupuesto','comparison')).toBe('progress');expect(workspaceGroup('calendario',null)).toBe('home');expect(workspaceGroup('inicio',null)).toBe('today')});
  it('removes forbidden sections while preserving family and other allowed modules',()=>{const groups=permittedWorkspaceGroups({finance:'none',health:'none',calendar:'none',planning:'none',monthly_close:'none'});expect(groups.map(g=>g.id)).toEqual(['today','home']);expect(groups.flatMap(g=>g.items).some(i=>i.route==='familia')).toBe(true);expect(groups.flatMap(g=>g.items).some(i=>i.route.startsWith('presupuesto'))).toBe(false)});
 });
+
+import {balanceTimeline,dayDiff,homeActions,homeMargin,periodBounds,scopeAccounts,scopeSource,shiftDay} from './homeOverview';
+import {buildCashFlow} from './cashFlow';
+describe('home 2026: margin, projection and personal lens',()=>{
+ const me='me',partner='partner';
+ const base:CashFlowSource={month:'2026-10-01',today:'2026-10-16',
+  transactions:[
+   {id:'i1',type:'income',amount:4500,transaction_date:'2026-10-15',category_id:null,paid_by:me,is_shared:true},
+   {id:'i2',type:'income',amount:3500,transaction_date:'2026-10-15',category_id:null,paid_by:partner,is_shared:true},
+   {id:'e1',type:'expense',amount:1000,transaction_date:'2026-10-05',category_id:'food',paid_by:me,is_shared:true},
+   {id:'e2',type:'expense',amount:300.5,transaction_date:'2026-10-09',category_id:'fun',paid_by:me,is_shared:false},
+   {id:'e3',type:'expense',amount:80,transaction_date:'2026-10-10',category_id:null,paid_by:partner,is_shared:false}],
+  savings:[{amount:500,contribution_date:'2026-10-15',created_by:me},{amount:250,contribution_date:'2026-10-15',created_by:partner}],
+  categories:[{id:'food',budget_group:'variable'},{id:'fun',budget_group:'variable'},{id:'rent',budget_group:'fixed'},{id:'save',budget_group:'saving'}],
+  allocations:[{month:'2026-10-01',category_id:'rent',planned_amount:3000,first_half_amount:0,second_half_amount:3000},{month:'2026-10-01',category_id:'save',planned_amount:2000,first_half_amount:1000,second_half_amount:1000},{month:'2026-10-01',category_id:'food',planned_amount:2000,first_half_amount:1000,second_half_amount:1000}],
+  members:[{user_id:me,full_name:'Yo'},{user_id:partner,full_name:'Pareja'}],
+  plans:[{month:'2026-10-01',user_id:me,expected_amount:9000,first_half_amount:4500,second_half_amount:4500},{month:'2026-10-01',user_id:partner,expected_amount:7000,first_half_amount:3500,second_half_amount:3500}],
+  recurring:[{id:'r1',description:'Alquiler',amount:3000,type:'expense',category_id:'rent',paid_by:me,is_shared:true},{id:'r2',description:'Gimnasio',amount:200,type:'expense',category_id:'fun',paid_by:me,is_shared:false}],
+  occurrences:[{id:'o1',recurring_transaction_id:'r1',due_date:'2026-10-25',status:'pending'},{id:'o2',recurring_transaction_id:'r2',due_date:'2026-10-12',status:'pending'}]};
+
+ it('subtracts pending commitments and the savings still to set aside from registered money',()=>{
+  const flow=buildCashFlow(base);
+  const withAccounts=homeMargin(flow,12450);
+  expect(withAccounts.basis).toBe('accounts');expect(withAccounts.margin).toBe(12450-flow.fixedCommitments-flow.savingsRemaining);
+  expect(flow.savingsRemaining).toBe(1250);
+  const noAccounts=homeMargin(flow,null);
+  expect(noAccounts.basis).toBe('month');expect(noAccounts.base).toBe(flow.available);
+ });
+ it('keeps cents exact in the margin',()=>{
+  expect(homeMargin({available:0.3,fixedCommitments:0.1,savingsRemaining:0.2},null).margin).toBe(0);
+ });
+ it('personal lens shows my income, my personal movements and recurring, and my savings only',()=>{
+  const mine=scopeSource(base,'personal',me);
+  expect(mine.transactions.map(t=>t.id)).toEqual(['i1','e2']);
+  expect(mine.savings).toHaveLength(1);expect(mine.allocations).toEqual([]);
+  expect(mine.members.map(m=>m.user_id)).toEqual([me]);expect(mine.plans).toHaveLength(1);
+  expect(mine.recurring.map(r=>r.id)).toEqual(['r2']);
+  expect(scopeSource(base,'household',me)).toBe(base);
+  const accounts=[{id:'a',name:'A',account_type:'checking',account_class:'asset',opening_balance:1,owner_user_id:me,is_shared:false},{id:'b',name:'B',account_type:'checking',account_class:'asset',opening_balance:1,owner_user_id:null,is_shared:true}];
+  expect(scopeAccounts(accounts,'personal',me).map(a=>a.id)).toEqual(['a']);
+  expect(scopeAccounts(accounts,'household',me)).toHaveLength(2);
+ });
+ it('projects pending payments on their due date and expected income on the last day of the period',()=>{
+  const accounts={accounts:[{id:'bank',name:'Banco',account_type:'checking',account_class:'asset',opening_balance:10000}],movements:[] as any[],transfers:[] as any[]};
+  const t=balanceTimeline(base,'second',accounts);
+  expect(t.basis).toBe('accounts');expect(periodBounds('2026-10-01','second')).toEqual({start:'2026-10-16',end:'2026-10-31'});
+  expect(t.registered).toEqual([{date:'2026-10-16',balance:10000}]);
+  expect(t.context).toHaveLength(7);expect(t.context[0].date).toBe('2026-10-09');
+  // The overdue gym payment (due the 12th, still pending) is applied today; rent on the 25th.
+  expect(t.projected.find(p=>p.date==='2026-10-16')?.balance).toBe(9800);
+  expect(t.projected.find(p=>p.date==='2026-10-25')?.balance).toBe(6800);
+  expect(t.projected[t.projected.length-1]).toEqual({date:'2026-10-31',balance:6800+8000});
+  expect(t.marks.map(m=>m.kind+':'+m.date)).toEqual(['payment:2026-10-16','payment:2026-10-25','income:2026-10-31']);
+  expect(t.lowest).toEqual({date:'2026-10-25',balance:6800});expect(t.status).toBe('covered');
+  const tight=balanceTimeline(base,'second',{...accounts,accounts:[{...accounts.accounts[0],opening_balance:3500}]});
+  expect(tight.status).toBe('tight');
+  const negative=balanceTimeline(base,'second',{...accounts,accounts:[{...accounts.accounts[0],opening_balance:1000}]});
+  expect(negative.status).toBe('negative');expect(negative.lowest?.balance).toBe(-2200);
+  expect(balanceTimeline(base,'first',accounts).status).toBe('closed');
+ });
+ it('falls back to the registered month result when there are no accounts',()=>{
+  const t=balanceTimeline(base,'month',null);
+  expect(t.basis).toBe('month');expect(t.context).toEqual([]);
+  expect(t.registered[t.registered.length-1].balance).toBe(buildCashFlow(base).available);
+ });
+ it('derives concrete daily actions from registered data',()=>{
+  const actions=homeActions({source:base,accounts:[{id:'bank',name:'Banco',liquid:true},{id:'card',name:'Tarjeta',liquid:false}],reconciliations:[{account_id:'bank',cutoff:'2026-08-01'}],today:'2026-10-16'});
+  expect(actions.map(a=>a.kind)).toEqual(['reconcile','review','payment']);
+  expect(actions[0].title).toBe('Conciliar Banco');expect(actions[1].title).toBe('Revisar un movimiento');
+  expect(actions[2].detail).toContain('Venció el');
+  expect(homeActions({source:{...base,occurrences:[],transactions:[]},accounts:[{id:'bank',name:'Banco',liquid:true}],reconciliations:[{account_id:'bank',cutoff:'2026-10-01'}],today:'2026-10-16'})).toEqual([]);
+ });
+ it('does arithmetic on local calendar days across month and leap-year boundaries',()=>{
+  expect(shiftDay('2026-10-01',-1)).toBe('2026-09-30');expect(shiftDay('2028-02-28',1)).toBe('2028-02-29');
+  expect(dayDiff('2026-10-09','2026-10-31')).toBe(22);expect(dayDiff('2026-12-31','2027-01-01')).toBe(1);
+ });
+ it('does not mark a fortnight plan partial because of zero-amount rows',()=>{
+  const withZero={...base,allocations:[...base.allocations,{month:'2026-10-01',category_id:'fun',planned_amount:0,first_half_amount:null,second_half_amount:null}]};
+  expect(overviewPeriod(withZero,'second').complete).toBe(true);
+ });
+});

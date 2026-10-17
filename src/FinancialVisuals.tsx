@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {ArrowUpRight,ChevronRight,PiggyBank} from 'lucide-react';
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
+import {formatMoney as money} from './lib/money';
 export type TrendMonth={key:string;label:string;income:number;expense:number;saving:number};
 const series=[{key:'income',label:'Ingresos',color:'var(--nh-chart-success)'},{key:'expense',label:'Gastos',color:'var(--nh-chart-blue)'},{key:'saving',label:'Ahorro',color:'var(--nh-chart-purple)'}] as const;
 export function InteractiveTrend({data,onMonthSelect}:{data:TrendMonth[];onMonthSelect?:(key:string)=>void}){

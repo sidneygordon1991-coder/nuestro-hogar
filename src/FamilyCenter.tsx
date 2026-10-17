@@ -40,10 +40,10 @@ export default function FamilyCenter({household,onChanged,onHouseholdRenamed}:{h
  const [overrides,setOverrides]=useState<Partial<Record<ModuleKey,AccessLevel>>>({}),[responsibilities,setResponsibilities]=useState<string[]>([]);
  const [audit,setAudit]=useState<AuditRow[]>([]),[auditNames,setAuditNames]=useState<Map<string,string>>(new Map());
 
- useEffect(()=>{setInviteCode(household.invite_code);setHouseholdName(household.name);load()},[household.id]);
+ useEffect(()=>{setInviteCode(household.invite_code);setHouseholdName(household.name);setMessage('');load()},[household.id]);
 
  async function load(){
-  setBusy(true);setMessage('');
+  setBusy(true);
   const [memberR,userR,accessR]=await Promise.all([
    supabase.from('household_members').select('user_id,role,joined_at,responsibilities').eq('household_id',household.id).order('joined_at'),
    supabase.auth.getUser(),
@@ -111,14 +111,14 @@ export default function FamilyCenter({household,onChanged,onHouseholdRenamed}:{h
 
  async function removeMember(member:MemberRow){
   if(!window.confirm('¿Quitar a '+member.full_name+' de este hogar?'))return;
-  setBusy(true);const {error}=await supabase.rpc('remove_household_member',{p_household_id:household.id,p_user_id:member.user_id});setBusy(false);
+  setBusy(true);setMessage('');const {error}=await supabase.rpc('remove_household_member',{p_household_id:household.id,p_user_id:member.user_id});setBusy(false);
   if(error){setMessage(error.message);return}setMessage('Integrante eliminado del hogar.');setManaging(null);await load();onChanged?.();
  }
 
  async function leaveHousehold(){
   if(!me||me.role==='owner')return;
   if(!window.confirm('¿Salir de este hogar? Perderás acceso a su información compartida.'))return;
-  setBusy(true);const {error}=await supabase.rpc('remove_household_member',{p_household_id:household.id,p_user_id:me.user_id});setBusy(false);
+  setBusy(true);setMessage('');const {error}=await supabase.rpc('remove_household_member',{p_household_id:household.id,p_user_id:me.user_id});setBusy(false);
   if(error){setMessage(error.message);return}onChanged?.();window.location.reload();
  }
 
@@ -129,7 +129,8 @@ export default function FamilyCenter({household,onChanged,onHouseholdRenamed}:{h
   const {data,error}=await supabase.rpc('rotate_household_invite_code',{p_household_id:household.id});
   setBusy(false);
   if(error){setMessage(error.message);return}
-  setInviteCode(String(data||''));setMessage('Código de invitación renovado. El anterior ya no funciona.');
+  const code=String(data||'');setInviteCode(code);setMessage('Código de invitación renovado. El anterior ya no funciona.');
+  if(code)window.dispatchEvent(new CustomEvent('nh:invite-rotated',{detail:{householdId:household.id,code}}));
  }
 
  return <section className="family-v3">

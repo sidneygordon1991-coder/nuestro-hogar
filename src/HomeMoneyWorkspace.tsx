@@ -1,112 +1,312 @@
-import {formatMoney as money} from './lib/money';
+import {formatMoney as money,formatMoneyRounded} from './lib/money';
 import {useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
-import {ArrowDownLeft,ArrowUpRight,CalendarDays,ChevronRight,Clock3,CreditCard,Info,Landmark,PiggyBank,RefreshCw,Target,Wallet} from 'lucide-react';
+import {AlertTriangle,ArrowRight,ArrowUpRight,CalendarDays,CheckCircle2,Coins,CreditCard,Ellipsis,EllipsisVertical,FileText,HeartPulse,Info,Landmark,Mountain,PiggyBank,RefreshCw,Wallet} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {fetchAllRows} from './lib/paging';
 import {halfOf,toCents,type FinancePeriod} from './lib/financePeriods';
-import {overviewAccounts,overviewGoal,overviewPeriod,registeredBalanceSeries,type HomeFinance,type OverviewAccount,type AccountMovement,type AccountTransfer} from './lib/homeOverview';
-import BudgetCategoryProgress from './BudgetCategoryProgress';
+import {balanceTimeline,dayDiff,homeActions,homeMargin,overviewAccounts,overviewGoal,overviewPeriod,periodBounds,scopeAccounts,scopeSource,
+ type AccountMovement,type AccountTransfer,type BalanceTimeline,type FinanceScope,type HomeFinance,type OverviewAccount} from './lib/homeOverview';
+import {budgetPercent} from './lib/budgetProgress';
+import {categoryIcon} from './BudgetCategoryProgress';
+import HomeToday,{type Attention} from './HomeToday';
+import type {DailyAgendaItem} from './lib/dailyAgenda';
 
-const shortDate=(date:string)=>new Date(date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'});
+const shortDate=(date:string)=>new Date(date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'}).replace('.','');
 const accountNames:Record<string,string>={cash:'Efectivo',checking:'Cuenta bancaria',savings:'Ahorro',credit:'Tarjeta',loan:'Préstamo',mortgage:'Hipoteca',investment:'Inversión'};
+const tileTones=['success','blue','warning','purple','accent','danger'] as const;
 
-// Range paging avoids presenting the first API page as a complete account balance.
-async function allRows(query:(from:number,to:number)=>any){
- const rows:any[]=[];
- for(let from=0;from<100000;from+=1000){const r=await query(from,from+999);if(r.error)throw r.error;if(!Array.isArray(r.data))throw new Error('Respuesta incompleta');rows.push(...r.data);if(r.data.length<1000)return rows}
- throw new Error('Demasiados registros para verificar el saldo. Abre Cuentas.');
-}
+type Account=OverviewAccount&{owner_user_id?:string|null;is_shared?:boolean|null};
+type Reconciliation={account_id:string;cutoff:string};
+type AccountData={accounts:Account[];movements:AccountMovement[];transfers:AccountTransfer[];reconciliations:Reconciliation[]};
+export type TodayInput={notifications:Attention[];overdue:DailyAgendaItem[];agendaError:string;onOpenNotification:(item:Attention)=>void};
 
-export default function HomeMoneyWorkspace({householdId,finance,onNavigate,onRefresh,agenda,attention,canHealth,cover}:{householdId:string;finance:HomeFinance;onNavigate:(tab:string)=>void;onRefresh:()=>void;agenda:ReactNode;attention:ReactNode;canHealth:boolean;cover:string}){
- const source=finance.source!;
- const [period,setPeriod]=useState<FinancePeriod>(()=>source.allocations.some(a=>(halfOf(source.today)==='first'?a.first_half_amount:a.second_half_amount)!=null)?halfOf(source.today):'month'),[calculation,setCalculation]=useState(false);
- const [accountState,setAccountState]=useState<{rows:ReturnType<typeof overviewAccounts>;loading:boolean;error:string}>({rows:[],loading:true,error:''});
- const [accountAttempt,setAccountAttempt]=useState(0),[showAccounts,setShowAccounts]=useState(false),[showBudgets,setShowBudgets]=useState(false);
+export default function HomeMoneyWorkspace({householdId,userId,scope,shared,finance,onNavigate,onRefresh,agenda,agendaFirst=false,today,canHealth,cover}:{
+ householdId:string;userId:string;scope:FinanceScope;shared:boolean;finance:HomeFinance;onNavigate:(tab:string)=>void;onRefresh:()=>void;
+ agenda:ReactNode;agendaFirst?:boolean;today:TodayInput;canHealth:boolean;cover:string;
+}){
+ const agendaSlot=<div className="home-agenda-slot">{agenda}</div>;
+ const fullSource=finance.source!;
+ const source=useMemo(()=>scopeSource(fullSource,scope,userId),[fullSource,scope,userId]);
+ const [period,setPeriod]=useState<FinancePeriod>(()=>halfOf(fullSource.today));
+ const [accountState,setAccountState]=useState<{data:AccountData|null;loading:boolean;error:string}>({data:null,loading:true,error:''});
+ const [accountAttempt,setAccountAttempt]=useState(0),[showAccounts,setShowAccounts]=useState(false),[showBudgets,setShowBudgets]=useState(false),[calculation,setCalculation]=useState(false);
  const sequence=useRef(0);
- useEffect(()=>{const request=++sequence.current;setAccountState({rows:[],loading:true,error:''});(async()=>{
+ useEffect(()=>{const request=++sequence.current;setAccountState(s=>({...s,loading:true,error:''}));(async()=>{
   try{
-   const [accounts,movements,transfers]=await Promise.all([
-    allRows((a,b)=>supabase.from('finance_accounts').select('id,name,account_type,account_class,opening_balance,institution,active').eq('household_id',householdId).eq('active',true).order('id').range(a,b)),
-    allRows((a,b)=>supabase.from('transactions').select('id,account_id,type,amount,transaction_date').eq('household_id',householdId).lte('transaction_date',source.today).not('account_id','is',null).order('id').range(a,b)),
-    allRows((a,b)=>supabase.from('finance_transfers').select('id,from_account_id,to_account_id,amount,transfer_date').eq('household_id',householdId).lte('transfer_date',source.today).order('id').range(a,b))
+   const [accounts,movements,transfers,reconciliations]=await Promise.all([
+    fetchAllRows((a,b)=>supabase.from('finance_accounts').select('id,name,account_type,account_class,opening_balance,institution,active,owner_user_id,is_shared').eq('household_id',householdId).eq('active',true).order('id').range(a,b)),
+    fetchAllRows((a,b)=>supabase.from('transactions').select('id,account_id,type,amount,transaction_date').eq('household_id',householdId).lte('transaction_date',fullSource.today).not('account_id','is',null).order('id').range(a,b)),
+    fetchAllRows((a,b)=>supabase.from('finance_transfers').select('id,from_account_id,to_account_id,amount,transfer_date').eq('household_id',householdId).lte('transfer_date',fullSource.today).order('id').range(a,b)),
+    // Reconciliation history is optional context: an error here never hides balances.
+    supabase.from('account_reconciliations').select('account_id,cutoff').eq('household_id',householdId).order('cutoff',{ascending:false}).limit(500).then((r:any)=>r.error?[]:(r.data||[]))
    ]);
-   if(request===sequence.current)setAccountState({rows:overviewAccounts(accounts as OverviewAccount[],movements as AccountMovement[],transfers as AccountTransfer[],source.today),loading:false,error:''});
-  }catch{if(request===sequence.current)setAccountState({rows:[],loading:false,error:'No pudimos verificar los saldos de las cuentas.'})}
- })();return()=>{sequence.current++}},[householdId,source,accountAttempt]);
- const selected=useMemo(()=>overviewPeriod(source,period),[source,period]);
+   if(request===sequence.current)setAccountState({data:{accounts,movements,transfers,reconciliations},loading:false,error:''});
+  }catch{if(request===sequence.current)setAccountState({data:null,loading:false,error:'No pudimos verificar los saldos de las cuentas.'})}
+ })();return()=>{sequence.current++}},[householdId,fullSource,accountAttempt]);
+
+ const accounts=useMemo(()=>accountState.data?scopeAccounts(accountState.data.accounts,scope,userId):[],[accountState.data,scope,userId]);
+ const accountRows=useMemo(()=>accountState.data?overviewAccounts(accounts,accountState.data.movements,accountState.data.transfers,source.today):[],[accounts,accountState.data,source.today]);
+ const liquidRows=accountRows.filter(a=>a.liquid);
+ const liquid=liquidRows.length?liquidRows.reduce((n,a)=>n+toCents(a.balance),0)/100:null;
  const monthly=useMemo(()=>overviewPeriod(source,'month'),[source]);
- const series=useMemo(()=>registeredBalanceSeries(source,period),[source,period]);
- const goals=useMemo(()=>(finance.goals||[]).map(goal=>overviewGoal(goal,finance.goalEntries||[],source.today)),[finance,source.today]);
- const liquid=accountState.rows.filter(a=>a.liquid).reduce((n,a)=>n+toCents(a.balance),0)/100;
- const visibleAccounts=showAccounts?accountState.rows:accountState.rows.slice(0,3);
- const visibleBudgets=showBudgets?selected.budgets:selected.budgets.slice(0,3);
- const planLabel=period==='month'?'este mes':period==='first'?'del 1 al 15':'del 16 al cierre';
- return <div className="premium-home-grid">
-  <div className="premium-money-main">
-   <MoneyMetrics finance={finance} onNavigate={onNavigate}/>
-   <section className="premium-margin" aria-label="Margen del mes">
-    {cover&&<img src={cover} alt="" className="premium-cover"/>}
-    <div className="premium-margin-top"><span><Wallet size={19}/> TU MES, CON CLARIDAD</span><span className="premium-date">Al {shortDate(source.today)}</span></div>
-    <p className="premium-margin-label">Margen del mes</p><h2 className={monthly.flow.availableAfterCommitments<0?'is-negative':''}>{money(monthly.flow.availableAfterCommitments)}</h2>
-    <p>Después de pagos, fijos y ahorro por cubrir.</p>
-    <button type="button" className="premium-calculation-toggle" aria-expanded={calculation} onClick={()=>setCalculation(v=>!v)}><Info size={15}/>{calculation?'Ocultar cálculo':'Ver cálculo'} <ArrowUpRight size={15}/></button>
-    {calculation&&<div className="premium-calculation"><div><span>Ingresos − gastos − ahorro del mes</span><b>{money(finance.available)}</b></div><div><span>Pagos y fijos pendientes</span><b>− {money(finance.pending)}</b></div><div><span>Ahorro del plan aún pendiente</span><b>− {money(monthly.flow.savingsRemaining)}</b></div><p>Los ingresos esperados todavía no se suman. Este margen mensual no es el saldo de tus cuentas y no descuenta el presupuesto variable que aún podrías usar.</p></div>}
-    <MoneyMetrics finance={finance} onNavigate={onNavigate} compact/>
-    <div className="premium-margin-foot"><span>{finance.planComplete?'Según tu plan guardado':'Plan parcial · revisa lo pendiente'}</span><button onClick={()=>onNavigate('presupuesto:transactions')}>Ver movimientos <ArrowUpRight size={15}/></button></div>
+ const margin=homeMargin(monthly.flow,accountState.loading?null:liquid);
+ const timeline=useMemo(()=>balanceTimeline(source,period,accountState.data?{accounts,movements:accountState.data.movements,transfers:accountState.data.transfers}:null),[source,period,accounts,accountState.data]);
+ const actions=useMemo(()=>homeActions({source,accounts:accountRows,reconciliations:accountState.data?.reconciliations||[],today:source.today}),[source,accountRows,accountState.data]);
+ const goals=useMemo(()=>(finance.goals||[]).map(goal=>overviewGoal(goal,finance.goalEntries||[],source.today)),[finance.goals,finance.goalEntries,source.today]);
+ const goal=goals.find(g=>g.progress<100)||goals[0];
+ const reconciledCutoff=useMemo(()=>{
+  const rec=accountState.data?.reconciliations||[];if(!liquidRows.length)return null;
+  const latest=liquidRows.map(a=>rec.find(r=>r.account_id===a.id)?.cutoff||'');
+  return latest.every(Boolean)?latest.sort()[0]:null;
+ },[accountState.data,liquidRows]);
+ const half=halfOf(source.today),bounds=periodBounds(source.month,half);
+ const fortnightLabel=Number(bounds.start.slice(8))+'–'+shortDate(bounds.end);
+ // The budget card always shows the month: plans are saved monthly and the image of each rubro stays stable.
+ const budgets=monthly.budgets,visibleBudgets=showBudgets?budgets:budgets.slice(0,3);
+ const pendingLoading=accountState.loading||Boolean(accountState.error);
+ const chip=accountState.error?'No pudimos verificar tus cuentas':pendingLoading?'Verificando saldos…':margin.basis==='accounts'?(reconciledCutoff?'Saldos conciliados al '+shortDate(reconciledCutoff):'Saldos registrados al '+shortDate(source.today)):'Balance del mes al '+shortDate(source.today);
+ const baseLabel=accountState.error?'Dinero por verificar':margin.basis==='accounts'?'Dinero registrado':'Balance del mes';
+ const personalEmpty=scope==='personal'&&!source.transactions.length&&!source.plans.length&&!accounts.length;
+
+ return <div className="home-grid" data-scope={scope}>
+  <div className="home-main">
+   {scope==='personal'&&<p className="home-scope-note">Personal organiza tus registros. Los integrantes con acceso a Finanzas aún pueden consultarlos. Las metas y los avisos siguen siendo del hogar.</p>}
+   {personalEmpty&&<p className="home-scope-note" role="status"><Info size={16} aria-hidden="true"/> Aún no tienes movimientos ni cuentas marcados como personales. Al registrar, elige <b>Personal</b> para verlos aquí.</p>}
+   <section className="home-kpis" aria-label="Resumen de tu dinero">
+    <Kpi tone="accent" icon={<Wallet/>} label={baseLabel} value={pendingLoading?null:margin.base} hint={margin.basis==='accounts'?'Efectivo y cuentas líquidas':'Ingresos menos gastos y ahorro del mes'} onClick={()=>onNavigate(margin.basis==='accounts'?'presupuesto:accounts':'presupuesto:transactions')}/>
+    <Kpi tone="warning" icon={<FileText/>} label="Pagos pendientes" value={margin.pending} hint="Pagos y fijos por cubrir este mes" onClick={()=>onNavigate('presupuesto:recurring')}/>
+    <Kpi tone="success" icon={<PiggyBank/>} label="Ahorro reservado" value={margin.reserved} hint="Ahorro del plan aún por apartar" onClick={()=>onNavigate('presupuesto:goals')}/>
    </section>
-   <section className="premium-card premium-cashflow" aria-label="Balance y proyección por período">
-    <div className="premium-card-head"><div><p className="eyebrow">ANTICIPA LO QUE VIENE</p><h3>Tu dinero en el tiempo</h3></div><div className="premium-segments" role="group" aria-label="Período del resumen">{([['first','1–15'],['second','16–cierre'],['month','Mes']] as const).map(([key,label])=><button key={key} aria-pressed={period===key} onClick={()=>{setPeriod(key);setShowBudgets(false)}}>{label}</button>)}</div></div>
-    <p className="premium-caption">{shortDate(series.start)} – {shortDate(series.end)} · Registros hasta hoy.</p>
-    <RegisteredChart rows={series.rows}/>
-    <details className="premium-period-details"><summary>Ver ingresos y proyección <ChevronRight size={15}/></summary>
-    <div className="premium-period-values"><div><small>Ingresos {planLabel}</small><strong>{money(selected.flow.income)}</strong></div><div><small>Gastado {planLabel}</small><strong>{money(selected.flow.expense)}</strong></div><div><small>Ahorro neto</small><strong>{money(selected.flow.saving)}</strong></div></div>
-    <div className="home-money-answers premium-projection" aria-label="Lo siguiente para tu dinero"><div><small>Ingreso aún esperado</small><strong>{money(selected.flow.expectedIncomeRemaining)}</strong><span>Plan del período; aún no recibido</span></div><div><small>Resultado estimado del período</small><strong className={selected.flow.projectedClose<0?'negative':''}>{money(selected.flow.projectedClose)}</strong><span>{selected.complete?'Según el plan guardado':'Plan parcial: confirma la distribución'}</span></div></div>
-    <p className="premium-footnote">La estimación usa el resultado de este período más ingresos esperados, menos presupuesto y ahorro pendientes. La curva solo muestra registros reales; no asigna fechas a ingresos esperados.</p>
-    </details>
-    <button className="premium-text-link" onClick={()=>onNavigate('presupuesto:fortnight')}>Abrir quincenas y reglas de aportes <ArrowUpRight size={15}/></button>
+
+   <section className="home-hero" aria-labelledby="home-margin-label">
+    {cover&&<img src={cover} alt="" className="home-hero-cover"/>}
+    <Leaves/>
+    <div className="home-hero-top">
+     <span className="home-hero-icon" aria-hidden="true"><Coins/></span>
+     <span className="home-hero-chip">{chip}</span>
+     <MoreMenu label="Opciones del margen" className="home-hero-more" icon={<Ellipsis/>} items={[
+      ...(!pendingLoading?[{label:calculation?'Ocultar cálculo':'Ver cálculo',onSelect:()=>setCalculation(v=>!v)}]:[]),
+      {label:'Ver cuentas',onSelect:()=>onNavigate('presupuesto:accounts')},
+      {label:'Ver movimientos',onSelect:()=>onNavigate('presupuesto:transactions')}
+     ]}/>
+    </div>
+    <div className="home-hero-body">
+     <p id="home-margin-label" className="home-hero-label">Margen disponible</p>
+     <h2 className={margin.margin<0?'is-negative':''}>{pendingLoading?<span className="home-skeleton-text">Q —</span>:money(margin.margin)}</h2>
+     <p className="home-hero-sub">Después de pagos y ahorro reservado</p>
+     {!pendingLoading&&<button type="button" className="home-hero-calc-toggle" aria-expanded={calculation} onClick={()=>setCalculation(v=>!v)}>{calculation?'Ocultar cálculo':'Ver cálculo'} <ArrowUpRight size={14} aria-hidden="true"/></button>}
+    </div>
+    {calculation&&!pendingLoading&&<div className="home-hero-calc">
+     <div><span>{margin.basis==='accounts'?'Dinero registrado en efectivo y cuentas':'Ingresos − gastos − ahorro del mes'}</span><b>{money(margin.base)}</b></div>
+     <div><span>Pagos y fijos pendientes del mes</span><b>− {money(margin.pending)}</b></div>
+     <div><span>Ahorro del plan aún por apartar</span><b>− {money(margin.reserved)}</b></div>
+     <div className="home-hero-calc-total"><span>Margen disponible</span><b>{money(margin.margin)}</b></div>
+     <p>{margin.basis==='accounts'?'Usa los saldos registrados de tus cuentas líquidas (no incluye tarjetas ni inversiones).':'Aún no hay cuentas registradas: se usa el resultado registrado del mes.'} No descuenta el presupuesto variable que todavía podrías usar ni suma ingresos esperados.</p>
+    </div>}
+    <div className="home-hero-minis" aria-label="Detalle del margen">
+     <button type="button" onClick={()=>onNavigate('presupuesto:accounts')}><Wallet aria-hidden="true"/><span><small>Registrado</small><strong>{pendingLoading?'Q —':money(margin.base)}</strong></span></button>
+     <button type="button" onClick={()=>onNavigate('presupuesto:recurring')}><FileText aria-hidden="true"/><span><small>Pendiente</small><strong>{money(margin.pending)}</strong></span></button>
+    </div>
    </section>
-   <section className="premium-card premium-budgets" aria-label="Resumen de presupuesto">
-    <div className="premium-card-head"><div><p className="eyebrow">CADA RUBRO, A SU RITMO</p><h3>Así va tu presupuesto</h3></div><button className="premium-text-link" onClick={()=>onNavigate('presupuesto:budget')}>Administrar <ArrowUpRight size={15}/></button></div>
-    <p className="premium-caption">{period==='month'?'Mes completo':period==='first'?'Primera quincena':'Segunda quincena'} · Las barras muestran gasto; el porcentaje indica lo disponible.</p>
-    {visibleBudgets.length?<div className="premium-budget-list">{visibleBudgets.map(c=><div key={c.id}><BudgetCategoryProgress name={c.name} icon={c.icon} planned={c.planned} spent={c.spent}/></div>)}</div>:<div className="premium-empty"><PiggyBank/><strong>Dale un destino a tu dinero</strong><p>Guarda el presupuesto {planLabel} para ver cuánto queda en cada rubro.</p><button className="premium-text-link" onClick={()=>onNavigate('presupuesto:budget')}>Configurar presupuesto <ArrowUpRight size={15}/></button></div>}
-    {selected.budgets.length>3&&<button className="premium-text-link" aria-expanded={showBudgets} onClick={()=>setShowBudgets(v=>!v)}>{showBudgets?'Mostrar menos':'Ver los '+selected.budgets.length+' rubros'}</button>}
+
+   <section className="home-card home-fortnight" aria-labelledby="home-fortnight-title">
+    <div className="home-card-head">
+     <h3 id="home-fortnight-title">{period==='month'?'Tu mes, día a día':half==='first'?'Tu quincena actual':'Tu próxima quincena'}</h3>
+     <div className="home-segmented home-segmented--small" role="group" aria-label="Período de la gráfica">
+      <button type="button" aria-pressed={period!=='month'} onClick={()=>setPeriod(half)}>{fortnightLabel}</button>
+      <button type="button" aria-pressed={period==='month'} onClick={()=>setPeriod('month')}>Mes</button>
+     </div>
+     <div className="home-legend" aria-hidden="true"><span><i className="solid"/>Registrado</span><span><i className="dashed"/>Proyectado</span></div>
+     <MoreMenu label="Opciones de la gráfica" className="home-card-more" icon={<Ellipsis/>} items={[
+      {label:'Abrir quincenas',onSelect:()=>onNavigate('presupuesto:fortnight')},
+      {label:'Ver pagos recurrentes',onSelect:()=>onNavigate('presupuesto:recurring')}
+     ]}/>
+    </div>
+    {pendingLoading?<p className="home-caption" role="status">{accountState.error?'Reintenta la consulta de Tus cuentas para verificar la gráfica y el margen.':'Verificando saldos para la gráfica…'}</p>:<><BalanceChart timeline={timeline}/><TimelineStatus timeline={timeline} onNavigate={onNavigate}/></>}
    </section>
+
+   <section className="home-card home-budget" aria-labelledby="home-budget-title">
+    <div className="home-card-head">
+     <h3 id="home-budget-title">Así va tu presupuesto</h3>
+     <button type="button" className="home-link" onClick={()=>onNavigate('presupuesto:budget')}>Ver todos</button>
+    </div>
+    {budgets.length?<ul className="home-budget-list">{visibleBudgets.map((c,i)=><BudgetRow key={c.id} index={i} category={c} onNavigate={onNavigate}/>)}</ul>
+     :<div className="home-empty"><PiggyBank aria-hidden="true"/><div><strong>{scope==='personal'?'Sin gastos personales en este período':'Dale un destino a tu dinero'}</strong><p>{scope==='personal'?'Los presupuestos son del hogar; aquí verás tus gastos personales por rubro.':'Guarda tu presupuesto para ver cuánto queda en cada rubro.'}</p></div>{scope!=='personal'&&<button type="button" className="home-link" onClick={()=>onNavigate('presupuesto:budget')}>Configurar presupuesto <ArrowRight size={15} aria-hidden="true"/></button>}</div>}
+    {budgets.length>3&&<button type="button" className="home-link home-more" aria-expanded={showBudgets} onClick={()=>setShowBudgets(v=>!v)}>{showBudgets?'Mostrar menos':'Ver los '+budgets.length+' rubros'}</button>}
+   </section>
+
+   {!agendaFirst&&agendaSlot}
   </div>
-  <aside className="premium-home-context" aria-label="Agenda, cuentas y metas">
-   {attention}
-   <div className="premium-calendar-slot">{agenda}</div>
-   <section className="premium-card premium-accounts" aria-label="Cuentas disponibles">
-    <div className="premium-card-head"><div><p className="eyebrow">EFECTIVO Y BANCOS</p><h3>Tus cuentas</h3></div><button className="premium-icon-button" aria-label="Actualizar cuentas" onClick={()=>setAccountAttempt(v=>v+1)}><RefreshCw size={16}/></button></div>
-    {accountState.loading?<p role="status" className="premium-caption">Verificando saldos registrados…</p>:accountState.error?<div role="alert" className="premium-empty"><p>{accountState.error}</p><button className="premium-text-link" onClick={()=>setAccountAttempt(v=>v+1)}>Reintentar cuentas</button></div>:<>
-     {accountState.rows.length>0&&<div className="premium-account-total"><small>Saldo en efectivo y cuentas líquidas</small><strong>{money(liquid)}</strong><span>Según saldos iniciales y registros hasta {shortDate(source.today)}. No incluye crédito ni inversiones.</span></div>}
-     <div className="premium-account-list">{visibleAccounts.map(a=><button key={a.id} onClick={()=>onNavigate('presupuesto:accounts')}><span>{a.account_type==='credit'?<CreditCard size={19}/>:a.account_type==='cash'?<Wallet size={19}/>:<Landmark size={19}/>}</span><div><strong>{a.name}</strong><small>{accountNames[a.account_type]||'Cuenta'}{a.account_class==='liability'?' · Deuda registrada':!a.liquid?' · Activo no líquido':''}</small></div><b>{money(a.balance)}</b></button>)}</div>
-     {!accountState.rows.length&&<div className="premium-empty"><Landmark/><strong>Ubica tu dinero</strong><p>Agrega efectivo, cuentas o tarjetas con sus saldos iniciales.</p></div>}
-     {accountState.rows.length>3&&<button className="premium-text-link" aria-expanded={showAccounts} onClick={()=>setShowAccounts(v=>!v)}>{showAccounts?'Mostrar menos':'Ver las '+accountState.rows.length+' cuentas'}</button>}
+
+  <aside className="home-side" aria-label="Prioridades, metas y cuentas">
+   {agendaFirst&&agendaSlot}
+   <HomeToday notifications={today.notifications} actions={actions} overdue={today.overdue} agendaError={today.agendaError} onOpenNotification={today.onOpenNotification} onNavigate={onNavigate}/>
+
+   <section className="home-card home-goal" aria-labelledby="home-goal-title">
+    <div className="home-card-head"><h3 id="home-goal-title">{scope==='personal'?'Meta del hogar':shared?'Nuestra próxima meta':'Tu próxima meta'}</h3></div>
+    {goal?<button type="button" className="home-goal-body" onClick={()=>onNavigate('presupuesto:goals')}>
+     <span className="home-goal-icon" aria-hidden="true"><Mountain/></span>
+     <span className="home-goal-copy"><strong>{goal.name}</strong><span><b>{money(goal.saved)}</b> de {money(Number(goal.target_amount))}</span></span>
+     <span className="home-progress" role="progressbar" aria-label={'Avance de '+goal.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(goal.progress)}><i style={{width:goal.progress+'%'}}/></span>
+     <small>{Math.round(goal.progress)}% completado{goal.target_date?' · meta al '+shortDate(goal.target_date):''}</small>
+    </button>:<div className="home-empty"><Mountain aria-hidden="true"/><div><strong>Tu próximo logro empieza aquí</strong><p>Define una meta y registra tus aportes.</p></div></div>}
+    <button type="button" className="home-link" onClick={()=>onNavigate('presupuesto:goals')}>{goal?'Ver meta':'Crear una meta'} <ArrowRight size={15} aria-hidden="true"/></button>
+   </section>
+
+   {canHealth&&<section className="home-card home-health" aria-labelledby="home-health-title">
+    <div className="home-health-row"><span className="home-goal-icon" aria-hidden="true"><HeartPulse/></span><div><h3 id="home-health-title">Salud del hogar</h3><p>Consulta qué está cambiando</p></div></div>
+    <button type="button" className="home-link" onClick={()=>onNavigate('salud')}>Ver diagnóstico <ArrowRight size={15} aria-hidden="true"/></button>
+   </section>}
+
+
+   <section className="home-card home-accounts" aria-labelledby="home-accounts-title">
+    <div className="home-card-head"><h3 id="home-accounts-title">Tus cuentas</h3><button type="button" className="home-icon-button" aria-label="Actualizar cuentas" onClick={()=>setAccountAttempt(v=>v+1)}><RefreshCw size={16}/></button></div>
+    {accountState.loading?<p role="status" className="home-caption">Verificando saldos registrados…</p>:accountState.error?<div role="alert" className="home-empty"><AlertTriangle aria-hidden="true"/><div><p>{accountState.error}</p></div><button type="button" className="home-link" onClick={()=>setAccountAttempt(v=>v+1)}>Reintentar cuentas</button></div>:<>
+     {accountRows.length>0&&<ul className="home-account-list">{(showAccounts?accountRows:accountRows.slice(0,3)).map(a=><li key={a.id}><button type="button" onClick={()=>onNavigate('presupuesto:accounts')}>
+      <span className="home-tile home-tile--accent" aria-hidden="true">{a.account_type==='credit'?<CreditCard/>:a.account_type==='cash'?<Wallet/>:<Landmark/>}</span>
+      <span className="home-account-copy"><strong>{a.name}</strong><small>{accountNames[a.account_type]||'Cuenta'}{a.account_class==='liability'?' · Deuda':!a.liquid?' · No líquida':''}</small></span>
+      <b className={a.balance<0?'is-negative':''}>{money(a.balance)}</b>
+     </button></li>)}</ul>}
+     {!accountRows.length&&<div className="home-empty"><Landmark aria-hidden="true"/><div><strong>{scope==='personal'?'Sin cuentas personales':'Ubica tu dinero'}</strong><p>Agrega efectivo, cuentas o tarjetas con su saldo inicial para ver tu dinero registrado.</p></div></div>}
+     {accountRows.length>3&&<button type="button" className="home-link home-more" aria-expanded={showAccounts} onClick={()=>setShowAccounts(v=>!v)}>{showAccounts?'Mostrar menos':'Ver las '+accountRows.length+' cuentas'}</button>}
     </>}
-    <button className="premium-text-link" onClick={()=>onNavigate('presupuesto:accounts')}>Administrar y conciliar <ArrowUpRight size={15}/></button>
+    <button type="button" className="home-link" onClick={()=>onNavigate('presupuesto:accounts')}>Administrar y conciliar <ArrowRight size={15} aria-hidden="true"/></button>
    </section>
-   <section className="premium-card premium-goals" aria-label="Metas de ahorro">
-    <div className="premium-card-head"><div><p className="eyebrow">UN PASO MÁS CERCA</p><h3>Tus metas</h3></div><Target size={21}/></div>
-    {goals.length?goals.slice(0,2).map(g=><button key={g.id} className="premium-goal" onClick={()=>onNavigate('presupuesto:goals')}><strong>{g.name}<ChevronRight size={16}/></strong><span><b>{money(g.saved)}</b> de {money(Number(g.target_amount))}</span><div role="progressbar" aria-label={'Avance de '+g.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={g.progress}><i style={{width:g.progress+'%'}}/></div><small>{Math.round(g.progress)}% completado{g.target_date?' · '+shortDate(g.target_date):''}</small></button>):<div className="premium-empty"><Target/><strong>Tu próximo logro empieza aquí</strong><p>Define una meta y registra depósitos o retiros cuando los hagas.</p></div>}
-    <button className="premium-text-link" onClick={()=>onNavigate('presupuesto:goals')}>Ver metas y aportes <ArrowUpRight size={15}/></button>
-   </section>
-   {canHealth&&<button className="premium-health premium-card" onClick={()=>onNavigate('salud')}><span><PiggyBank size={22}/></span><div><strong>Salud del hogar</strong><small>Comprende qué está cambiando y qué puedes mejorar.</small></div><ArrowUpRight size={18}/></button>}
-   <button className="premium-text-link premium-refresh" onClick={onRefresh}><RefreshCw size={15}/> Actualizar resumen financiero</button>
+   <button type="button" className="home-link home-refresh" onClick={onRefresh}><RefreshCw size={15} aria-hidden="true"/> Actualizar resumen</button>
   </aside>
  </div>;
 }
 
-function MoneyMetrics({finance,onNavigate,compact=false}:{finance:HomeFinance;onNavigate:(tab:string)=>void;compact?:boolean}){
- const rows=[{label:compact?'Ingresos':'Ingresos del mes',value:finance.income,detail:'Recibidos hasta hoy',route:'income',Icon:ArrowDownLeft,tone:''},{label:compact?'Por cubrir':'Pagos y fijos pendientes',value:finance.pending,detail:'Compromisos del mes',route:'recurring',Icon:Clock3,tone:'amber'},{label:compact?'Ahorro neto':'Ahorro del mes',value:finance.saving,detail:'Depósitos menos retiros',route:'goals',Icon:PiggyBank,tone:'sage'}];
- return <div className={compact?'premium-pocket-metrics':'premium-metrics studio-metrics'} aria-label="Cifras registradas del mes">{rows.map(({label,value,detail,route,Icon,tone})=><button key={route} onClick={()=>onNavigate('presupuesto:'+route)}><span className={tone}><Icon/></span><div><small>{label}</small><strong className={money(value).length>12?'long-amount':''}>{money(value)}</strong>{!compact&&<em>{detail}</em>}</div></button>)}</div>;
+function Kpi({tone,icon,label,value,hint,onClick}:{tone:string;icon:ReactNode;label:string;value:number|null;hint:string;onClick:()=>void}){
+ const text=value===null?'Q —':money(value);
+ return <button type="button" className="home-kpi" onClick={onClick} title={hint}>
+  <span className={'home-tile home-tile--soft-'+tone} aria-hidden="true">{icon}</span>
+  <span className="home-kpi-copy"><small>{label}</small><strong className={text.length>12?'is-long':''}>{text}</strong><span className="sr-only">{hint}</span></span>
+ </button>;
 }
 
-function RegisteredChart({rows}:{rows:{date:string;balance:number}[]}){
+type BudgetCategory=ReturnType<typeof overviewPeriod>['budgets'][number];
+function BudgetRow({category,index,onNavigate}:{category:BudgetCategory;index:number;onNavigate:(tab:string)=>void}){
+ const p=category.progress,Icon=categoryIcon(category.name,category.icon),tone=tileTones[index%tileTones.length];
+ const planned=p.planned>0,over=p.excess>0;
+ return <li className={'home-budget-row is-'+p.state}>
+  <span className="home-tile home-tile--solid" style={{['--tile' as string]:'var(--nh-chart-'+tone+')'}} aria-hidden="true"><Icon/></span>
+  <span className="home-budget-name"><strong>{category.name}</strong><small>{planned?money(p.planned)+' en total':'Sin presupuesto asignado'}</small></span>
+  <span className="home-budget-bar" role="progressbar" aria-label={'Uso del presupuesto de '+category.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(p.fill)} aria-valuetext={planned?(p.usedPercent===null?'':budgetPercent(p.usedPercent)+' utilizado'):money(p.spent)+' gastados sin presupuesto'}>
+   <i style={{width:(planned?p.fill:100)+'%',['--tile' as string]:over?'var(--nh-chart-danger)':'var(--nh-chart-'+tone+')'}}/>
+  </span>
+  <span className="home-budget-amount">
+   {planned?<><strong className={over?'is-negative':''}>{over?'− '+money(p.excess):money(p.remaining)} <span>{over?'excedido':'disponibles'}</span></strong><small>{over?'Sobre el presupuesto':(p.availablePercent===null?'':budgetPercent(p.availablePercent))+' disponible'}</small></>
+   :<><strong>{money(p.spent)} <span>gastados</span></strong><small>Sin presupuesto</small></>}
+  </span>
+  <MoreMenu label={'Opciones de '+category.name} className="home-row-more" icon={<EllipsisVertical/>} items={[
+   {label:'Ver movimientos',onSelect:()=>onNavigate('presupuesto:transactions')},
+   {label:'Ajustar presupuesto',onSelect:()=>onNavigate('presupuesto:budget')}
+  ]}/>
+ </li>;
+}
+
+/** Small accessible overflow menu: closes on outside click, Escape and selection. */
+function MoreMenu({label,icon,items,className=''}:{label:string;icon:ReactNode;items:{label:string;onSelect:()=>void}[];className?:string}){
+ const [open,setOpen]=useState(false),root=useRef<HTMLDivElement>(null),id=useId();
+ useEffect(()=>{if(!open)return;
+  const close=(e:MouseEvent|TouchEvent)=>{if(root.current&&!root.current.contains(e.target as Node))setOpen(false)};
+  const key=(e:KeyboardEvent)=>{if(e.key==='Escape'){setOpen(false);root.current?.querySelector<HTMLButtonElement>('button')?.focus()}};
+  document.addEventListener('mousedown',close);document.addEventListener('touchstart',close);document.addEventListener('keydown',key);
+  root.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  return()=>{document.removeEventListener('mousedown',close);document.removeEventListener('touchstart',close);document.removeEventListener('keydown',key)};
+ },[open]);
+ return <div ref={root} className={'home-more-menu '+className}>
+  <button type="button" className="home-icon-button" aria-label={label} aria-haspopup="menu" aria-expanded={open} aria-controls={open?id:undefined} onClick={()=>setOpen(v=>!v)}>{icon}</button>
+  {open&&<div id={id} role="menu" className="home-menu-popover">{items.map(item=><button key={item.label} type="button" role="menuitem" onClick={()=>{setOpen(false);item.onSelect()}}>{item.label}</button>)}</div>}
+ </div>;
+}
+
+function TimelineStatus({timeline,onNavigate}:{timeline:BalanceTimeline;onNavigate:(tab:string)=>void}){
+ const [info,setInfo]=useState(false);
+ const explore=()=>{onNavigate('presupuesto:summary');focusWhenReady('finance-simulator')};
+ let tone='success',icon=<CheckCircle2 size={18}/>,text='Tus pagos del período están cubiertos',action=<button type="button" onClick={()=>onNavigate('presupuesto:recurring')}>Ver pagos <ArrowRight size={14}/></button>;
+ if(timeline.status==='negative'){tone='danger';icon=<AlertTriangle size={18}/>;text='Tu saldo proyectado quedaría en negativo el '+shortDate(timeline.lowest!.date);action=<button type="button" onClick={explore}>Explorar escenario <ArrowRight size={14}/></button>}
+ else if(timeline.status==='tight'){tone='warning';icon=<AlertTriangle size={18}/>;text='Revisa tus pagos antes del próximo ingreso';action=<button type="button" onClick={explore}>Explorar escenario <ArrowRight size={14}/></button>}
+ else if(timeline.status==='closed'){tone='neutral';icon=<CalendarDays size={18}/>;text='Período cerrado · resultado registrado '+money(timeline.registered.length?timeline.registered[timeline.registered.length-1].balance:0);action=<button type="button" onClick={()=>onNavigate('presupuesto:fortnight')}>Ver quincenas <ArrowRight size={14}/></button>}
+ else if(!timeline.pendingPayments){text='No tienes pagos recurrentes pendientes en este período'}
+ return <>
+  <div className={'home-status home-status--'+tone} role="status"><span aria-hidden="true">{icon}</span><p>{text}</p>{action}</div>
+  <button type="button" className="home-info-toggle" aria-expanded={info} onClick={()=>setInfo(v=>!v)}><Info size={14} aria-hidden="true"/> ¿Cómo se calcula?</button>
+  {info&&<p className="home-caption">{timeline.basis==='accounts'?'La línea registrada usa los saldos de tus cuentas líquidas.':'La línea registrada usa el resultado del mes (ingresos − gastos − ahorro), porque aún no hay cuentas registradas.'} La proyección descuenta los pagos recurrentes pendientes en su fecha de vencimiento y suma el ingreso esperado del período el último día, porque ese ingreso no tiene fecha registrada. No incluye el presupuesto variable que aún podrías gastar.</p>}
+ </>;
+}
+
+/** Waits for a lazily loaded section to render before scrolling to it. */
+function focusWhenReady(id:string,tries=20){
+ const el=document.getElementById(id);
+ if(el){el.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});return}
+ if(tries>0)window.setTimeout(()=>focusWhenReady(id,tries-1),150);
+}
+
+function niceStep(range:number){const raw=range/3,pow=10**Math.floor(Math.log10(Math.max(1,raw))),n=raw/pow;return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*pow}
+
+function BalanceChart({timeline}:{timeline:BalanceTimeline}){
  const id=useId().replace(/:/g,'');
  const chart=useRef<HTMLElement>(null),[width,setWidth]=useState(640);
- useEffect(()=>{const el=chart.current;if(!el)return;const measure=()=>setWidth(Math.max(220,Math.round(el.getBoundingClientRect().width)));measure();if(typeof ResizeObserver==='undefined'){window.addEventListener('resize',measure);return()=>window.removeEventListener('resize',measure)}const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect()},[rows.length===0]);
- if(!rows.length)return <div className="premium-chart-empty"><CalendarDays size={25}/><p>Este período todavía no tiene días registrados.</p></div>;
- const values=rows.map(r=>r.balance),min=Math.min(0,...values),max=Math.max(1,...values),range=max-min;
- const x=(i:number)=>42+i/Math.max(1,rows.length-1)*(width-54),y=(n:number)=>142-(n-min)/range*112;
- const points=rows.map((r,i)=>`${x(i)},${y(r.balance)}`).join(' '),last=rows[rows.length-1];
- return <figure ref={chart} className="premium-chart"><svg viewBox={`0 0 ${width} 184`} role="img" aria-label={'Balance registrado del mes al '+shortDate(last.date)+': '+money(last.balance)}><defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--nh-chart-accent)" stopOpacity=".22"/><stop offset="100%" stopColor="var(--nh-chart-accent)" stopOpacity="0"/></linearGradient></defs>{[min,min+range/2,max].map((n,i)=><g key={i}><line x1="42" y1={y(n)} x2={width-12} y2={y(n)} className="premium-grid-line"/><text x="6" y={y(n)-7}>{new Intl.NumberFormat('es-GT',{notation:'compact',maximumFractionDigits:1}).format(n)}</text></g>)}<polygon points={`42,142 ${points} ${x(rows.length-1)},142`} fill={`url(#${id})`}/><polyline points={points} className="premium-chart-line"/>{[0,Math.floor((rows.length-1)/2),rows.length-1].filter((n,i,a)=>a.indexOf(n)===i).map(i=><g key={i}><circle cx={x(i)} cy={y(rows[i].balance)} r="4"/><text x={x(i)} y="172" textAnchor={i===0?'start':i===rows.length-1?'end':'middle'}>{shortDate(rows[i].date)}</text></g>)}</svg><figcaption><i/> Registrado <b>{money(last.balance)}</b><span>Balance del mes, no saldo bancario</span></figcaption></figure>;
+ useEffect(()=>{const el=chart.current;if(!el)return;const measure=()=>setWidth(Math.max(260,Math.round(el.getBoundingClientRect().width)));measure();if(typeof ResizeObserver==='undefined'){window.addEventListener('resize',measure);return()=>window.removeEventListener('resize',measure)}const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect()},[]);
+ const context=timeline.context,reg=timeline.registered,proj=timeline.projected,last=reg[reg.length-1];
+ const all=[...context,...reg,...proj];
+ if(!all.length)return <figure ref={chart} className="home-chart home-chart--empty"><CalendarDays size={24} aria-hidden="true"/><p>Este período todavía no tiene días registrados.</p></figure>;
+ const compact=width<420,height=compact?172:200,left=compact?54:66,right=16,top=12,bottom=compact?30:46;
+ const axisStart=context[0]?.date||timeline.start,span=Math.max(1,dayDiff(axisStart,timeline.end));
+ const values=all.map(r=>r.balance),min=Math.min(0,...values),max=Math.max(1,...values);
+ const step=niceStep(max-min),lo=Math.floor(min/step)*step,hi=Math.ceil(max/step)*step,range=hi-lo||1;
+ const ticks:number[]=[];for(let v=lo;v<=hi+step/2;v+=step)ticks.push(v);
+ const x=(date:string)=>left+dayDiff(axisStart,date)/span*(width-left-right);
+ const y=(n:number)=>top+(hi-n)/range*(height-top-bottom);
+ const line=(rows:{date:string;balance:number}[])=>rows.map(r=>x(r.date).toFixed(1)+','+y(r.balance).toFixed(1)).join(' ');
+ const solid=[...(context.length?context:[]),...reg];
+ const projectedPath=last&&proj.length?line([last,...proj.filter(p=>p.date>last.date)]):'';
+ // Date labels never overlap: candidates are placed by priority using their estimated text width.
+ const candidates:{date:string;note?:string;kind:string}[]=[
+  ...(last&&timeline.status!=='closed'?[{date:last.date,note:'Hoy',kind:'today'}]:[]),
+  ...timeline.marks.filter(m=>m.kind==='income').map(m=>({date:m.date,note:'Ingreso esperado',kind:'income'})),
+  ...timeline.marks.filter(m=>m.kind==='payment').sort((a,b)=>b.amount-a.amount).map(m=>({date:m.date,note:m.label,kind:'payment'})),
+  ...(context.length?[{date:timeline.start,note:'Inicio',kind:'start'}]:[]),
+  {date:axisStart,kind:'edge'},{date:timeline.end,kind:'edge'}];
+ const charWidth=compact?6.2:6.6,box=(c:{date:string;note?:string})=>Math.max(shortDate(c.date).length,compact||!c.note?0:Math.min(16,c.note.length))*charWidth+10;
+ const placed:{date:string;note?:string;kind:string;x:number;w:number}[]=[];
+ for(const c of candidates){
+  const cx=x(c.date),w=box(c),same=placed.find(p=>p.date===c.date);
+  if(same){if(!same.note&&c.note&&!compact){same.note=c.note;same.w=Math.max(same.w,w)}continue}
+  const lo1=Math.max(left-20,cx-w/2),hi1=Math.min(width,cx+w/2);
+  if(placed.every(p=>hi1+6<=p.x-p.w/2||lo1-6>=p.x+p.w/2))placed.push({...c,x:cx,w});
+ }
+ const anchor=(px:number)=>px<left+24?'start':px>width-right-24?'end':'middle';
+ const description='Saldo '+(timeline.basis==='accounts'?'registrado en cuentas':'registrado del mes')+(last?' al '+shortDate(last.date)+': '+money(last.balance):'')+(proj.length?'. Proyección al '+shortDate(timeline.end)+': '+money(proj[proj.length-1].balance):'');
+ return <figure ref={chart} className="home-chart">
+  <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={description}>
+   <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" className="home-chart-fill-start"/><stop offset="100%" className="home-chart-fill-end"/></linearGradient></defs>
+   {ticks.map(t=><g key={t}><line className="home-chart-grid" x1={left} x2={width-right} y1={y(t)} y2={y(t)}/><text className="home-chart-tick" x={left-8} y={y(t)+4} textAnchor="end">{formatMoneyRounded(t)}</text></g>)}
+   {placed.filter(p=>p.kind!=='edge').map(p=><line key={'v'+p.date} className="home-chart-marker" x1={p.x} x2={p.x} y1={top} y2={height-bottom}/>)}
+   {solid.length>1&&<polygon points={`${x(solid[0].date)},${y(lo)} ${line(solid)} ${x(solid[solid.length-1].date)},${y(lo)}`} fill={`url(#${id})`}/>}
+   {solid.length>0&&<polyline className="home-chart-line" points={line(solid)}/>}
+   {projectedPath&&<polyline className="home-chart-line home-chart-line--projected" points={projectedPath}/>}
+   {timeline.marks.filter(m=>m.kind==='payment').map(m=>{const point=proj.find(p=>p.date===m.date);return point?<circle key={'p'+m.date+m.label} className="home-chart-dot" cx={x(m.date)} cy={y(point.balance)} r={3.5}/>:null})}
+   {timeline.marks.filter(m=>m.kind==='income').map(m=>{const point=proj.find(p=>p.date===m.date);return point?<circle key="income" className="home-chart-dot home-chart-dot--open" cx={x(m.date)} cy={y(point.balance)} r={5}/>:null})}
+   {last&&<circle className="home-chart-dot home-chart-dot--today" cx={x(last.date)} cy={y(last.balance)} r={4.5}/>}
+   {placed.map(p=><g key={'l'+p.date} className="home-chart-xlabel"><text x={p.x} y={height-bottom+17} textAnchor={anchor(p.x)}>{shortDate(p.date)}</text>{p.note&&!compact&&<text className="home-chart-xnote" x={p.x} y={height-bottom+33} textAnchor={anchor(p.x)}>{p.note.length>16?p.note.slice(0,15)+'…':p.note}</text>}</g>)}
+  </svg>
+  <figcaption className="sr-only">{description}</figcaption>
+ </figure>;
+}
+
+function Leaves(){
+ return <svg className="home-hero-leaves" viewBox="0 0 220 160" aria-hidden="true" focusable="false">
+  <g fill="currentColor">
+   <path d="M150 160c-6-38 6-79 52-104-8 41-24 77-52 104z" opacity=".55"/>
+   <path d="M120 160c-24-26-32-62-16-104 24 30 32 66 16 104z" opacity=".4"/>
+   <path d="M176 160c10-28 30-48 60-58-10 26-32 46-60 58z" opacity=".35"/>
+   <path d="M92 160c-30-8-52-30-60-62 32 8 52 30 60 62z" opacity=".28"/>
+  </g>
+  <g fill="none" stroke="currentColor" strokeWidth="1.4" opacity=".55">
+   <path d="M150 160c8-36 24-70 52-104"/><path d="M120 160c2-36-2-72-16-104"/><path d="M176 160c16-24 36-44 60-58"/>
+  </g>
+ </svg>;
 }

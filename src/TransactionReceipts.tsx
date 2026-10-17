@@ -43,6 +43,18 @@ export default function TransactionReceipts({householdId,transactionId,readOnly=
   if(error||!data){setError('No se pudo abrir el archivo. Vuelve a intentar.');return}
   setPreview({receipt,url:data.signedUrl});
  }
+ async function openInTab(event:React.MouseEvent<HTMLAnchorElement>){
+  // The preview URL expires after a few minutes, so every "open in tab" signs a fresh one.
+  event.preventDefault();if(!preview)return;const receipt=preview.receipt;setError('');
+  const tab=window.open('','_blank');
+  try{
+   const {data,error}=await supabase.storage.from(RECEIPT_BUCKET).createSignedUrl(receipt.file_path,300);
+   if(error||!data)throw error||new Error('Sin enlace');
+   setPreview(current=>current&&current.receipt.id===receipt.id?{receipt,url:data.signedUrl}:current);
+   if(tab){tab.opener=null;tab.location.href=data.signedUrl}
+   else setError('Tu navegador bloqueó la nueva pestaña. Permite ventanas emergentes para este sitio y vuelve a intentar.');
+  }catch{tab?.close();setError('No se pudo abrir el archivo. Vuelve a intentar.')}
+ }
  async function saveDetail(e:React.FormEvent){
   e.preventDefault();if(!editing||readOnly||busy)return;setBusy(true);setError('');
   try{
@@ -66,7 +78,7 @@ export default function TransactionReceipts({householdId,transactionId,readOnly=
   </>}
   {preview&&<div className="receipt-preview"><div><strong>{preview.receipt.original_filename}</strong><button type="button" onClick={()=>setPreview(null)} aria-label="Cerrar vista del comprobante"><X/></button></div>
    {preview.receipt.mime_type.startsWith('image/')?<img src={preview.url} alt={'Comprobante '+preview.receipt.original_filename}/>:<p className="receipt-help">Abre el PDF para revisar la factura completa.</p>}
-   <a href={preview.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Abrir {preview.receipt.mime_type==='application/pdf'?'PDF':'archivo'} en otra pestaña</a>
+   <a href={preview.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" onClick={openInTab}>Abrir {preview.receipt.mime_type==='application/pdf'?'PDF':'archivo'} en otra pestaña</a>
   </div>}
   {editing&&!readOnly&&<form className="finance-form receipt-detail-form" onSubmit={saveDetail}><label>Detalle de compra (opcional)<textarea value={detail} onChange={e=>setDetail(e.target.value)} maxLength={10000} rows={5} placeholder={'Un artículo por línea. Ejemplo:\nLeche · 2 unidades\nPan · 1 unidad'}/></label><small>Listado manual para consulta. No modifica el total del gasto.</small><div><button type="button" disabled={busy} onClick={()=>setEditing(null)}>Cancelar</button><button className="finance-primary" disabled={busy}>{busy?'Guardando…':'Guardar detalle'}</button></div></form>}
   {!readOnly&&<div className="receipt-upload">

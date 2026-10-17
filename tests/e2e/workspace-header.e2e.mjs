@@ -40,7 +40,7 @@ test('long household names and agenda-first personalization fit without stale he
   await s.page.route('**/rest/v1/household_members?**',route=>{if(!new URL(route.request().url()).searchParams.get('select')?.includes('households('))return route.fallback();return route.fulfill({json:[{user_id:uid,household_id:hh,households:{id:hh,name,invite_code:'QA'}}]})});
   await ready(s,'');await expect(s.page.locator('.workspace-header .home-intro')).toHaveCount(1);await expect(s.page.locator('.content .home-intro')).toHaveCount(0);await expect(s.page.locator('.home-select-label')).toHaveText(name);
   for(const width of [320,390,768,1100,1280]){await s.page.setViewportSize({width,height:844});await healthy(s);const label=await s.page.locator('.home-select-label').evaluate(e=>({height:e.clientHeight,scroll:e.scrollHeight}));expect(label.scroll).toBeLessThanOrEqual(label.height+1)}
-  const agenda=await s.page.locator('.studio-agenda').boundingBox(),priority=await s.page.locator('.premium-attention').boundingBox();expect(agenda.y+agenda.height).toBeLessThanOrEqual(priority.y+1);
+  const agenda=await s.page.locator('.studio-agenda').boundingBox(),priority=await s.page.locator('.home-today').boundingBox();expect(agenda.y+agenda.height).toBeLessThanOrEqual(priority.y+1);
   await s.page.locator('.global-search-trigger').click();await s.page.keyboard.press('Escape');await healthy(s);
  }finally{await s.context.close()}
 });

@@ -6,6 +6,8 @@ import ModuleIcon from './ModuleIcon';
 import {ChangeEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {ArchiveRestore,CheckCircle2,Database,Download,FileJson,FileSpreadsheet,History,Package,Printer,RefreshCw,ShieldCheck,Trash2,UploadCloud,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {formatMoney} from './lib/money';
+import {localISODate} from './lib/localDate';
 import './BackupCenter.css';
 
 type Household={id:string;name:string;invite_code:string};
@@ -13,7 +15,7 @@ type BackupRow={id:string;name:string;schema_version:number;counts:any;size_byte
 type RecoveryRow={id:string;module:string;source_table:string;source_id:string;label:string|null;deleted_at:string;expires_at:string;restored_at:string|null};
 type Snapshot={product:string;schema_version:number;exported_at:string;household:{id:string;name:string};members:any[];tables:Record<string,any[]>;notes?:Record<string,any>};
 
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:2}).format(Number(n||0));
+const money=(n:number)=>formatMoney(Number(n||0));
 const dateTime=(value:string)=>new Date(value).toLocaleString('es-GT',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).replace('.','');
 const safeName=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9-_]+/gi,'-').replace(/^-|-$/g,'').toLowerCase()||'nuestro-hogar';
 const escapeHtml=(value:any)=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]||ch));
@@ -47,7 +49,7 @@ export default function BackupCenter({household}:{household:Household}){
   setBusy('json');setMessage('');
   const {data,error}=await supabase.rpc('build_household_backup_snapshot',{p_household_id:household.id});
   setBusy('');if(error){setMessage(error.message);return}
-  downloadBlob(JSON.stringify(data,null,2),`${safeName(household.name)}-respaldo-${new Date().toISOString().slice(0,10)}.json`,'application/json;charset=utf-8');
+  downloadBlob(JSON.stringify(data,null,2),`${safeName(household.name)}-respaldo-${localISODate()}.json`,'application/json;charset=utf-8');
   setMessage('Respaldo JSON descargado.');
  }
 

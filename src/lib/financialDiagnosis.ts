@@ -3,12 +3,13 @@ import {occurrenceDetails} from './recurringDetails';
 import {financePeriodSummary,inPeriod,toCents,type FinancePeriod,type ShareContext} from './financePeriods';
 import {buildFortnightReview,type ReviewSource} from './fortnightReview';
 import type {FinanceSection} from './financeNavigation';
+import {formatMoney} from './money';
 export type DiagnosisAccount={id:string;name:string;account_type:string;account_class:'asset'|'liability';balance:number|string;minimum_payment:number|string|null};
 export type DiagnosisHistory={month:string;income:number;expense:number;saving:number;transaction_count:number};
 export type DiagnosisData={month:string;server_date:string;generated_at:string;source:Omit<ReviewSource,'recurring'>&{recurring:(ReviewSource['recurring'][number]&{category_id:string|null})[]};accounts:DiagnosisAccount[];history:DiagnosisHistory[];reserve:{amount:number|null;target_months:number|null;confirmed_on:string|null}|null};
 export type DiagnosisAction={id:string;title:string;why:string;amount:number|null;target:FinanceSection|'reserve';priority:number};
 const sum=<T,>(rows:T[],get:(r:T)=>number|string|null|undefined)=>rows.reduce((s,r)=>s+toCents(get(r)),0)/100;
-export const diagnosisMoney=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:2}).format(n);
+export const diagnosisMoney=formatMoney;
 export function buildFinancialDiagnosis(data:DiagnosisData,period:FinancePeriod){
  const {source:s,month,server_date:today}=data;
  const transactions=s.transactions.filter(t=>t.transaction_date<=today),savings=s.savings.filter(t=>t.contribution_date<=today);

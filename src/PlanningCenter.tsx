@@ -6,6 +6,7 @@ import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
 import {AlertTriangle,ArrowRight,Building2,Car,Check,CheckCircle2,ChevronRight,CircleDollarSign,Clock3,CreditCard,Edit3,Flag,Pause,Plane,Plus,ReceiptText,Sparkles,Target,Trash2,TrendingUp,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {formatMoney} from './lib/money';
 import './PlanningCenter.css';
 
 type Household={id:string;name:string;invite_code:string};
@@ -28,7 +29,7 @@ type Maintenance={id:string;title:string;next_due_date:string|null};
 type EventRow={id:string;title:string;event_date:string};
 
 const iso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(Number(n||0));
+const money=(n:number)=>formatMoney(Number(n||0));
 const fmtDate=(value:string|null)=>value?new Date(value+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'}).replace('.',''):'Sin fecha';
 const addMonths=(months:number)=>{const d=new Date();d.setMonth(d.getMonth()+months);return iso(d)};
 

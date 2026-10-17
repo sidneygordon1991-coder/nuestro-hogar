@@ -4,6 +4,7 @@ import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowDownLeft,ArrowUpRight,Car,Check,Package,Plus,ReceiptText,Search,ShoppingCart,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {ensureShoppingList} from './lib/shoppingList';
 
 type Household={id:string;name:string;invite_code:string};
 type Mode='search'|'quick'|null;
@@ -87,6 +88,7 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
  }
 
  async function ensureList(title:string,listType:string){
+  if(listType==='shopping'){const id=await ensureShoppingList(supabase,household.id,title);if(!lists.some(l=>l.id===id))setLists(current=>current.some(l=>l.id===id)?current:[{id,title,list_type:listType},...current]);return id}
   const local=lists.find(l=>l.list_type===listType)||lists.find(l=>l.title.toLocaleLowerCase('es-GT')===title.toLocaleLowerCase('es-GT'));
   if(local)return local.id;
   const {data,error}=await supabase.from('lists').insert({household_id:household.id,title,list_type:listType}).select('id').single();
@@ -151,18 +153,24 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
   success('Documento guardado en la bóveda.');
  }
 
+ const pendingMaintenance=useRef<{form:HTMLFormElement;id:string}|null>(null);
  async function saveMaintenance(e:FormEvent<HTMLFormElement>){
   e.preventDefault();setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
   const nextDate=String(f.get('next_due_date')||'')||null,nextKm=String(f.get('next_due_mileage')||'')?Number(f.get('next_due_mileage')):null,months=String(f.get('interval_months')||'')?Number(f.get('interval_months')):null,km=String(f.get('interval_km')||'')?Number(f.get('interval_km')):null;
   if(!nextDate&&nextKm==null&&months==null&&km==null){setBusy(false);setMessage('Indica una fecha, kilometraje o recurrencia.');return}
-  const {data,error}=await supabase.from('maintenance_schedules').insert({
+  const values={
    household_id:household.id,asset_id:String(f.get('asset_id')||'')||null,title:String(f.get('title')||'').trim(),
    maintenance_type:String(f.get('maintenance_type')||'service'),provider:String(f.get('provider')||'').trim()||null,
    next_due_date:nextDate,next_due_mileage:nextKm,interval_months:months,interval_km:km,assigned_to:String(f.get('assigned_to')||'')||null
-  }).select('id').single();
+  };
+  // A retry from the same form after a failed sync updates the record already created instead of inserting a duplicate.
+  const form=e.currentTarget,pending=pendingMaintenance.current?.form===form?pendingMaintenance.current.id:null;
+  const {data,error}=pending?await supabase.from('maintenance_schedules').update(values).eq('id',pending).eq('household_id',household.id).select('id').single():await supabase.from('maintenance_schedules').insert(values).select('id').single();
   if(error||!data){setBusy(false);setMessage(error?.message||'No se pudo crear el mantenimiento.');return}
+  pendingMaintenance.current={form,id:data.id};
   const sync=await supabase.rpc('sync_maintenance_event',{p_schedule_id:data.id});
-  if(sync.error){setBusy(false);setMessage(sync.error.message);return}
+  if(sync.error){setBusy(false);setMessage('El mantenimiento se guardó, pero no se sincronizó con Agenda: '+sync.error.message+' Vuelve a guardar para reintentar.');return}
+  pendingMaintenance.current=null;
   await supabase.rpc('refresh_my_notifications',{p_household_id:household.id});
   success('Mantenimiento programado y sincronizado con Agenda.');
  }
@@ -175,7 +183,7 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
 
  return <div className="global-command-center">
   <button className="global-search-trigger" aria-label="Buscar en Nuestro Hogar" onClick={openSearch} title="Buscar en Nuestro Hogar"><Search/><span>Buscar</span><kbd>⌘K</kbd></button>
-  {hasQuickEdit&&<button className="global-add-trigger" onClick={openQuick} title="Agregar rápido"><Plus/></button>}
+  {hasQuickEdit&&<button type="button" className="global-add-trigger" onClick={openQuick} title="Agregar rápido" aria-label="Registrar"><Plus aria-hidden="true"/><span>Registrar</span></button>}
 
   {mode&&<><button className="global-command-scrim" onClick={close} aria-label="Cerrar"/><section ref={panel} className={'global-command-panel global-command-panel--'+mode} role="dialog" aria-modal="true" aria-labelledby="global-command-title">
    <div className="global-command-head">

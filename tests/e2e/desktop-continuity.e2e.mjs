@@ -51,7 +51,7 @@ test('a different authenticated account still reloads its household and clears t
 for(const theme of ['light','dark'])test(`desktop modules use the available viewport with aligned navigation: ${theme}`,async({browser},testInfo)=>{
  const s=await setup(browser,{rich:true,theme});try{
   for(const tab of ['', 'presupuesto','calendario','familia','listas','comidas','documentos','mantenimiento','planeacion','salud','cierre','automatizaciones','respaldos','diagnostico']){
-   await s.page.setViewportSize({width:1920,height:1080});await ready(s,tab);const app=await s.page.locator('.app.app-studio').boundingBox(),content=await s.page.locator('.content').boundingBox(),rail=await s.page.locator('.desktop-rail').boundingBox();expect(app.x).toBe(0);expect(app.width).toBe(1920);expect(rail.x).toBe(18);expect(content.x+content.width).toBeGreaterThanOrEqual(1919);expect(content.width).toBeGreaterThan(1600);await healthy(s);
+   await s.page.setViewportSize({width:1920,height:1080});await ready(s,tab);const app=await s.page.locator('.app.app-studio').boundingBox(),content=await s.page.locator('.content').boundingBox(),rail=await s.page.locator('.desktop-rail').boundingBox();expect(app.x).toBe(0);expect(app.width).toBe(1920);expect(rail.x).toBe(0);expect(rail.height).toBe(1080);expect(content.x).toBeGreaterThanOrEqual(rail.width);expect(content.x+content.width).toBeGreaterThanOrEqual(1919);expect(content.width).toBeGreaterThan(1600);await healthy(s);
   }
   await ready(s,'');await testInfo.attach('desktop-1920-'+theme,{body:await s.page.screenshot(),contentType:'image/png'});
   await s.page.setViewportSize({width:2560,height:1440});await expect(s.page.locator('.app.app-studio')).toHaveCSS('max-width','none');await healthy(s);

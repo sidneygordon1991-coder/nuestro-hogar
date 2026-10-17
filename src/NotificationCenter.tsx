@@ -18,6 +18,7 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
  const [total,setTotal]=useState(0),[unreadTotal,setUnreadTotal]=useState(0),[loadingMore,setLoadingMore]=useState(false),[loading,setLoading]=useState(true);
  const [historyError,setHistoryError]=useState('');
  const root=useRef<HTMLDivElement>(null),panel=useRef<HTMLElement>(null),bell=useRef<HTMLButtonElement>(null),scope=useRef(household.id);scope.current=household.id;
+ const countRequest=useRef(0),loadRequest=useRef(0),userRef=useRef('');userRef.current=userId;const loadedCount=useRef(0);loadedCount.current=items.length;
  useEffect(()=>{const show=()=>setOpen(true);window.addEventListener('nh:notifications',show);return()=>window.removeEventListener('nh:notifications',show)},[]);
  const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
  const unread=useMemo(()=>Math.max(unreadTotal,items.filter(n=>!n.read_at).length),[items,unreadTotal]);
@@ -47,19 +48,35 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
     if(prefs.browser_notifications&&typeof Notification!=='undefined'&&Notification.permission==='granted'&&document.visibilityState!=='visible')showBrowserNotification(row);
    })
    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'notifications',filter:'user_id=eq.'+user.id},payload=>{
-    const row=payload.new as NotificationRow;setItems(current=>current.map(x=>x.id===row.id?row:x));
+    const row=payload.new as NotificationRow;if((row as any).household_id&&(row as any).household_id!==household.id)return;
+    setItems(current=>current.map(x=>x.id===row.id?row:x));void refreshCounts(user.id);
+   })
+   .on('postgres_changes',{event:'DELETE',schema:'public',table:'notifications',filter:'user_id=eq.'+user.id},payload=>{
+    const id=(payload.old as any)?.id;if(id)setItems(current=>current.filter(x=>x.id!==id));void refreshCounts(user.id);
    }).subscribe();
  })();return()=>{cancelled=true;if(channel)supabase.removeChannel(channel)}},[household.id,prefs.browser_notifications]);
 
- async function load(uid=userId){
+ /** Re-reads the unread and total counts (the bell badge) after a notification is read or deleted elsewhere. */
+ async function refreshCounts(uid=userRef.current){
+  if(!uid)return;const householdId=household.id,req=++countRequest.current;
+  const [unreadR,totalR]=await Promise.all([
+   supabase.from('notifications').select('id',{count:'exact',head:true}).eq('household_id',householdId).eq('user_id',uid).is('read_at',null),
+   supabase.from('notifications').select('id',{count:'exact',head:true}).eq('household_id',householdId).eq('user_id',uid)
+  ]);
+  if(scope.current!==householdId||req!==countRequest.current)return;
+  if(!unreadR.error&&unreadR.count!=null)setUnreadTotal(unreadR.count);if(!totalR.error&&totalR.count!=null)setTotal(totalR.count);
+ }
+ useEffect(()=>{const changed=()=>{if(userRef.current)void load(userRef.current,true)};window.addEventListener('nh:notifications-changed',changed);return()=>window.removeEventListener('nh:notifications-changed',changed)},[household.id]);
+
+ async function load(uid=userId,silent=false){
   if(!uid)return;
-  const householdId=household.id;setLoading(true);setHistoryError('');
+  const householdId=household.id,req=++loadRequest.current;countRequest.current++;if(!silent)setLoading(true);setHistoryError('');
   const [notificationR,prefR,unreadR]=await Promise.all([
-   supabase.from('notifications').select(notificationColumns,{count:'exact'}).eq('household_id',householdId).eq('user_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false}).range(0,pageSize-1),
+   supabase.from('notifications').select(notificationColumns,{count:'exact'}).eq('household_id',householdId).eq('user_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false}).range(0,(silent?Math.max(pageSize,loadedCount.current):pageSize)-1),
    supabase.from('notification_preferences').select('browser_notifications,payments,events,tasks,birthdays,budget,goals,documents,maintenance,pantry,planning').eq('household_id',household.id).eq('user_id',uid).maybeSingle(),
    supabase.from('notifications').select('id',{count:'exact',head:true}).eq('household_id',householdId).eq('user_id',uid).is('read_at',null)
   ]);
-  if(scope.current!==householdId)return;
+  if(scope.current!==householdId||req!==loadRequest.current)return;
   if(notificationR.error)setMessage('No se pudieron cargar las notificaciones. Intenta de nuevo.');
   setItems((notificationR.data||[]) as NotificationRow[]);setTotal(notificationR.count??notificationR.data?.length??0);setUnreadTotal(unreadR.count??0);setPrefs((prefR.data||defaults) as Preferences);setLoading(false);
  }

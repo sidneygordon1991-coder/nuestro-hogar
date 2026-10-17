@@ -4,7 +4,7 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {ChevronRight,Download,Monitor,Menu,Moon,Palette,Settings2,ShieldCheck,Sun,X} from 'lucide-react';
 
 type AccessLevel='none'|'view'|'edit';
-type Theme='system'|'dark'|'light';
+export type Theme='system'|'dark'|'light';
 
 type Item={tab:string;module?:string;label:string;description:string;icon:React.ReactNode};
 const groups:{label:string;items:Item[]}[]=[
@@ -74,7 +74,7 @@ export function readThemePreference():Theme {
  return saved==='light'||saved==='dark'?saved:'system';
 }
 
-function setThemePreference(theme:Theme) {
+export function setThemePreference(theme:Theme) {
  localStorage.setItem('nh-theme',theme);
  applyTheme(theme);
  window.dispatchEvent(new CustomEvent('nh:theme-change',{detail:theme}));
@@ -114,5 +114,5 @@ function applyTheme(theme:Theme){
  document.documentElement.dataset.theme=effective;
  document.documentElement.dataset.themePreference=theme;
  const meta=document.querySelector('meta[name="theme-color"]');
- if(meta)meta.setAttribute('content',effective==='light'?'#f3f7fb':'#0d141c');
+ if(meta)meta.setAttribute('content',effective==='light'?'#f1f3f5':'#101214');
 }

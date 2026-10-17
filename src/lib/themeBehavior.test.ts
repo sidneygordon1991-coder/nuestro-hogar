@@ -18,8 +18,8 @@ describe('appearance switch lifecycle',()=>{
   media.matches=false;media.dispatchEvent(new Event('change'));expect(dataset().theme).toBe('dark');
   toggleTheme();expect(dataset().theme).toBe('light');expect(stored.get('nh-theme')).toBe('light');
   media.dispatchEvent(new Event('change'));expect(dataset().theme).toBe('light');
-  expect(attrs.content).toBe('#f3f7fb');
-  toggleTheme();expect(dataset().theme).toBe('dark');expect(attrs.content).toBe('#0d141c');
+  expect(attrs.content).toBe('#f1f3f5');
+  toggleTheme();expect(dataset().theme).toBe('dark');expect(attrs.content).toBe('#101214');
  });
  it('synchronizes another tab and treats invalid saved values as automatic',async()=>{
   stored.set('nh-theme','obsolete');

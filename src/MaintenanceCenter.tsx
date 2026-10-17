@@ -3,9 +3,10 @@ import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import AssetIllustration from './AssetIllustration';
 import ModuleIcon from './ModuleIcon';
-import {FormEvent,useEffect,useMemo,useState} from 'react';
+import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {AlertTriangle,Building2,CalendarClock,Car,Check,CheckCircle2,ChevronRight,Gauge,History,Plus,ReceiptText,ShieldCheck,Trash2,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {formatMoney} from './lib/money';
 
 type Household={id:string;name:string;invite_code:string};
 type AssetType='property'|'vehicle'|'investment'|'valuable'|'other';
@@ -17,7 +18,7 @@ type Member={user_id:string;full_name:string};
 type Doc={id:string;title:string;category:string;expires_on:string|null};
 
 const iso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
+const money=formatMoney;
 const fmtDate=(value:string|null)=>value?new Date(value+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'}):'Sin fecha';
 const fmtKm=(n:number|null)=>n==null?'—':new Intl.NumberFormat('es-GT',{maximumFractionDigits:0}).format(n)+' km';
 
@@ -28,8 +29,9 @@ export default function MaintenanceCenter({household,onNavigate,readOnly=false}:
  const [showAsset,setShowAsset]=useState(false),[editingAsset,setEditingAsset]=useState<Asset|null>(null);
  const [showSchedule,setShowSchedule]=useState(false),[editingSchedule,setEditingSchedule]=useState<Schedule|null>(null);
  const [completing,setCompleting]=useState<Schedule|null>(null);
+ const request=useRef(0);
 
- useEffect(()=>{load();const channel=supabase.channel('maintenance-'+household.id)
+ useEffect(()=>{setMessage('');load();const channel=supabase.channel('maintenance-'+household.id)
   .on('postgres_changes',{event:'*',schema:'public',table:'maintenance_schedules',filter:'household_id=eq.'+household.id},()=>load(false))
   .on('postgres_changes',{event:'*',schema:'public',table:'maintenance_records',filter:'household_id=eq.'+household.id},()=>load(false))
   .on('postgres_changes',{event:'*',schema:'public',table:'finance_assets',filter:'household_id=eq.'+household.id},()=>load(false))
@@ -38,7 +40,8 @@ export default function MaintenanceCenter({household,onNavigate,readOnly=false}:
  },[household.id]);
 
  async function load(showLoader=true){
-  if(showLoader)setLoading(true);setMessage('');
+  // Messages are cleared by each user action, not here: realtime reloads must not wipe 'Plan creado…' or an error.
+  const req=++request.current;if(showLoader)setLoading(true);
   const [assetR,scheduleR,recordR,memberR,docR]=await Promise.all([
    supabase.from('finance_assets').select('id,name,asset_type,estimated_value,brand,model,asset_year,serial_number,license_plate,current_mileage,purchase_date,warranty_expires_on,notes,active').eq('household_id',household.id).eq('active',true).in('asset_type',['property','vehicle','other']).order('created_at'),
    supabase.from('maintenance_schedules').select('id,asset_id,title,maintenance_type,provider,estimated_cost,assigned_to,next_due_date,next_due_mileage,interval_months,interval_km,last_completed_date,last_completed_mileage,document_id,calendar_event_id,notes,active').eq('household_id',household.id).eq('active',true).order('next_due_date',{ascending:true,nullsFirst:false}),
@@ -48,11 +51,12 @@ export default function MaintenanceCenter({household,onNavigate,readOnly=false}:
   ]);
   const ids=(memberR.data||[]).map((m:any)=>m.user_id);
   const profileR=ids.length?await supabase.from('profiles').select('id,full_name').in('id',ids):{data:[] as any[]};
+  if(req!==request.current)return;
   const names=new Map((profileR.data||[]).map((p:any)=>[p.id,p.full_name||'Miembro']));
   setMembers(ids.map((id:string)=>({user_id:id,full_name:String(names.get(id)||'Miembro')})));
   setAssets((assetR.data||[]) as Asset[]);setSchedules((scheduleR.data||[]) as Schedule[]);setRecords((recordR.data||[]) as RecordRow[]);setDocuments((docR.data||[]) as Doc[]);
   if(assetR.error||scheduleR.error||recordR.error||docR.error)setMessage('No se pudo cargar toda la información de mantenimiento.');
-  if(showLoader)setLoading(false);
+  setLoading(false);
  }
 
  const assetMap=useMemo(()=>new Map(assets.map(a=>[a.id,a])),[assets]);
@@ -95,16 +99,18 @@ export default function MaintenanceCenter({household,onNavigate,readOnly=false}:
   }else{
    const {data,error}=await supabase.from('maintenance_schedules').insert(payload).select('id').single();
    if(error||!data){setBusy(false);setMessage(error?.message||'No se pudo crear el plan.');return}id=data.id;
+   // From here on the form edits this record, so retrying after a failed sync never inserts a duplicate plan.
+   setEditingSchedule({...payload,id,last_completed_date:null,last_completed_mileage:null,calendar_event_id:null,active:true} as Schedule);
   }
   const sync=await supabase.rpc('sync_maintenance_event',{p_schedule_id:id});
-  setBusy(false);setMessage(sync.error?sync.error.message:editingSchedule?'Plan actualizado y calendario sincronizado.':'Plan creado y agregado al calendario.');
+  setBusy(false);setMessage(sync.error?'El plan se guardó, pero no se sincronizó con el calendario: '+sync.error.message+' Vuelve a guardar para reintentar.':editingSchedule?'Plan actualizado y calendario sincronizado.':'Plan creado y agregado al calendario.');
   if(!sync.error){closeSchedule();await supabase.rpc('refresh_my_notifications',{p_household_id:household.id});await load(false)}
  }
 
  async function archiveSchedule(schedule:Schedule){
   if(readOnly){setMessage('Modo solo lectura.');return}
   if(!window.confirm('¿Archivar este plan de mantenimiento?'))return;
-  setBusy(true);const {error}=await supabase.from('maintenance_schedules').update({active:false,updated_at:new Date().toISOString()}).eq('id',schedule.id).eq('household_id',household.id);
+  setBusy(true);setMessage('');const {error}=await supabase.from('maintenance_schedules').update({active:false,updated_at:new Date().toISOString()}).eq('id',schedule.id).eq('household_id',household.id);
   if(!error)await supabase.rpc('sync_maintenance_event',{p_schedule_id:schedule.id});
   setBusy(false);setMessage(error?error.message:'Plan archivado.');if(!error)await load(false);
  }
@@ -121,7 +127,7 @@ export default function MaintenanceCenter({household,onNavigate,readOnly=false}:
   if(readOnly){setMessage('Modo solo lectura.');return}
   const raw=window.prompt('Kilometraje actual de '+asset.name,String(asset.current_mileage||0));if(raw==null)return;
   const value=Number(raw);if(!Number.isFinite(value)||value<0){setMessage('Ingresa un kilometraje válido.');return}
-  const {error}=await supabase.from('finance_assets').update({current_mileage:value,updated_at:new Date().toISOString()}).eq('id',asset.id).eq('household_id',household.id);
+  setMessage('');const {error}=await supabase.from('finance_assets').update({current_mileage:value,updated_at:new Date().toISOString()}).eq('id',asset.id).eq('household_id',household.id);
   setMessage(error?error.message:'Kilometraje actualizado.');if(!error){await supabase.rpc('refresh_my_notifications',{p_household_id:household.id});await load(false)}
  }
 

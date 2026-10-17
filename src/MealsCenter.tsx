@@ -4,9 +4,10 @@ import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
 import RecipePhoto from './RecipePhoto';
 import ModuleIcon from './ModuleIcon';
-import {FormEvent,useEffect,useMemo,useState} from 'react';
+import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {Check,CheckCircle2,ChevronLeft,ChevronRight,Clock3,Minus,Package,Plus,Search,ShoppingCart,Trash2,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {ensureShoppingList as ensureSharedShoppingList} from './lib/shoppingList';
 
 type Household={id:string;name:string;invite_code:string};
 type MealType='breakfast'|'lunch'|'dinner'|'snack';
@@ -60,8 +61,10 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
  const [ingredientDrafts,setIngredientDrafts]=useState<IngredientDraft[]>([blankIngredient()]);
  const [planning,setPlanning]=useState<{date:string;type:MealType;recipeId:string}|null>(null);
  const [planRecipeId,setPlanRecipeId]=useState('');
+ const request=useRef(0),pantryRef=useRef<PantryItem[]>([]),pantrySaving=useRef(new Set<string>()),[savingPantryIds,setSavingPantryIds]=useState<string[]>([]);
+ pantryRef.current=pantry;
 
- useEffect(()=>{load();const channel=supabase.channel('meals-'+household.id)
+ useEffect(()=>{setMessage('');load();const channel=supabase.channel('meals-'+household.id)
   .on('postgres_changes',{event:'*',schema:'public',table:'pantry_items',filter:'household_id=eq.'+household.id},()=>load(false))
   .on('postgres_changes',{event:'*',schema:'public',table:'recipes',filter:'household_id=eq.'+household.id},()=>load(false))
   .on('postgres_changes',{event:'*',schema:'public',table:'recipe_ingredients',filter:'household_id=eq.'+household.id},()=>load(false))
@@ -71,7 +74,7 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
  },[household.id,week.getFullYear(),week.getMonth(),week.getDate()]);
 
  async function load(showLoader=true){
-  if(showLoader)setLoading(true);setMessage('');
+  const req=++request.current;if(showLoader)setLoading(true);
   const weekEnd=addDays(week,6);
   const [pantryR,recipeR,ingredientR,mealR]=await Promise.all([
    supabase.from('pantry_items').select('id,name,category,quantity,unit,minimum_quantity,location,expires_on,notes,active').eq('household_id',household.id).eq('active',true).order('name'),
@@ -79,9 +82,10 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
    supabase.from('recipe_ingredients').select('id,recipe_id,pantry_item_id,ingredient_name,quantity,unit,optional,sort_order').eq('household_id',household.id).order('sort_order'),
    supabase.from('meal_plan_entries').select('id,meal_date,meal_type,recipe_id,custom_title,servings,notes,status').eq('household_id',household.id).gte('meal_date',iso(week)).lte('meal_date',iso(weekEnd)).order('meal_date').order('meal_type')
   ]);
+  if(req!==request.current)return;
   setPantry((pantryR.data||[]) as PantryItem[]);setRecipes((recipeR.data||[]) as Recipe[]);setIngredients((ingredientR.data||[]) as Ingredient[]);setMeals((mealR.data||[]) as MealPlan[]);
   if(pantryR.error||recipeR.error||ingredientR.error||mealR.error)setMessage('No se pudo cargar toda la información de comidas.');
-  if(showLoader)setLoading(false);
+  setLoading(false);
  }
 
  const weekDays=useMemo(()=>Array.from({length:7},(_,i)=>addDays(week,i)),[week]);
@@ -117,14 +121,18 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
 
  async function changePantry(item:PantryItem,delta:number){
   if(readOnly){setMessage('Modo solo lectura.');return}
-  const next=Math.max(0,Number(item.quantity)+delta);
-  const {error}=await supabase.from('pantry_items').update({quantity:next,updated_at:new Date().toISOString()}).eq('id',item.id).eq('household_id',household.id);
-  if(error)setMessage(error.message);else setPantry(current=>current.map(x=>x.id===item.id?{...x,quantity:next}:x));
+  // One change per product at a time, always computed from the latest quantity (rapid taps never write a stale value).
+  if(pantrySaving.current.has(item.id))return;pantrySaving.current.add(item.id);setSavingPantryIds([...pantrySaving.current]);setMessage('');
+  const latest=pantryRef.current.find(x=>x.id===item.id)||item,next=Math.max(0,Number(latest.quantity)+delta);
+  try{
+   const {error}=await supabase.from('pantry_items').update({quantity:next,updated_at:new Date().toISOString()}).eq('id',item.id).eq('household_id',household.id);
+   if(error)setMessage(error.message);else setPantry(current=>current.map(x=>x.id===item.id?{...x,quantity:next}:x));
+  }finally{pantrySaving.current.delete(item.id);setSavingPantryIds([...pantrySaving.current])}
  }
 
  async function archivePantry(item:PantryItem){
   if(readOnly){setMessage('Modo solo lectura.');return}
-  if(!window.confirm('¿Quitar este producto de la despensa?'))return;
+  if(!window.confirm('¿Quitar este producto de la despensa?'))return;setMessage('');
   const {error}=await supabase.from('pantry_items').update({active:false,updated_at:new Date().toISOString()}).eq('id',item.id).eq('household_id',household.id);
   if(error)setMessage(error.message);else await load(false);
  }
@@ -147,20 +155,23 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
   if(editingRecipe){
    const {error}=await supabase.from('recipes').update(payload).eq('id',editingRecipe.id).eq('household_id',household.id);
    if(error){setBusy(false);setMessage(error.message);return}
-   await supabase.from('recipe_ingredients').delete().eq('recipe_id',editingRecipe.id).eq('household_id',household.id);
   }else{
    const {data,error}=await supabase.from('recipes').insert(payload).select('id').single();
    if(error||!data){setBusy(false);setMessage(error?.message||'No se pudo crear la receta.');return}
    recipeId=data.id;
   }
   const rows=ingredientDrafts.filter(i=>i.ingredient_name.trim()&&Number(i.quantity)>0).map((i,index)=>({recipe_id:recipeId,household_id:household.id,pantry_item_id:i.pantry_item_id||null,ingredient_name:i.ingredient_name.trim(),quantity:Number(i.quantity),unit:i.unit.trim()||'unidad',optional:i.optional,sort_order:index}));
-  if(rows.length){const {error}=await supabase.from('recipe_ingredients').insert(rows);if(error){setBusy(false);setMessage(error.message);return}}
+  // Preserve the previous ingredients if insertion fails; deletion errors remain visible so the user can retry.
+  let oldIds:string[]=[];
+  if(editingRecipe){const old=await supabase.from('recipe_ingredients').select('id').eq('recipe_id',recipeId).eq('household_id',household.id);if(old.error){setBusy(false);setMessage('La receta se guardó, pero no se pudieron actualizar los ingredientes: '+old.error.message);return}oldIds=(old.data||[]).map((x:any)=>x.id)}
+  if(rows.length){const {error}=await supabase.from('recipe_ingredients').insert(rows);if(error){setBusy(false);setMessage((editingRecipe?'La receta se guardó, pero los ingredientes no cambiaron: ':'La receta se creó, pero sin ingredientes. Vuelve a guardar para reintentar: ')+error.message);if(!editingRecipe)setEditingRecipe({...payload,id:recipeId,active:true} as Recipe);return}}
+  if(oldIds.length){const {error}=await supabase.from('recipe_ingredients').delete().in('id',oldIds).eq('household_id',household.id);if(error){setBusy(false);setMessage('Se agregaron los ingredientes nuevos, pero no se pudieron quitar los anteriores: '+error.message);await load(false);return}}
   setBusy(false);setMessage(editingRecipe?'Receta actualizada.':'Receta creada.');closeRecipe();await load(false);
  }
 
  async function archiveRecipe(recipe:Recipe){
   if(readOnly){setMessage('Modo solo lectura.');return}
-  if(!window.confirm('¿Archivar esta receta? Los planes anteriores se conservarán.'))return;
+  if(!window.confirm('¿Archivar esta receta? Los planes anteriores se conservarán.'))return;setMessage('');
   const {error}=await supabase.from('recipes').update({active:false,updated_at:new Date().toISOString()}).eq('id',recipe.id).eq('household_id',household.id);
   if(error)setMessage(error.message);else await load(false);
  }
@@ -179,24 +190,20 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
 
  async function deleteMeal(meal:MealPlan){
   if(readOnly){setMessage('Modo solo lectura.');return}
-  const {error}=await supabase.from('meal_plan_entries').delete().eq('id',meal.id).eq('household_id',household.id);
+  setMessage('');const {error}=await supabase.from('meal_plan_entries').delete().eq('id',meal.id).eq('household_id',household.id);
   if(error)setMessage(error.message);else await load(false);
  }
 
  async function completeMeal(meal:MealPlan){
   if(readOnly){setMessage('Modo solo lectura.');return}
   if(meal.status==='prepared')return;
-  setBusy(true);const {error}=await supabase.rpc('complete_meal_plan',{p_entry_id:meal.id});setBusy(false);
+  setBusy(true);setMessage('');const {error}=await supabase.rpc('complete_meal_plan',{p_entry_id:meal.id});setBusy(false);
   setMessage(error?error.message:'Comida marcada como preparada y despensa actualizada.');if(!error)await load(false);
  }
 
  async function ensureShoppingList(){
   if(readOnly)throw new Error('Modo solo lectura.');
-  const {data:existing}=await supabase.from('lists').select('id,title').eq('household_id',household.id).eq('list_type','shopping').order('created_at').limit(1).maybeSingle();
-  if(existing?.id)return existing.id as string;
-  const {data,error}=await supabase.from('lists').insert({household_id:household.id,title:'Supermercado',list_type:'shopping'}).select('id').single();
-  if(error||!data)throw new Error(error?.message||'No se pudo crear la lista de compras.');
-  return data.id as string;
+  return ensureSharedShoppingList(supabase,household.id,'Supermercado');
  }
 
  async function addRecipeMissingToShopping(recipe:Recipe,servings?:number|null){
@@ -266,7 +273,7 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
   {tab==='pantry'&&<>
    <div className="meal-search-row"><label><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar en despensa"/></label>{!readOnly&&<button onClick={()=>startPantry()}><Plus/> Producto</button>}</div>
    {(lowStock.length>0||expiringSoon.length>0)&&<div className="pantry-alerts">{lowStock.length>0&&<div><ShoppingCart/><strong>{lowStock.length} con stock bajo</strong><span>Conviene reponerlos pronto.</span></div>}{expiringSoon.length>0&&<div><Clock3/><strong>{expiringSoon.length} por vencer</strong><span>Úsalos antes de comprar más.</span></div>}</div>}
-   <div className="pantry-grid">{pantryFiltered.map(item=>{const low=Number(item.quantity)<=Number(item.minimum_quantity),expired=Boolean(item.expires_on&&item.expires_on<today);return <article className={'pantry-card '+(low?'low ':'')+(expired?'expired':'')} key={item.id}><div className="pantry-card-head"><span><Package/></span><div><small>{pantryCategoryLabel(item.category)} · {pantryLocationLabel(item.location)}</small><strong>{item.name}</strong></div>{!readOnly&&<button onClick={()=>startPantry(item)}><ModuleIcon name="meals"/></button>}</div><div className="pantry-quantity">{!readOnly&&<button onClick={()=>changePantry(item,-1)}><Minus/></button>}<div><strong>{fmtQty(Number(item.quantity))}</strong><span>{item.unit}</span></div>{!readOnly&&<button onClick={()=>changePantry(item,1)}><Plus/></button>}</div><div className="pantry-meta"><span>Mínimo <b>{fmtQty(Number(item.minimum_quantity))} {item.unit}</b></span><span>{item.expires_on?'Vence '+fmtDate(item.expires_on):'Sin vencimiento'}</span></div>{low&&!readOnly&&<button className="pantry-buy" onClick={()=>addPantryToShopping(item)}><ShoppingCart/> Agregar a Supermercado</button>}{!readOnly&&<div className="pantry-card-actions"><button onClick={()=>startPantry(item)}>Editar</button><button className="danger" onClick={()=>archivePantry(item)}><Trash2/> Quitar</button></div>}</article>})}</div>
+   <div className="pantry-grid">{pantryFiltered.map(item=>{const low=Number(item.quantity)<=Number(item.minimum_quantity),expired=Boolean(item.expires_on&&item.expires_on<today);return <article className={'pantry-card '+(low?'low ':'')+(expired?'expired':'')} key={item.id}><div className="pantry-card-head"><span><Package/></span><div><small>{pantryCategoryLabel(item.category)} · {pantryLocationLabel(item.location)}</small><strong>{item.name}</strong></div>{!readOnly&&<button onClick={()=>startPantry(item)}><ModuleIcon name="meals"/></button>}</div><div className="pantry-quantity">{!readOnly&&<button aria-label={'Restar '+item.name} disabled={savingPantryIds.includes(item.id)} onClick={()=>changePantry(item,-1)}><Minus/></button>}<div><strong>{fmtQty(Number(item.quantity))}</strong><span>{item.unit}</span></div>{!readOnly&&<button aria-label={'Sumar '+item.name} disabled={savingPantryIds.includes(item.id)} onClick={()=>changePantry(item,1)}><Plus/></button>}</div><div className="pantry-meta"><span>Mínimo <b>{fmtQty(Number(item.minimum_quantity))} {item.unit}</b></span><span>{item.expires_on?'Vence '+fmtDate(item.expires_on):'Sin vencimiento'}</span></div>{low&&!readOnly&&<button className="pantry-buy" onClick={()=>addPantryToShopping(item)}><ShoppingCart/> Agregar a Supermercado</button>}{!readOnly&&<div className="pantry-card-actions"><button onClick={()=>startPantry(item)}>Editar</button><button className="danger" onClick={()=>archivePantry(item)}><Trash2/> Quitar</button></div>}</article>})}</div>
    {!pantryFiltered.length&&<div className="document-empty"><Package/><strong>{pantry.length?'No encontramos productos':'Despensa vacía'}</strong><span>{pantry.length?'Prueba con otra búsqueda.':'Registra lo que ya tienen en casa para evitar compras duplicadas.'}</span>{!pantry.length&&!readOnly&&<button onClick={()=>startPantry()}><Plus/> Agregar primer producto</button>}</div>}
   </>}
 
