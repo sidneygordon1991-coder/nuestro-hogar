@@ -1,6 +1,7 @@
 import {occurrenceDetails,type OccurrenceDetails} from './recurringDetails';
 import {financePeriodSummary,inPeriod,toCents,type PeriodAllocation,type ShareContext} from './financePeriods';
 import type {IncomePlan,IncomeMember} from './monthlyIncome';
+import {formatMoney} from './money';
 
 export type ReviewHalf='first'|'second';
 type Movement=Parameters<typeof financePeriodSummary>[7][number]&{description?:string};
@@ -53,7 +54,7 @@ export function buildFortnightReview(month:string,period:ReviewHalf,source:Revie
  }
  return {schema_version:1,month,period,...reviewBounds(month,period),financial:{expected:summary.expected,income:summary.income,budget:summary.budget,expense:summary.expense,saving_plan:summary.savingPlan,saving:summary.saving,carry:summary.carry,balance:summary.balance,pending_income:pendingIncome,pending_payments:pending.reduce((s,p)=>s+toCents(p.amount),0)/100},people:summary.people,payments,settlements,issues};
 }
-export const reviewMoney=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ'}).format(n);
+export const reviewMoney=formatMoney;
 export function reviewText(snapshot:ReviewSnapshot,householdName:string,notes:string,reviewed:boolean){
  const f=snapshot.financial;
  return [`${reviewed?'Revisión guardada':'Vista previa'} · ${householdName}`,`${snapshot.period==='first'?'Primera':'Segunda'} quincena · ${snapshot.start} al ${snapshot.end}`,`Esperado: ${reviewMoney(f.expected)} | Recibido: ${reviewMoney(f.income)}`,`Presupuesto de gastos: ${reviewMoney(f.budget)} | Gastado: ${reviewMoney(f.expense)}`,`Ahorro: ${reviewMoney(f.saving)} | Arrastre real: ${reviewMoney(f.carry)} | Saldo real: ${reviewMoney(f.balance)}`,`Ingreso esperado pendiente: ${reviewMoney(f.pending_income)} | Pagos pendientes: ${reviewMoney(f.pending_payments)}`,...snapshot.people.map(p=>`${p.full_name}: pagó ${reviewMoney(p.paid)} | asignado ${reviewMoney(p.assigned)} | balance ${reviewMoney(p.balance)}`),...(snapshot.settlements.length?['Para equilibrar gastos compartidos (sugerencias, sin registrar pagos):',...snapshot.settlements.map(s=>`${s.from} → ${s.to}: ${reviewMoney(s.amount)}`)]:[]),...(snapshot.issues.length?['Puntos por atender:',...snapshot.issues.map(i=>'• '+i.text)]:['Sin diferencias detectadas en los datos revisados.']),...(notes.trim()?['Nota para el siguiente período: '+notes.trim()]:[])].join('\n');

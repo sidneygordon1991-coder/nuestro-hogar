@@ -1,9 +1,11 @@
 import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleIcon from './ModuleIcon';
-import {FormEvent,useEffect,useMemo,useState} from 'react';
+import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {Check,ChevronLeft,ChevronRight,Clock3,Pencil,Plus,ReceiptText,Trash2,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {formatMoney} from './lib/money';
+import {expandMonthOccurrences} from './lib/calendarOccurrences';
 
 type Household={id:string;name:string;invite_code:string};
 type Member={user_id:string;full_name:string;birth_date:string|null};
@@ -11,24 +13,23 @@ type EventCategory='family'|'appointment'|'task'|'birthday'|'social'|'health'|'s
 type EventRow={id:string;title:string;description:string|null;event_date:string;start_time:string|null;end_time:string|null;event_type:string|null;location:string|null;category:EventCategory;assigned_to:string|null;all_day:boolean;recurrence:'none'|'weekly'|'monthly'|'yearly';recurrence_until:string|null;reminder_minutes:number|null};
 type AgendaItem={id:string;source:'event'|'task'|'payment'|'birthday';title:string;date:string;time:string|null;category:string;subtitle:string;event?:EventRow;completed?:boolean};
 
-const iso=(d:Date)=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
+const iso=(d:Date)=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const monthStart=(d:Date)=>new Date(d.getFullYear(),d.getMonth(),1);
 const monthEnd=(d:Date)=>new Date(d.getFullYear(),d.getMonth()+1,0);
-const addDays=(d:Date,n:number)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const categoryLabel=(c:string)=>({family:'Familia',appointment:'Cita',task:'Tarea',birthday:'Cumpleaños',social:'Social',health:'Salud',school:'Estudios',maintenance:'Mantenimiento',other:'Otro'} as Record<string,string>)[c]||'Otro';
 
 export default function CalendarCenter({household,onChanged,onNavigate,readOnly=false}:{household:Household;onChanged?:()=>void;onNavigate?:(tab:string)=>void;readOnly?:boolean}){
  const [month,setMonth]=useState(()=>monthStart(new Date())),[events,setEvents]=useState<EventRow[]>([]),[members,setMembers]=useState<Member[]>([]),[agendaExtra,setAgendaExtra]=useState<AgendaItem[]>([]);
  const [selectedDay,setSelectedDay]=useState<string|null>(null),[editing,setEditing]=useState<EventRow|null>(null),[showForm,setShowForm]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const request=useRef(0);
 
  useEffect(()=>{load();const channel=supabase.channel('calendar-'+household.id).on('postgres_changes',{event:'*',schema:'public',table:'events',filter:'household_id=eq.'+household.id},()=>load(false)).subscribe();return()=>{supabase.removeChannel(channel)}},[household.id,month.getFullYear(),month.getMonth()]);
 
  async function load(showLoader=true){
-  if(showLoader)setBusy(true);setMessage('');
+  const req=++request.current;if(showLoader)setBusy(true);
   const start=iso(monthStart(month)),end=iso(monthEnd(month));
-  const lookback=iso(new Date(month.getFullYear()-2,month.getMonth(),1));
   const [eventR,memberR,taskR,occR,recR]=await Promise.all([
-   supabase.from('events').select('id,title,description,event_date,start_time,end_time,event_type,location,category,assigned_to,all_day,recurrence,recurrence_until,reminder_minutes').eq('household_id',household.id).lte('event_date',end).or(`recurrence.eq.none,recurrence_until.is.null,recurrence_until.gte.${start}`).gte('event_date',lookback).order('event_date'),
+   supabase.from('events').select('id,title,description,event_date,start_time,end_time,event_type,location,category,assigned_to,all_day,recurrence,recurrence_until,reminder_minutes').eq('household_id',household.id).lte('event_date',end).or(`recurrence.eq.none,recurrence_until.is.null,recurrence_until.gte.${start}`).or(`recurrence.neq.none,event_date.gte.${start}`).order('event_date'),
    supabase.from('household_members').select('user_id').eq('household_id',household.id),
    supabase.from('list_items').select('id,text,due_date,completed,assigned_to,list_id').eq('household_id',household.id).gte('due_date',start).lte('due_date',end),
    supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status').eq('household_id',household.id).gte('due_date',start).lte('due_date',end),
@@ -36,14 +37,15 @@ export default function CalendarCenter({household,onChanged,onNavigate,readOnly=
   ]);
   const ids=(memberR.data||[]).map((m:any)=>m.user_id);
   const profileR=ids.length?await supabase.from('profiles').select('id,full_name,birth_date').in('id',ids):{data:[] as any[]};
+  if(req!==request.current)return;
   const memberData=ids.map((id:string)=>{const p=(profileR.data||[]).find((x:any)=>x.id===id);return{user_id:id,full_name:p?.full_name||'Miembro',birth_date:p?.birth_date||null}});
   setMembers(memberData);setEvents((eventR.data||[]) as EventRow[]);
   const extras:AgendaItem[]=[];
   for(const task of (taskR.data||[]) as any[])extras.push({id:'task-'+task.id,source:'task',title:task.text,date:task.due_date,time:null,category:'task',subtitle:(task.completed?'Completada':'Pendiente')+(task.assigned_to?' · '+(memberData.find(m=>m.user_id===task.assigned_to)?.full_name||'Miembro'):''),completed:task.completed});
   const recMap=new Map(((recR.data||[]) as any[]).map(r=>[r.id,r]));
-  for(const occ of (occR.data||[]) as any[]){const r:any=recMap.get(occ.recurring_transaction_id);if(!r)continue;extras.push({id:'pay-'+occ.id,source:'payment',title:r.description,date:occ.due_date,time:null,category:'payment',subtitle:(occ.status==='paid'?'Pagado':occ.status==='skipped'?'Omitido':occ.due_date<iso(new Date())?'Vencido':'Pendiente')+' · '+new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(Number(r.amount))});}
+  for(const occ of (occR.data||[]) as any[]){const r:any=recMap.get(occ.recurring_transaction_id);if(!r)continue;extras.push({id:'pay-'+occ.id,source:'payment',title:r.description,date:occ.due_date,time:null,category:'payment',subtitle:(occ.status==='paid'?'Pagado':occ.status==='skipped'?'Omitido':occ.due_date<iso(new Date())?'Vencido':'Pendiente')+' · '+formatMoney(Number(r.amount))});}
   for(const m of memberData){if(!m.birth_date)continue;const parts=m.birth_date.split('-'),candidate=`${month.getFullYear()}-${parts[1]}-${parts[2]}`;if(candidate>=start&&candidate<=end)extras.push({id:'birthday-'+m.user_id,source:'birthday',title:'Cumpleaños de '+m.full_name,date:candidate,time:null,category:'birthday',subtitle:'Familia'});}
-  setAgendaExtra(extras);if(eventR.error||taskR.error||occR.error)setMessage('No se pudo cargar toda la agenda.');if(showLoader)setBusy(false);
+  setAgendaExtra(extras);if(eventR.error||taskR.error||occR.error)setMessage('No se pudo cargar toda la agenda.');else setMessage(m=>m==='No se pudo cargar toda la agenda.'?'':m);setBusy(false);
  }
 
  const eventOccurrences=useMemo(()=>expandEvents(events,month),[events,month]);
@@ -61,7 +63,7 @@ export default function CalendarCenter({household,onChanged,onNavigate,readOnly=
 
  async function deleteEvent(event:EventRow){
   if(readOnly){setMessage('Modo solo lectura.');return}
-  if(!window.confirm('¿Eliminar este evento?'))return;setBusy(true);const {error}=await supabase.from('events').delete().eq('id',event.id).eq('household_id',household.id);setBusy(false);if(error)setMessage(error.message);else{setEditing(null);setShowForm(false);await load(false);onChanged?.()}
+  if(!window.confirm('¿Eliminar este evento?'))return;setBusy(true);setMessage('');const {error}=await supabase.from('events').delete().eq('id',event.id).eq('household_id',household.id);setBusy(false);if(error)setMessage(error.message);else{setEditing(null);setShowForm(false);await load(false);onChanged?.()}
  }
 
  function openEdit(event:EventRow){if(readOnly)return;setEditing(event);setShowForm(true)}
@@ -107,14 +109,4 @@ export default function CalendarCenter({household,onChanged,onNavigate,readOnly=
  </section>
 }
 
-function expandEvents(events:EventRow[],month:Date){
- const start=monthStart(month),end=monthEnd(month),out:{key:string;date:string;event:EventRow}[]=[];
- for(const event of events){
-  const base=new Date(event.event_date+'T12:00'),until=event.recurrence_until?new Date(event.recurrence_until+'T12:00'):end;
-  if(event.recurrence==='none'){if(base>=start&&base<=end)out.push({key:event.id+'-'+event.event_date,date:event.event_date,event});continue}
-  if(event.recurrence==='weekly'){let d=new Date(base);while(d<start)d=addDays(d,7);while(d<=end&&d<=until){out.push({key:event.id+'-'+iso(d),date:iso(d),event});d=addDays(d,7)}}
-  if(event.recurrence==='monthly'){const day=base.getDate();const candidate=new Date(month.getFullYear(),month.getMonth(),Math.min(day,monthEnd(month).getDate()));if(candidate>=base&&candidate<=end&&candidate<=until)out.push({key:event.id+'-'+iso(candidate),date:iso(candidate),event})}
-  if(event.recurrence==='yearly'){const candidate=new Date(month.getFullYear(),base.getMonth(),Math.min(base.getDate(),new Date(month.getFullYear(),base.getMonth()+1,0).getDate()));if(candidate.getMonth()===month.getMonth()&&candidate>=base&&candidate<=until)out.push({key:event.id+'-'+iso(candidate),date:iso(candidate),event})}
- }
- return out;
-}
+function expandEvents(events:EventRow[],month:Date){return expandMonthOccurrences(events,month.getFullYear(),month.getMonth())}

@@ -2,35 +2,25 @@
    Component styles consume these roles; only this file defines theme colors. */
 html {
  color-scheme:dark;
- --nh-page:#15171c; --nh-surface:#20232b; --nh-subtle:#191c23; --nh-raised:#292d36;
- --nh-text:#f0f2f6; --nh-muted:#b6bfce; --nh-border:#3c424d; --nh-track:#39414b;
- --nh-accent:#a9c7ff; --nh-blue:#9bbcff; --nh-purple:#c7a7ff;
- --nh-success:#83dfb6; --nh-warning:#f4c37e; --nh-danger:#ffa7b2;
- --nh-accent-soft:#1c2d46; --nh-blue-soft:#1c2e49; --nh-purple-soft:#302740;
- --nh-success-soft:#18372e; --nh-warning-soft:#3c3020; --nh-danger-soft:#3e2630;
- --nh-neutral-soft:#292d36; --nh-accent-border:#477f99; --nh-success-border:#497d69;
- --nh-chart-accent:#91b8ff; --nh-chart-blue:#8baeff; --nh-chart-purple:#b896ef;
- --nh-chart-previous:#758c9e; --nh-chart-success:#67cda2; --nh-chart-warning:#edb365; --nh-chart-danger:#ed8b98;
- --nh-action:#1058c9; --nh-on-action:#ffffff; --nh-on-brand:#ffffff;
- --nh-hero:#103d78; --nh-hero-text:#ffffff; --nh-brand:#071b32; --nh-brand-muted:#c4d2e4; --nh-brand-accent:#a9c7ff;
- --nh-shadow:#00000030; --nh-highlight:#ffffff0d; --nh-scrim:#06111fb3;
- --nh-hero-start:#07264e;--nh-hero-end:#0e54a8;--nh-action-end:#1b65d3;--nh-brand-end:#102b4a;
+ --nh-page:#101214; --nh-surface:#181b1f; --nh-subtle:#14171a; --nh-raised:#20242a; --nh-text:#eef1f4; --nh-muted:#aab3bf;
+ --nh-border:#2c3138; --nh-track:#2f353d; --nh-blue:#9bbcff; --nh-purple:#c9abff; --nh-success:#7fdcb3; --nh-warning:#f2c27c;
+ --nh-danger:#ffa5b1; --nh-blue-soft:#1a2a42; --nh-purple-soft:#2b2340; --nh-success-soft:#15322a; --nh-warning-soft:#362b1b; --nh-danger-soft:#3a232c;
+ --nh-neutral-soft:#22262c; --nh-success-border:#467a65; --nh-chart-blue:#8baeff; --nh-chart-purple:#b896ef; --nh-chart-previous:#758c9e; --nh-chart-success:#67cda2;
+ --nh-chart-warning:#edb365; --nh-chart-danger:#ed8b98; --nh-on-brand:#ffffff; --nh-shadow:#00000038; --nh-highlight:#ffffff14; --nh-scrim:#05080bb8;
+ --nh-tile-ink:#101214; --nh-accent:#8fd9bf; --nh-accent-soft:#16302a; --nh-accent-border:#4f8a77; --nh-chart-accent:#6fcfae; --nh-action:#12705d;
+ --nh-action-end:#0f6553; --nh-on-action:#ffffff; --nh-hero-start:#0b3a33; --nh-hero:#0f4a41; --nh-hero-end:#125649; --nh-hero-text:#ffffff;
+ --nh-brand:#0a2925; --nh-brand-end:#0c2f2a; --nh-brand-active:#1a4b42; --nh-brand-muted:#b9d3ca; --nh-brand-accent:#8fd9bf;
 }
 html[data-theme="light"] {
  color-scheme:light;
- --nh-page:#eceff3; --nh-surface:#f9fafc; --nh-subtle:#f0f2f6; --nh-raised:#e6eaf0;
- --nh-text:#1e2736; --nh-muted:#4e5d71; --nh-border:#cdd4df; --nh-track:#dce1e9;
- --nh-accent:#1558ba; --nh-blue:#335dad; --nh-purple:#7245a2;
- --nh-success:#176b4a; --nh-warning:#8c560d; --nh-danger:#aa3446;
- --nh-accent-soft:#e9f0fb; --nh-blue-soft:#e8effb; --nh-purple-soft:#f0eafa;
- --nh-success-soft:#e5f3ec; --nh-warning-soft:#fff3e0; --nh-danger-soft:#fbe9ed;
- --nh-neutral-soft:#e9edf3; --nh-accent-border:#9fc6d9; --nh-success-border:#a2cfb9;
- --nh-chart-accent:#1b65d3; --nh-chart-blue:#5278c2; --nh-chart-purple:#9164ce;
- --nh-chart-previous:#758c9e; --nh-chart-success:#258560; --nh-chart-warning:#b47926; --nh-chart-danger:#c65b6b;
- --nh-action:#1058c9; --nh-on-action:#ffffff; --nh-on-brand:#ffffff;
- --nh-hero:#103d78; --nh-hero-text:#ffffff; --nh-brand:#071b32; --nh-brand-muted:#c4d2e4; --nh-brand-accent:#a9c7ff;
- --nh-shadow:#28465e14; --nh-highlight:#ffffff99; --nh-scrim:#10273d80;
- --nh-hero-start:#07264e;--nh-hero-end:#0e54a8;--nh-action-end:#1b65d3;--nh-brand-end:#102b4a;
+ --nh-page:#f1f3f5; --nh-surface:#ffffff; --nh-subtle:#f6f7f9; --nh-raised:#e9edf1; --nh-text:#1b222c; --nh-muted:#525e6d;
+ --nh-border:#dde2e8; --nh-track:#e3e7ec; --nh-blue:#2f5aa8; --nh-purple:#6c3f9e; --nh-success:#166947; --nh-warning:#875309;
+ --nh-danger:#a8303f; --nh-blue-soft:#e9f0fb; --nh-purple-soft:#f2ecfa; --nh-success-soft:#e6f3ec; --nh-warning-soft:#fdf1dc; --nh-danger-soft:#fbe9ec;
+ --nh-neutral-soft:#eef1f4; --nh-success-border:#a2cfb9; --nh-chart-blue:#3f6fc6; --nh-chart-purple:#8a5bc9; --nh-chart-previous:#758c9e; --nh-chart-success:#24855f;
+ --nh-chart-warning:#b97a1c; --nh-chart-danger:#c65b6b; --nh-on-brand:#ffffff; --nh-shadow:#1f2d3a14; --nh-highlight:#ffffff26; --nh-scrim:#0e1a2680;
+ --nh-tile-ink:#ffffff; --nh-accent:#0f6b59; --nh-accent-soft:#e4f1ed; --nh-accent-border:#a6cfc2; --nh-chart-accent:#157a64; --nh-action:#0f5c50;
+ --nh-action-end:#11665a; --nh-on-action:#ffffff; --nh-hero-start:#0b3a33; --nh-hero:#0f4a41; --nh-hero-end:#125649; --nh-hero-text:#ffffff;
+ --nh-brand:#0c3b35; --nh-brand-end:#0b332e; --nh-brand-active:#1d5c51; --nh-brand-muted:#c3dad3; --nh-brand-accent:#8fd9bf;
 }
 /* Filled actions use a dedicated pair, separate from data-series colors. */
 :is(.auth form>button,.formgrid>button,.primary,.finance-primary,.finance-new,.mini-add,
@@ -75,9 +65,15 @@ button:disabled {cursor:default;}
 .app-menu-groups section button {padding:10px 8px;gap:10px;}
 .app .control-module-grid strong {font-size:13px;}
 .app .control-module-grid small {font-size:11px;}
-.header-theme-toggle .theme-moon {display:none;}
-html[data-theme="light"] .header-theme-toggle .theme-sun {display:none;}
-html[data-theme="light"] .header-theme-toggle .theme-moon {display:block;}
+/* Day/night switch: both icons sit in one pill and the active theme is highlighted. */
+.header-theme-toggle .theme-sun,.header-theme-toggle .theme-moon {display:grid;}
+html:not([data-theme="light"]) .header-theme-toggle .theme-moon {background:var(--nh-accent-soft);color:var(--nh-accent);}
+html[data-theme="light"] .header-theme-toggle .theme-sun {background:var(--nh-warning-soft);color:var(--nh-warning);}
+@media(max-width:760px) {
+ html:not([data-theme="light"]) .app .workspace-header .header-theme-toggle .theme-sun,
+ html[data-theme="light"] .app .workspace-header .header-theme-toggle .theme-moon {display:none;}
+ .app .workspace-header .header-theme-toggle :is(.theme-sun,.theme-moon) {background:none;}
+}
 @media(max-width:620px) {
  .app header {flex-wrap:wrap;row-gap:12px;}
  .app header>div:first-child {flex:1 1 100%;padding-right:42px;}
@@ -91,16 +87,7 @@ html[data-theme="light"] .header-theme-toggle .theme-moon {display:block;}
 @media(prefers-reduced-motion:reduce) {
  *,*::before,*::after {scroll-behavior:auto!important;transition-duration:.001ms!important;}
 }
-/* The watermark is a mask: its ink follows the active palette as well. */
-.home-control .control-hero {position:relative;isolation:isolate;overflow:hidden;}
-.home-control .control-hero::before {
- content:"";position:absolute;right:-14px;bottom:-14px;width:190px;height:190px;
- pointer-events:none;z-index:-1;opacity:.09;background-color:var(--nh-accent);
- --house-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Cg fill='none' stroke='black' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M28 88 90 35l62 53M45 79v68h90V79M75 147v-43h30v43M68 68h10m24 0h10'/%3E%3Cpath d='M24 157c19-22 30-22 44-17m89 18c-18-23-27-27-43-20' stroke-width='3'/%3E%3C/g%3E%3C/svg%3E");
- mask-image:var(--house-mask);mask-size:contain;mask-position:center;mask-repeat:no-repeat;
- -webkit-mask-image:var(--house-mask);-webkit-mask-size:contain;-webkit-mask-position:center;-webkit-mask-repeat:no-repeat;
-}
-@media(max-width:520px) {.home-control .control-hero::before{width:130px;height:130px;}}
+
 
 /* Numeric badges remain readable even when a data bar reaches the chart's top. */
 .saving-rate-track>b {
@@ -113,13 +100,11 @@ html[data-theme="light"] .header-theme-toggle .theme-moon {display:block;}
  .family-responsibility-list span.empty,.health-domain-card.unconfigured) {opacity:1;}
 
 /* Accent finishes own color roles only. Neutral surfaces and risk colors remain shared. */
-:is(.app-studio,.palette-sample)[data-accent="ocean"]{--nh-accent:#a9c7ff;--nh-accent-soft:#1c2d46;--nh-accent-border:#6788b8;--nh-chart-accent:#91b8ff;--nh-action:#1058c9;--nh-action-end:#1b65d3;--nh-on-action:#ffffff;--nh-hero-start:#07264e;--nh-hero:#103d78;--nh-hero-end:#0e54a8;--nh-hero-text:#ffffff;--nh-brand:#071b32;--nh-brand-end:#102b4a;--nh-brand-muted:#c4d2e4;--nh-brand-accent:#a9c7ff;}
-:is(.app-studio,.palette-sample)[data-accent="forest"]{--nh-accent:#a1e3cb;--nh-accent-soft:#1c342d;--nh-accent-border:#648c7e;--nh-chart-accent:#83d2b5;--nh-action:#0b6d59;--nh-action-end:#117660;--nh-on-action:#ffffff;--nh-hero-start:#073d36;--nh-hero:#105448;--nh-hero-end:#116451;--nh-hero-text:#ffffff;--nh-brand:#082c29;--nh-brand-end:#103b33;--nh-brand-muted:#c3d8d0;--nh-brand-accent:#a1e3cb;}
-:is(.app-studio,.palette-sample)[data-accent="graphite"]{--nh-accent:#d2d6e0;--nh-accent-soft:#2d3039;--nh-accent-border:#818999;--nh-chart-accent:#b1bbce;--nh-action:#d2d6e0;--nh-action-end:#eceef3;--nh-on-action:#171b24;--nh-hero-start:#13161d;--nh-hero:#242933;--nh-hero-end:#353b47;--nh-hero-text:#ffffff;--nh-brand:#15171d;--nh-brand-end:#292c34;--nh-brand-muted:#d0d3dd;--nh-brand-accent:#d2d6e0;}
-:is(.app-studio,.palette-sample)[data-accent="aurora"]{--nh-accent:#d0c1ff;--nh-accent-soft:#302b43;--nh-accent-border:#8b7bae;--nh-chart-accent:#c5b5ff;--nh-action:#c9bcff;--nh-action-end:#a9dcd9;--nh-on-action:#221a3b;--nh-hero-start:#182a56;--nh-hero:#433779;--nh-hero-end:#144f56;--nh-hero-text:#ffffff;--nh-brand:#191d38;--nh-brand-end:#33304b;--nh-brand-muted:#d1cbe5;--nh-brand-accent:#d0c1ff;}
-:is(.app-studio,.palette-sample)[data-accent="iris"]{--nh-accent:#d4b9f5;--nh-accent-soft:#302740;--nh-accent-border:#8d76ac;--nh-chart-accent:#c8a5ef;--nh-action:#64379b;--nh-action-end:#7845a1;--nh-on-action:#ffffff;--nh-hero-start:#2e164a;--nh-hero:#492568;--nh-hero-end:#62408c;--nh-hero-text:#ffffff;--nh-brand:#22152f;--nh-brand-end:#3a244c;--nh-brand-muted:#d8c7e9;--nh-brand-accent:#d4b9f5;}
-html[data-theme="light"] :is(.app-studio,.palette-sample)[data-accent="ocean"]{--nh-accent:#1558ba;--nh-accent-soft:#e9f0fb;--nh-accent-border:#9db8e2;--nh-chart-accent:#1b65d3;}
-html[data-theme="light"] :is(.app-studio,.palette-sample)[data-accent="forest"]{--nh-accent:#126b59;--nh-accent-soft:#e5f2ee;--nh-accent-border:#9cc7ba;--nh-chart-accent:#16836b;}
-html[data-theme="light"] :is(.app-studio,.palette-sample)[data-accent="graphite"]{--nh-accent:#383c47;--nh-accent-soft:#e9eaed;--nh-accent-border:#a9b0bd;--nh-chart-accent:#545c6f;--nh-action:#242832;--nh-action-end:#454b59;--nh-on-action:#ffffff;}
-html[data-theme="light"] :is(.app-studio,.palette-sample)[data-accent="aurora"]{--nh-accent:#5946aa;--nh-accent-soft:#eeebf8;--nh-accent-border:#b6a9d7;--nh-chart-accent:#6e57bf;--nh-action:#42338d;--nh-action-end:#6b3b95;--nh-on-action:#ffffff;}
-html[data-theme="light"] :is(.app-studio,.palette-sample)[data-accent="iris"]{--nh-accent:#7245a2;--nh-accent-soft:#f0eafa;--nh-accent-border:#bda8d6;--nh-chart-accent:#9164ce;}
+:is(.app-studio,.palette-sample)[data-accent="forest"]{--nh-accent:#8fd9bf;--nh-accent-soft:#16302a;--nh-accent-border:#4f8a77;--nh-chart-accent:#6fcfae;--nh-action:#12705d;--nh-action-end:#0f6553;--nh-on-action:#ffffff;--nh-hero-start:#0b3a33;--nh-hero:#0f4a41;--nh-hero-end:#125649;--nh-hero-text:#ffffff;--nh-brand:#0a2925;--nh-brand-end:#0c2f2a;--nh-brand-active:#1a4b42;--nh-brand-muted:#b9d3ca;--nh-brand-accent:#8fd9bf;}
+:is(.app-studio,.palette-sample)[data-accent="ocean"]{--nh-accent:#a9c7ff;--nh-accent-soft:#1a2a42;--nh-accent-border:#5f80b3;--nh-chart-accent:#8cb4ff;--nh-action:#1a5fc8;--nh-action-end:#1d68d6;--nh-on-action:#ffffff;--nh-hero-start:#0a2850;--nh-hero:#0e3a72;--nh-hero-end:#11498c;--nh-hero-text:#ffffff;--nh-brand:#0a1d36;--nh-brand-end:#0c2240;--nh-brand-active:#1c4274;--nh-brand-muted:#c0d0e6;--nh-brand-accent:#a9c7ff;}
+:is(.app-studio,.palette-sample)[data-accent="graphite"]{--nh-accent:#d6dae2;--nh-accent-soft:#262a31;--nh-accent-border:#6f7784;--nh-chart-accent:#b9c1cf;--nh-action:#e4e7ec;--nh-action-end:#f1f3f6;--nh-on-action:#14171b;--nh-hero-start:#15171a;--nh-hero:#1f2226;--nh-hero-end:#2a2e34;--nh-hero-text:#ffffff;--nh-brand:#0e1012;--nh-brand-end:#141619;--nh-brand-active:#2b2f36;--nh-brand-muted:#c9ced6;--nh-brand-accent:#e4e7ec;}
+:is(.app-studio,.palette-sample)[data-accent="iris"]{--nh-accent:#d2b8f6;--nh-accent-soft:#2b2140;--nh-accent-border:#8a70ad;--nh-chart-accent:#c3a3f0;--nh-action:#6e3fb0;--nh-action-end:#7a49bd;--nh-on-action:#ffffff;--nh-hero-start:#2a1648;--nh-hero:#3a2163;--nh-hero-end:#4a2c7c;--nh-hero-text:#ffffff;--nh-brand:#1d1230;--nh-brand-end:#231638;--nh-brand-active:#432b6d;--nh-brand-muted:#d6c8ea;--nh-brand-accent:#d2b8f6;}
+html[data-theme="light"] :is(.app-studio,.palette-sample)[data-accent="forest"]{--nh-accent:#0f6b59;--nh-accent-soft:#e4f1ed;--nh-accent-border:#a6cfc2;--nh-chart-accent:#157a64;--nh-action:#0f5c50;--nh-action-end:#11665a;--nh-on-action:#ffffff;--nh-brand:#0c3b35;--nh-brand-end:#0b332e;--nh-brand-active:#1d5c51;--nh-brand-muted:#c3dad3;}
+html[data-theme="light"] :is(.app-studio,.palette-sample)[data-accent="ocean"]{--nh-accent:#1557b8;--nh-accent-soft:#e8eff9;--nh-accent-border:#a7bfe3;--nh-chart-accent:#1b64cf;--nh-action:#1557c0;--nh-action-end:#1a60cc;--nh-on-action:#ffffff;--nh-brand:#0d2747;--nh-brand-end:#0b2140;--nh-brand-active:#21487c;--nh-brand-muted:#c6d4e8;}
+html[data-theme="light"] :is(.app-studio,.palette-sample)[data-accent="graphite"]{--nh-accent:#2b3038;--nh-accent-soft:#eceef1;--nh-accent-border:#b2b8c2;--nh-chart-accent:#3d4450;--nh-action:#1b1e23;--nh-action-end:#2b2f36;--nh-on-action:#ffffff;--nh-brand:#16181c;--nh-brand-end:#111316;--nh-brand-active:#30353d;--nh-brand-muted:#cfd3da;}
+html[data-theme="light"] :is(.app-studio,.palette-sample)[data-accent="iris"]{--nh-accent:#6a3aa6;--nh-accent-soft:#f1ebfa;--nh-accent-border:#c4b0e0;--nh-chart-accent:#7d4cc4;--nh-action:#6237a0;--nh-action-end:#6d3fae;--nh-on-action:#ffffff;--nh-brand:#2a1a45;--nh-brand-end:#24163c;--nh-brand-active:#4a3075;--nh-brand-muted:#d9cdeb;}

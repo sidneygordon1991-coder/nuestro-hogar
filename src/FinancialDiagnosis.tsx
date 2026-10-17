@@ -5,7 +5,7 @@ import {buildFinancialDiagnosis,diagnosisMoney as money,type DiagnosisData} from
 import {incomeAmount} from './lib/monthlyIncome';
 import type {FinancePeriod} from './lib/financePeriods';
 import './FinancialDiagnosis.css';
-const flowMoney=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',minimumFractionDigits:0,maximumFractionDigits:2}).format(n);
+import {formatMoney as flowMoney} from './lib/money';
 const dateLabel=(d:string)=>new Date(d+'T12:00:00Z').toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
 const monthLabel=(d:string)=>new Date(d+'T12:00:00Z').toLocaleDateString('es-GT',{month:'short',year:'numeric',timeZone:'UTC'});
 export default function FinancialDiagnosis({householdId,canEdit,refreshKey,onNavigate}:{householdId:string;canEdit:boolean;refreshKey:number;onNavigate:(tab:string)=>void}){

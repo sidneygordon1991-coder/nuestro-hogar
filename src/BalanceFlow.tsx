@@ -1,7 +1,7 @@
 import {useId} from 'react';
 import {ArrowUpRight} from 'lucide-react';
 import {toCents} from './lib/financePeriods';
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
+import {formatMoney as money} from './lib/money';
 // This graphic shows recorded flows, never predicted income or bank balances.
 export default function BalanceFlow({income,expense,saving,onOpen}:{income:number;expense:number;saving:number;onOpen?:()=>void}){
  const id=useId(),received=Math.max(0,toCents(income)),spent=Math.max(0,toCents(expense)),saved=Math.max(0,toCents(saving)),released=Math.max(0,-toCents(saving)),used=spent+saved,remaining=Math.max(0,received+released-used),total=Math.max(received+released,used,1);

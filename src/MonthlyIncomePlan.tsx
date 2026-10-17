@@ -5,7 +5,7 @@ import {platformError} from './lib/platform';
 import {incomeAmount,type IncomePlan,monthlyIncomeSummary} from './lib/monthlyIncome';
 import {unallocated,validateHalves} from './lib/financePeriods';
 import './monthly-income.css';
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:2}).format(n);
+import {formatMoney as money} from './lib/money';
 type Summary=ReturnType<typeof monthlyIncomeSummary>;
 
 export default function MonthlyIncomePlan({householdId,month,label,summary,readOnly,loadError,onSaved,onReload,onMovements}:{householdId:string;month:string;label:string;summary:Summary;readOnly:boolean;loadError:boolean;onSaved:(plans:IncomePlan[])=>void;onReload:()=>void;onMovements:()=>void}){

@@ -2,8 +2,8 @@ import {monthlyIncomeSummary,type IncomeMember,type IncomePlan} from './monthlyI
 import {inPeriod,toCents,type FinancePeriod,type PeriodAllocation} from './financePeriods';
 import {occurrenceDetails,type RecurringTerms} from './recurringDetails';
 
-export type CashMovement={id:string;type:string;amount:number|string;transaction_date:string;category_id:string|null;paid_by:string|null};
-export type CashSaving={amount:number|string;contribution_date:string};
+export type CashMovement={id:string;type:string;amount:number|string;transaction_date:string;category_id:string|null;paid_by:string|null;is_shared?:boolean|null};
+export type CashSaving={amount:number|string;contribution_date:string;created_by?:string|null};
 export type CashRecurring=RecurringTerms&{id:string;active?:boolean};
 export type CashOccurrence={id:string;recurring_transaction_id:string;due_date:string;status:string;transaction_id?:string|null;details_snapshot?:Partial<RecurringTerms>|null};
 export type CashFlowSource={month:string;today:string;period?:FinancePeriod;transactions:CashMovement[];savings:CashSaving[];categories:{id:string;budget_group?:string}[];allocations:PeriodAllocation[];members:IncomeMember[];plans:IncomePlan[];references?:Record<string,number>;recurring:CashRecurring[];occurrences:CashOccurrence[]};

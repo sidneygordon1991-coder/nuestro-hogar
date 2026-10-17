@@ -6,6 +6,7 @@ import ModuleIcon from './ModuleIcon';
 import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import {AlertTriangle,CheckCircle2,ChevronRight,Gauge,Package,RefreshCw,Sparkles,TrendingUp} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {formatMoney} from './lib/money';
 import './HouseholdHealthCenter.css';
 
 type Household={id:string;name:string;invite_code:string};
@@ -18,7 +19,7 @@ type Snapshot={
 };
 type HealthHistory={snapshot_date:string;overall_score:number;finance_score:number;organization_score:number;documents_score:number;maintenance_score:number;pantry_score:number};
 
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n);
+const money=formatMoney;
 
 export default function HouseholdHealthCenter({household,canEditFinance,onNavigate}:{household:Household;canEditFinance:boolean;onNavigate:(tab:string)=>void}){
  const [snapshot,setSnapshot]=useState<Snapshot|null>(null),[history,setHistory]=useState<HealthHistory[]>([]),[loading,setLoading]=useState(true),[message,setMessage]=useState('');

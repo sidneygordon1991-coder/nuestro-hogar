@@ -8,6 +8,7 @@ import {AlertTriangle,BadgeCheck,CalendarClock,Car,ExternalLink,GraduationCap,Lo
 import {supabase} from './lib/supabase';
 import {compressPhoto} from './lib/photoCompression';
 import {checkHouseholdUpload,platformError} from './lib/platform';
+import {localISODate,localISODateIn} from './lib/localDate';
 
 type Household={id:string;name:string;invite_code:string};
 type Member={user_id:string;full_name:string};
@@ -23,7 +24,7 @@ const categories:{id:DocCategory;label:string}[]=[
  {id:'personal',label:'Personales'},{id:'home',label:'Casa'},{id:'vehicle',label:'Vehículos'},{id:'health',label:'Salud'},
  {id:'finance',label:'Finanzas'},{id:'insurance',label:'Seguros'},{id:'warranty',label:'Garantías'},{id:'education',label:'Educación'},{id:'other',label:'Otros'}
 ];
-const iso=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+const iso=()=>localISODate();
 const formatDate=(value:string|null)=>value?new Date(value+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'}):'Sin fecha';
 const formatSize=(bytes:number|null)=>!bytes?'':bytes<1024*1024?Math.max(1,Math.round(bytes/1024))+' KB':(bytes/1024/1024).toFixed(1)+' MB';
 
@@ -33,10 +34,11 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
  const [query,setQuery]=useState(''),[category,setCategory]=useState<'all'|DocCategory>('all'),[showForm,setShowForm]=useState(false),[editing,setEditing]=useState<DocumentRow|null>(null);
  const [scopeDraft,setScopeDraft]=useState<AccessScope>('household');
 
- useEffect(()=>{load()},[household.id]);
+ useEffect(()=>{setMessage('');load()},[household.id]);
 
- async function load(){
-  setLoading(true);setMessage('');
+ async function load(showLoader=true){
+  // Reloads after a save/delete keep the page and its success message on screen (no skeleton flash).
+  if(showLoader)setLoading(true);
   const {data:{user}}=await supabase.auth.getUser();if(!user){setLoading(false);return}setUserId(user.id);
   const [docR,memberR]=await Promise.all([
    supabase.from('household_documents').select('*').eq('household_id',household.id).order('expires_on',{ascending:true,nullsFirst:false}).order('created_at',{ascending:false}),
@@ -52,7 +54,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
  }
 
  const stats=useMemo(()=>{
-  const today=iso(),soon=new Date();soon.setDate(soon.getDate()+30);const soonIso=soon.toISOString().slice(0,10);
+  const today=iso(),soonIso=localISODateIn(30);
   const expired=documents.filter(d=>d.expires_on&&d.expires_on<today).length;
   const expiring=documents.filter(d=>d.expires_on&&d.expires_on>=today&&d.expires_on<=soonIso).length;
   const withFile=documents.filter(d=>d.file_path).length;
@@ -111,15 +113,17 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
   }
   if(newUpload&&editing?.file_path&&editing.file_path!==newUpload)await supabase.storage.from('household-documents').remove([editing.file_path]);
   await supabase.rpc('refresh_my_notifications',{p_household_id:household.id});
-  setBusy(false);setMessage(editing?'Documento actualizado.':'Documento guardado en la bóveda.');closeForm();await load();
+  setBusy(false);setMessage(editing?'Documento actualizado.':'Documento guardado en la bóveda.');closeForm();await load(false);
  }
 
  async function openFile(doc:DocumentRow){
   if(!doc.file_path)return;
   setMessage('');
+  // The window must be opened synchronously inside the tap; after an await iPhone Safari and installed PWAs block it.
+  let win:Window|null=null;try{win=window.open('','_blank');if(win)win.opener=null}catch{win=null}
   const {data,error}=await supabase.storage.from('household-documents').createSignedUrl(doc.file_path,120);
-  if(error||!data?.signedUrl){setMessage(error?.message||'No se pudo abrir el archivo.');return}
-  window.open(data.signedUrl,'_blank','noopener,noreferrer');
+  if(error||!data?.signedUrl){try{win?.close()}catch{}setMessage(error?.message||'No se pudo abrir el archivo.');return}
+  if(win&&!win.closed)win.location.href=data.signedUrl;else window.location.assign(data.signedUrl);
  }
 
  async function deleteDocument(doc:DocumentRow){
@@ -127,7 +131,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
   if(!window.confirm('¿Eliminar este documento de la bóveda?'))return;setBusy(true);setMessage('');
   const {error}=await supabase.from('household_documents').delete().eq('id',doc.id).eq('household_id',household.id);
   if(!error&&doc.file_path)await supabase.storage.from('household-documents').remove([doc.file_path]);
-  setBusy(false);setMessage(error?error.message:'Documento eliminado.');if(!error)await load();
+  setBusy(false);setMessage(error?error.message:'Documento eliminado.');if(!error)await load(false);
  }
 
  if(loading)return <ModuleLoading/>;

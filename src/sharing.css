@@ -1,8 +1,4 @@
-.google-signin {margin:20px 0 8px}
-.google-signin button {display:flex;align-items:center;justify-content:center;gap:12px;width:100%;border:1px solid var(--nh-border);border-radius:12px;background:var(--nh-surface);color:var(--nh-text);min-height:48px;font:inherit;font-weight:700}
-.google-signin svg {width:22px;height:22px;flex:none}
-.google-signin p {font-size:13px;color:var(--nh-warning)}
-.auth-divider {font-size:12px;color:var(--nh-muted);text-align:center;margin:12px 0}
+
 .sharing-card {max-width:570px;margin:24px auto;padding:26px;border:1px solid var(--nh-border);border-radius:22px;background:var(--nh-surface);color:var(--nh-text)}
 .sharing-card h2 {margin:8px 0;font-size:24px}.sharing-card p {font-size:14px;line-height:1.6;color:var(--nh-muted)}
 .sharing-icon {display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:var(--nh-accent-soft);color:var(--nh-accent)}

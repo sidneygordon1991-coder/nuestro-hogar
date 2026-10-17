@@ -6,7 +6,7 @@ import type {ReviewHalf} from './lib/fortnightReview';
 import {ArrowRight,CalendarRange,Info,Wallet} from 'lucide-react';
 import {financePeriodSummary,periodShares,type FinancePeriod,type PeriodAllocation,type ShareContext} from './lib/financePeriods';
 import './fortnight-budget.css';
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ'}).format(n);
+import {formatMoney as money} from './lib/money';
 const titles:Record<FinancePeriod,string>={month:'Mes completo',first:'Primera quincena',second:'Segunda quincena'};
 type Props={householdId:string;householdName:string;readOnly:boolean;onPayments:()=>void;onMovements:()=>void;month:string;label:string;context:ShareContext;allocations:PeriodAllocation[];categories:{id:string;name:string;icon?:string;budget_group:string}[];movements:Parameters<typeof financePeriodSummary>[7];savings:Parameters<typeof financePeriodSummary>[8];splits:Parameters<typeof financePeriodSummary>[9];loadError:boolean;onIncome:()=>void;onBudget:()=>void;onRules:()=>void};
 

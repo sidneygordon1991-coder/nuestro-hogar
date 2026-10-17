@@ -1,10 +1,10 @@
 import {AlertTriangle,Car,GraduationCap,HeartPulse,House,PawPrint,PiggyBank,Plane,Plug,ReceiptText,ShoppingBasket,Shirt,Utensils,Wallet,type LucideIcon} from 'lucide-react';
 import {budgetPercent,budgetProgress} from './lib/budgetProgress';
+import {formatMoney as money} from './lib/money';
 import './budget-progress.css';
 
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ'}).format(n);
 const icons:Record<string,LucideIcon>={food:ShoppingBasket,shopping:ShoppingBasket,cart:ShoppingBasket,home:House,house:House,transport:Car,car:Car,health:HeartPulse,medical:HeartPulse,education:GraduationCap,school:GraduationCap,travel:Plane,plane:Plane,pet:PawPrint,pets:PawPrint,saving:PiggyBank,savings:PiggyBank,'piggy-bank':PiggyBank,utilities:Plug,bills:ReceiptText,clothing:Shirt,restaurant:Utensils};
-function categoryIcon(name:string,icon?:string){
+export function categoryIcon(name:string,icon?:string):LucideIcon{
  if(icon&&icons[icon])return icons[icon];
  const text=name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  const byName:[RegExp,LucideIcon][]=[[/ahorro|reserva|emergencia/,PiggyBank],[/alimenta|supermerc|comida|despensa/,ShoppingBasket],[/restaura|comer fuera/,Utensils],[/casa|hogar|vivienda|alquiler/,House],[/transporte|combustible|gasolina|vehiculo/,Car],[/salud|medic|farmacia/,HeartPulse],[/educa|colegio|escuela/,GraduationCap],[/viaje|vacacion/,Plane],[/mascota/,PawPrint],[/servicio|luz|agua|internet/,Plug],[/ropa|vestuario/,Shirt]];
