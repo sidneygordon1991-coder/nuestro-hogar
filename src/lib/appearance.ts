@@ -1,4 +1,5 @@
-export type Appearance={accent:'ocean'|'iris'|'forest';focus:'balance'|'plans';view:'essential'|'complete';favorites:string[];cover:string};
+export const appearanceAccents=[{id:'ocean',label:'Azul'},{id:'forest',label:'Verde'},{id:'graphite',label:'Grafito'},{id:'aurora',label:'Tornasol'},{id:'iris',label:'Lavanda'}] as const;
+export type Appearance={accent:typeof appearanceAccents[number]['id'];focus:'balance'|'plans';view:'essential'|'complete';favorites:string[];cover:string};
 export const defaultAppearance:Appearance={accent:'ocean',focus:'balance',view:'complete',favorites:['presupuesto','calendario','listas','documentos'],cover:''};
 export const moduleCatalog=[
  {tab:'presupuesto',module:'finance',icon:'finance',label:'Finanzas',detail:'Balance y movimientos'},
@@ -18,7 +19,7 @@ export const moduleCatalog=[
 export function normalizeAppearance(raw:unknown):Appearance{
  const x=(raw&&typeof raw==='object'?raw:{}) as Partial<Appearance>;
  const favorites=Array.isArray(x.favorites)?Array.from(new Set(x.favorites.filter(t=>moduleCatalog.some(m=>m.tab===t)))).slice(0,6):defaultAppearance.favorites;
- return {accent:x.accent==='iris'||x.accent==='forest'?x.accent:'ocean',focus:x.focus==='plans'?'plans':'balance',view:x.view==='essential'?'essential':'complete',favorites,cover:typeof x.cover==='string'&&/^data:image\/(jpeg|png|webp);base64,[a-z\d+/=]+$/i.test(x.cover)&&x.cover.length<=900000?x.cover:''};
+ return {accent:appearanceAccents.some(a=>a.id===x.accent)?x.accent!:'ocean',focus:x.focus==='plans'?'plans':'balance',view:x.view==='essential'?'essential':'complete',favorites,cover:typeof x.cover==='string'&&/^data:image\/(jpeg|png|webp);base64,[a-z\d+/=]+$/i.test(x.cover)&&x.cover.length<=900000?x.cover:''};
 }
 export function appearanceKey(userId:string,householdId:string){return 'nh:appearance:'+userId+':'+householdId}
 export function readAppearance(key:string){try{return normalizeAppearance(JSON.parse(localStorage.getItem(key)||'{}'))}catch{return {...defaultAppearance}}}

@@ -1,3 +1,4 @@
+import {formatMoney as money} from './lib/money';
 import {useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
 import {ArrowDownLeft,ArrowUpRight,CalendarDays,ChevronRight,Clock3,CreditCard,Info,Landmark,PiggyBank,RefreshCw,Target,Wallet} from 'lucide-react';
 import {supabase} from './lib/supabase';
@@ -5,7 +6,6 @@ import {halfOf,toCents,type FinancePeriod} from './lib/financePeriods';
 import {overviewAccounts,overviewGoal,overviewPeriod,registeredBalanceSeries,type HomeFinance,type OverviewAccount,type AccountMovement,type AccountTransfer} from './lib/homeOverview';
 import BudgetCategoryProgress from './BudgetCategoryProgress';
 
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',minimumFractionDigits:0,maximumFractionDigits:2}).format(n);
 const shortDate=(date:string)=>new Date(date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'});
 const accountNames:Record<string,string>={cash:'Efectivo',checking:'Cuenta bancaria',savings:'Ahorro',credit:'Tarjeta',loan:'Préstamo',mortgage:'Hipoteca',investment:'Inversión'};
 
@@ -42,27 +42,26 @@ export default function HomeMoneyWorkspace({householdId,finance,onNavigate,onRef
  const planLabel=period==='month'?'este mes':period==='first'?'del 1 al 15':'del 16 al cierre';
  return <div className="premium-home-grid">
   <div className="premium-money-main">
-   <div className="premium-metrics studio-metrics" aria-label="Cifras registradas del mes">
-    <button onClick={()=>onNavigate('presupuesto:income')}><span><ArrowDownLeft/></span><div><small>Ingresos del mes</small><strong>{money(finance.income)}</strong><em>Recibidos hasta hoy</em></div></button>
-    <button onClick={()=>onNavigate('presupuesto:recurring')}><span className="amber"><Clock3/></span><div><small>Pagos y fijos pendientes</small><strong>{money(finance.pending)}</strong><em>Sin duplicar el presupuesto</em></div></button>
-    <button onClick={()=>onNavigate('presupuesto:goals')}><span className="sage"><PiggyBank/></span><div><small>Ahorro del mes</small><strong>{money(finance.saving)}</strong><em>Depósitos menos retiros</em></div></button>
-   </div>
+   <MoneyMetrics finance={finance} onNavigate={onNavigate}/>
    <section className="premium-margin" aria-label="Margen del mes">
     {cover&&<img src={cover} alt="" className="premium-cover"/>}
     <div className="premium-margin-top"><span><Wallet size={19}/> TU MES, CON CLARIDAD</span><span className="premium-date">Al {shortDate(source.today)}</span></div>
     <p className="premium-margin-label">Margen del mes</p><h2 className={monthly.flow.availableAfterCommitments<0?'is-negative':''}>{money(monthly.flow.availableAfterCommitments)}</h2>
-    <p>Balance registrado menos pagos, fijos y ahorro por cubrir.</p>
+    <p>Después de pagos, fijos y ahorro por cubrir.</p>
     <button type="button" className="premium-calculation-toggle" aria-expanded={calculation} onClick={()=>setCalculation(v=>!v)}><Info size={15}/>{calculation?'Ocultar cálculo':'Ver cálculo'} <ArrowUpRight size={15}/></button>
     {calculation&&<div className="premium-calculation"><div><span>Ingresos − gastos − ahorro del mes</span><b>{money(finance.available)}</b></div><div><span>Pagos y fijos pendientes</span><b>− {money(finance.pending)}</b></div><div><span>Ahorro del plan aún pendiente</span><b>− {money(monthly.flow.savingsRemaining)}</b></div><p>Los ingresos esperados todavía no se suman. Este margen mensual no es el saldo de tus cuentas y no descuenta el presupuesto variable que aún podrías usar.</p></div>}
+    <MoneyMetrics finance={finance} onNavigate={onNavigate} compact/>
     <div className="premium-margin-foot"><span>{finance.planComplete?'Según tu plan guardado':'Plan parcial · revisa lo pendiente'}</span><button onClick={()=>onNavigate('presupuesto:transactions')}>Ver movimientos <ArrowUpRight size={15}/></button></div>
    </section>
    <section className="premium-card premium-cashflow" aria-label="Balance y proyección por período">
     <div className="premium-card-head"><div><p className="eyebrow">ANTICIPA LO QUE VIENE</p><h3>Tu dinero en el tiempo</h3></div><div className="premium-segments" role="group" aria-label="Período del resumen">{([['first','1–15'],['second','16–cierre'],['month','Mes']] as const).map(([key,label])=><button key={key} aria-pressed={period===key} onClick={()=>{setPeriod(key);setShowBudgets(false)}}>{label}</button>)}</div></div>
-    <p className="premium-caption">{shortDate(series.start)} – {shortDate(series.end)} · Balance acumulado del mes registrado hasta hoy.</p>
+    <p className="premium-caption">{shortDate(series.start)} – {shortDate(series.end)} · Registros hasta hoy.</p>
     <RegisteredChart rows={series.rows}/>
+    <details className="premium-period-details"><summary>Ver ingresos y proyección <ChevronRight size={15}/></summary>
     <div className="premium-period-values"><div><small>Ingresos {planLabel}</small><strong>{money(selected.flow.income)}</strong></div><div><small>Gastado {planLabel}</small><strong>{money(selected.flow.expense)}</strong></div><div><small>Ahorro neto</small><strong>{money(selected.flow.saving)}</strong></div></div>
     <div className="home-money-answers premium-projection" aria-label="Lo siguiente para tu dinero"><div><small>Ingreso aún esperado</small><strong>{money(selected.flow.expectedIncomeRemaining)}</strong><span>Plan del período; aún no recibido</span></div><div><small>Resultado estimado del período</small><strong className={selected.flow.projectedClose<0?'negative':''}>{money(selected.flow.projectedClose)}</strong><span>{selected.complete?'Según el plan guardado':'Plan parcial: confirma la distribución'}</span></div></div>
     <p className="premium-footnote">La estimación usa el resultado de este período más ingresos esperados, menos presupuesto y ahorro pendientes. La curva solo muestra registros reales; no asigna fechas a ingresos esperados.</p>
+    </details>
     <button className="premium-text-link" onClick={()=>onNavigate('presupuesto:fortnight')}>Abrir quincenas y reglas de aportes <ArrowUpRight size={15}/></button>
    </section>
    <section className="premium-card premium-budgets" aria-label="Resumen de presupuesto">
@@ -96,11 +95,18 @@ export default function HomeMoneyWorkspace({householdId,finance,onNavigate,onRef
  </div>;
 }
 
+function MoneyMetrics({finance,onNavigate,compact=false}:{finance:HomeFinance;onNavigate:(tab:string)=>void;compact?:boolean}){
+ const rows=[{label:compact?'Ingresos':'Ingresos del mes',value:finance.income,detail:'Recibidos hasta hoy',route:'income',Icon:ArrowDownLeft,tone:''},{label:compact?'Por cubrir':'Pagos y fijos pendientes',value:finance.pending,detail:'Compromisos del mes',route:'recurring',Icon:Clock3,tone:'amber'},{label:compact?'Ahorro neto':'Ahorro del mes',value:finance.saving,detail:'Depósitos menos retiros',route:'goals',Icon:PiggyBank,tone:'sage'}];
+ return <div className={compact?'premium-pocket-metrics':'premium-metrics studio-metrics'} aria-label="Cifras registradas del mes">{rows.map(({label,value,detail,route,Icon,tone})=><button key={route} onClick={()=>onNavigate('presupuesto:'+route)}><span className={tone}><Icon/></span><div><small>{label}</small><strong className={money(value).length>12?'long-amount':''}>{money(value)}</strong>{!compact&&<em>{detail}</em>}</div></button>)}</div>;
+}
+
 function RegisteredChart({rows}:{rows:{date:string;balance:number}[]}){
  const id=useId().replace(/:/g,'');
+ const chart=useRef<HTMLElement>(null),[width,setWidth]=useState(640);
+ useEffect(()=>{const el=chart.current;if(!el)return;const measure=()=>setWidth(Math.max(220,Math.round(el.getBoundingClientRect().width)));measure();if(typeof ResizeObserver==='undefined'){window.addEventListener('resize',measure);return()=>window.removeEventListener('resize',measure)}const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect()},[rows.length===0]);
  if(!rows.length)return <div className="premium-chart-empty"><CalendarDays size={25}/><p>Este período todavía no tiene días registrados.</p></div>;
  const values=rows.map(r=>r.balance),min=Math.min(0,...values),max=Math.max(1,...values),range=max-min;
- const x=(i:number)=>48+i/Math.max(1,rows.length-1)*592,y=(n:number)=>142-(n-min)/range*112;
+ const x=(i:number)=>42+i/Math.max(1,rows.length-1)*(width-54),y=(n:number)=>142-(n-min)/range*112;
  const points=rows.map((r,i)=>`${x(i)},${y(r.balance)}`).join(' '),last=rows[rows.length-1];
- return <figure className="premium-chart"><svg viewBox="0 0 680 184" role="img" aria-label={'Balance registrado del mes al '+shortDate(last.date)+': '+money(last.balance)}><defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--nh-chart-accent)" stopOpacity=".22"/><stop offset="100%" stopColor="var(--nh-chart-accent)" stopOpacity="0"/></linearGradient></defs>{[min,min+range/2,max].map((n,i)=><g key={i}><line x1="48" y1={y(n)} x2="640" y2={y(n)} className="premium-grid-line"/><text x="6" y={y(n)-7}>{new Intl.NumberFormat('es-GT',{notation:'compact',maximumFractionDigits:1}).format(n)}</text></g>)}<polygon points={`48,142 ${points} ${x(rows.length-1)},142`} fill={`url(#${id})`}/><polyline points={points} className="premium-chart-line"/>{[0,Math.floor((rows.length-1)/2),rows.length-1].filter((n,i,a)=>a.indexOf(n)===i).map(i=><g key={i}><circle cx={x(i)} cy={y(rows[i].balance)} r="4"/><text x={x(i)} y="172" textAnchor={i===0?'start':i===rows.length-1?'end':'middle'}>{shortDate(rows[i].date)}</text></g>)}</svg><figcaption><i/> Registrado <b>{money(last.balance)}</b><span>Balance del mes, no saldo bancario</span></figcaption></figure>;
+ return <figure ref={chart} className="premium-chart"><svg viewBox={`0 0 ${width} 184`} role="img" aria-label={'Balance registrado del mes al '+shortDate(last.date)+': '+money(last.balance)}><defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--nh-chart-accent)" stopOpacity=".22"/><stop offset="100%" stopColor="var(--nh-chart-accent)" stopOpacity="0"/></linearGradient></defs>{[min,min+range/2,max].map((n,i)=><g key={i}><line x1="42" y1={y(n)} x2={width-12} y2={y(n)} className="premium-grid-line"/><text x="6" y={y(n)-7}>{new Intl.NumberFormat('es-GT',{notation:'compact',maximumFractionDigits:1}).format(n)}</text></g>)}<polygon points={`42,142 ${points} ${x(rows.length-1)},142`} fill={`url(#${id})`}/><polyline points={points} className="premium-chart-line"/>{[0,Math.floor((rows.length-1)/2),rows.length-1].filter((n,i,a)=>a.indexOf(n)===i).map(i=><g key={i}><circle cx={x(i)} cy={y(rows[i].balance)} r="4"/><text x={x(i)} y="172" textAnchor={i===0?'start':i===rows.length-1?'end':'middle'}>{shortDate(rows[i].date)}</text></g>)}</svg><figcaption><i/> Registrado <b>{money(last.balance)}</b><span>Balance del mes, no saldo bancario</span></figcaption></figure>;
 }
