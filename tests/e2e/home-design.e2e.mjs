@@ -39,7 +39,7 @@ for(const theme of ['light','dark']){
  });
  test(`four finishes: preview, persistence, theme choice and no server writes: ${theme}`,async({browser})=>{
   const s=await setup(browser,{rich:true,theme}),writes=[];
-  s.page.on('request',r=>{const path=new URL(r.url()).pathname;if(path.startsWith('/rest/')&&['POST','PATCH','DELETE'].includes(r.method())&&!/\/rpc\/(get_my_household_access|get_my_household_storage|get_my_platform_access|refresh_my_notifications)$/.test(path))writes.push(path)});
+  s.page.on('request',r=>{const path=new URL(r.url()).pathname;if(path.startsWith('/rest/')&&['POST','PATCH','DELETE'].includes(r.method())&&!/\/rpc\/(get_my_household_access|get_home_finance_source|get_my_household_storage|get_my_platform_access|refresh_my_notifications)$/.test(path))writes.push(path)});
   try{
    await s.page.setViewportSize({width:1440,height:900});await ready(s,'');
    for(const [accent,label] of finishes){

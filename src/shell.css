@@ -57,6 +57,8 @@
 .app.app-studio .workspace-header .household-pill-photo svg{position:static}
 .app.app-studio .workspace-header .header-theme-toggle{display:inline-flex;align-items:center;gap:2px;position:static;flex:none;width:auto;height:42px;min-width:0;padding:4px;
  border:1px solid var(--nh-border);border-radius:999px;background:var(--nh-subtle);color:var(--nh-muted);box-shadow:none}
+.app.app-studio .workspace-header .amounts-toggle{display:grid;place-items:center;flex:none;width:42px;height:42px;padding:0;border:1px solid var(--nh-border);border-radius:50%;background:var(--nh-subtle);color:var(--nh-muted)}
+.app.app-studio .workspace-header .amounts-toggle[aria-pressed=true]{background:var(--nh-accent-soft);border-color:var(--nh-accent-border);color:var(--nh-accent)}
 .header-theme-toggle :is(.theme-sun,.theme-moon){display:grid;place-items:center;width:32px;height:32px;border-radius:50%;color:var(--nh-muted);transition:background-color .2s ease,color .2s ease}
 .app.app-studio .workspace-header>.header-actions{display:flex;align-items:center;gap:6px;width:auto;padding:0;justify-content:flex-end}
 .app.app-studio .workspace-header .header-actions :is(.app-menu-trigger,.global-search-trigger,.notification-bell){display:grid;place-items:center;width:40px;height:40px;min-width:40px;min-height:40px;padding:0;
@@ -135,6 +137,7 @@ body.workspace-navigation-open .app>nav{visibility:hidden}
  .app.app-studio .workspace-header .household-pill .home-select-label{font-size:14px}
  .app.app-studio .workspace-header .household-pill>svg{right:11px}
  .app.app-studio .workspace-header .header-theme-toggle{width:44px;height:44px;padding:0;justify-content:center;border-radius:50%;background:var(--nh-surface)}
+ .app.app-studio .workspace-header .amounts-toggle{width:40px;height:40px;background:var(--nh-surface)}
  .app.app-studio .workspace-header>.header-actions{gap:0}
  .app.app-studio .workspace-header .header-actions :is(.app-menu-trigger,.global-search-trigger,.notification-bell){width:40px;height:44px;min-width:38px}
  .app.app-studio .workspace-header .header-actions>.profile-avatar{display:none}

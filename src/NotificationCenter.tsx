@@ -1,3 +1,4 @@
+import {maskAmountsIn} from './lib/money';
 import ModuleIcon from './ModuleIcon';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
@@ -174,7 +175,7 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
    </div>:<>
     <div className="notification-toolbar"><span>{unread?unread+' sin leer':'Todo al día'}</span><div><button disabled={!unread} onClick={markAll}><CheckCheck/> Marcar todo</button><button onClick={clearRead}><Trash2/> Limpiar leídas</button></div></div>
     {loading&&<p className="notification-note" role="status">Cargando notificaciones…</p>}
-    <div className="notification-list">{items.map(row=><button className={'notification-item '+row.severity+' '+(!row.read_at?'unread':'')} key={row.id} onClick={()=>openNotification(row)}><span className="notification-type-icon">{notificationIcon(row.type)}</span><div><div><strong>{row.title}</strong>{!row.read_at&&<i/>}</div>{row.body&&<p>{row.body}</p>}<small>{relativeTime(row.created_at)}</small></div></button>)}</div>
+    <div className="notification-list">{items.map(row=><button className={'notification-item '+row.severity+' '+(!row.read_at?'unread':'')} key={row.id} onClick={()=>openNotification(row)}><span className="notification-type-icon">{notificationIcon(row.type)}</span><div><div><strong>{maskAmountsIn(row.title)}</strong>{!row.read_at&&<i/>}</div>{row.body&&<p>{maskAmountsIn(row.body)}</p>}<small>{relativeTime(row.created_at)}</small></div></button>)}</div>
     {!loading&&!items.length&&<div className="notification-empty"><Bell/><strong>Todo bajo control</strong><span>No hay alertas pendientes para este hogar.</span></div>}
     {items.length>0&&<div className="notification-history"><span>{items.length} de {Math.max(total,items.length)} notificaciones</span>{historyError&&<p className="notification-history-error" role="alert">{historyError}</p>}{items.length<total&&<button onClick={loadMore} disabled={loadingMore}>{loadingMore?'Cargando…':'Ver notificaciones anteriores'}</button>}</div>}
    </>}

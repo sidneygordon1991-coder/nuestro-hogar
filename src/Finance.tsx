@@ -9,7 +9,7 @@ import BudgetCategoryProgress from './BudgetCategoryProgress';
 import SavingsEntryDialog from './SavingsEntryDialog';
 import {buildCashFlow} from './lib/cashFlow';
 import WorkspaceTitle from './WorkspaceTitle';
-import {occurrenceDetails,recurringTerms,type OccurrenceDetails} from './lib/recurringDetails';
+import {occurrenceDetails,recurringTerms} from './lib/recurringDetails';
 import './finance-management.css';
 import FinanceNavigation from './FinanceNavigation';
 import BalanceFlow from './BalanceFlow';
@@ -17,52 +17,41 @@ import {financeSection,type FinanceSection} from './lib/financeNavigation';
 import ModuleLoading from './ModuleLoading';
 import MonthlyIncomePlan from './MonthlyIncomePlan';
 import FortnightBudget from './FortnightBudget';
-import {toCents,financePeriodSummary,periodShares,splitCents,unallocated,validateHalves,type HalfAmounts,type ShareContext} from './lib/financePeriods';
+import {toCents,financePeriodSummary,periodShares,splitCents,unallocated,validateHalves,type ShareContext} from './lib/financePeriods';
 import {incomeAmount} from './lib/monthlyIncome';
 import {monthlyIncomeSummary,type IncomePlan} from './lib/monthlyIncome';
 import {InteractiveTrend,SpendingDonut} from './FinancialVisuals';
 import TransactionReceipts from './TransactionReceipts';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useId,useMemo,useRef,useState} from 'react';
-import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowRightLeft,ArrowUpRight,BarChart3,Building2,CalendarClock,Car,Check,ChevronRight,CircleDollarSign,Copy,CreditCard,Gauge,Gem,GraduationCap,Landmark,Pencil,Plane,PiggyBank,Plus,Paperclip,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingDown,TrendingUp,X} from 'lucide-react';
+import {AlertTriangle,ArrowDownLeft,FileSpreadsheet,ArrowLeft,ArrowRight,ArrowRightLeft,ArrowUpRight,BarChart3,CalendarClock,Check,ChevronRight,CircleDollarSign,Copy,Gauge,Gem,Pencil,PiggyBank,Plus,Target,Trash2,TrendingDown,TrendingUp,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {formatMoney} from './lib/money';
 import {fetchAllRows,pagedResult} from './lib/paging';
+import {formatEntryAmount,usdRate,usdToQuetzales} from './lib/currency';
+import {creditCardStatus} from './lib/creditCards';
+import type {PayDays} from './lib/monthlyIncome';
+import DebtPlanner from './DebtPlanner';
+import ImportStatement from './ImportStatement';
+import SettlementsPanel from './SettlementsPanel';
+import './finance-tools.css';
+import {Kpi,Progress,EmptyFinance,TransactionRows,ComparisonKpi,MonthlyBars,BalanceChart,SavingsRateChart,CategoryComparison,GoalCard,AmountField,statusLabel,splitMethodLabel,categoryRuleLabel,NetWorthChart,accountIcon,assetIcon,assetTypeName,accountTypeName,type Household,type BudgetGroup,type Category,type Tx,type Allocation,type Goal,type Contribution,type Recurring,type RecurringOccurrence,type AccountClass,type Account,type Transfer,type FinanceAsset,type NetWorthSnapshot,type Member,type Split,type SplitMethod,type MemberFinanceDraft,type CategoryRuleMethod,type CategoryRuleDraft,type HistoryTx,type HistoryContribution,type HistoryAllocation,type MonthMetric,currency,isoDate,pct} from './FinanceParts';
 
-type Household={id:string;name:string;invite_code:string};
-type BudgetGroup='fixed'|'variable'|'saving';
-type Category={id:string;name:string;icon:string;budget_group:BudgetGroup};
-type Tx={id:string;description:string;amount:number;type:'income'|'expense';transaction_date:string;category_id:string|null;paid_by:string|null;account_id:string|null;is_shared:boolean;notes:string|null;recurring_transaction_id:string|null};
-type Allocation=HalfAmounts&{id:string;category_id:string;planned_amount:number;month:string};
-type Goal={id:string;name:string;target_amount:number;target_date:string|null;icon:string;active:boolean};
-type Contribution={id:string;goal_id:string;amount:number;contribution_date:string;created_by:string|null};
-type Recurring={id:string;description:string;amount:number;type:'income'|'expense';due_day:number;category_id:string|null;account_id:string|null;paid_by:string|null;is_shared:boolean;active:boolean;created_at:string};
-type RecurringOccurrence={id:string;recurring_transaction_id:string;period_month:string;due_date:string;status:'pending'|'paid'|'skipped';paid_at:string|null;transaction_id:string|null;details_snapshot?:OccurrenceDetails};
-type AccountClass='asset'|'liability';
-type Account={id:string;name:string;account_type:string;account_class:AccountClass;opening_balance:number;owner_user_id:string|null;is_shared:boolean;active:boolean;institution:string|null;credit_limit:number|null;statement_day:number|null;payment_due_day:number|null;apr:number|null;minimum_payment:number|null;notes:string|null};
-type Transfer={id:string;from_account_id:string;to_account_id:string;amount:number;transfer_date:string;description:string|null};
-type FinanceAsset={id:string;name:string;asset_type:'property'|'vehicle'|'investment'|'valuable'|'other';estimated_value:number;purchase_value:number|null;owner_user_id:string|null;is_shared:boolean;notes:string|null;active:boolean};
-type NetWorthSnapshot={snapshot_date:string;account_assets:number;manual_assets:number;liabilities:number;net_worth:number};
-type Member={user_id:string;role:string;full_name:string};
-type Split={transaction_id:string;user_id:string;share_amount:number};
-type SplitMethod='equal'|'income'|'custom';
-type MemberFinanceDraft={monthly_income:string;custom_share_percent:string};
-type CategoryRuleMethod='inherit'|'equal'|'income'|'custom'|'personal';
-type CategoryRuleDraft={split_method:CategoryRuleMethod;responsible_user_id:string};
-type HistoryTx={amount:number;type:'income'|'expense';transaction_date:string;category_id:string|null};
-type HistoryContribution={amount:number;contribution_date:string};
-type HistoryAllocation={planned_amount:number;month:string;category_id:string};
-type MonthMetric={key:string;label:string;income:number;expense:number;saving:number;budget:number;balance:number;savingRate:number};
 
 const entryMoney=formatMoney;
-const currency=(n:number)=>formatMoney(n||0);
-const isoDate=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
 const monthDate=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
 const monthBounds=(d:Date)=>{const start=new Date(d.getFullYear(),d.getMonth(),1),end=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:isoDate(start),end:isoDate(end)}};
 const monthLabel=(d:Date)=>d.toLocaleDateString('es-GT',{month:'long',year:'numeric'});
-const pct=(a:number,b:number)=>b>0?Math.min(100,Math.round((a/b)*100)):0;
 const LOAD_ERROR='No se pudo cargar toda la información financiera.';
-const dueDateForMonth=(d:Date,dueDay:number)=>{const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return isoDate(new Date(d.getFullYear(),d.getMonth(),Math.min(Math.max(1,dueDay),last)))};
+/** Amount in quetzales from the movement form; a dollar entry also returns its original amount and rate (all null for quetzales). */
+function entryAmount(f:FormData,householdRate:number){
+ const amount=Number(f.get('amount'));
+ if(String(f.get('currency')||'GTQ')!=='USD')return {amount,original:{original_currency:null as string|null,original_amount:null as number|null,exchange_rate:null as number|null}};
+ const usd=Math.round(amount*100)/100,rateText=String(f.get('exchange_rate')||'').trim().replace(',','.'),rate=Math.round((rateText?Number(rateText):householdRate)*10000)/10000;
+ if(!Number.isFinite(usd)||usd<=0||usd>999999999)throw new Error('Escribe un monto en dólares mayor que cero.');
+ if(!Number.isFinite(rate)||rate<1||rate>100)throw new Error('El tipo de cambio debe estar entre Q 1 y Q 100 por dólar.');
+ return {amount:usdToQuetzales(usd,rate),original:{original_currency:'USD' as string|null,original_amount:usd as number|null,exchange_rate:rate as number|null}};
+}
 
 export default function Finance({household,readOnly=false}:{household:Household;readOnly?:boolean}){
  const [connectedEnabled,setConnectedEnabled]=useState(false),[goalLinks,setGoalLinks]=useState<GoalLink[]|null>(null),[reconciling,setReconciling]=useState<Account|null>(null);
@@ -79,7 +68,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
  const [accountDataError,setAccountDataError]=useState(false),[assetDataError,setAssetDataError]=useState(false);
  const [categories,setCategories]=useState<Category[]>([]),[txs,setTxs]=useState<Tx[]>([]),[allocations,setAllocations]=useState<Allocation[]>([]);
  const [goals,setGoals]=useState<Goal[]>([]),[contributions,setContributions]=useState<Contribution[]>([]),[recurring,setRecurring]=useState<Recurring[]>([]),[occurrences,setOccurrences]=useState<RecurringOccurrence[]>([]);
- const [accounts,setAccounts]=useState<Account[]>([]),[accountTxs,setAccountTxs]=useState<{account_id:string|null;type:string;amount:number}[]>([]);
+ const [accounts,setAccounts]=useState<Account[]>([]),[accountTxs,setAccountTxs]=useState<{account_id:string|null;type:string;amount:number;transaction_date:string}[]>([]);
  const [transfers,setTransfers]=useState<Transfer[]>([]),[assets,setAssets]=useState<FinanceAsset[]>([]),[netWorthSnapshots,setNetWorthSnapshots]=useState<NetWorthSnapshot[]>([]);
  const [members,setMembers]=useState<Member[]>([]),[splits,setSplits]=useState<Split[]>([]),[currentUser,setCurrentUser]=useState('');
  const [detailTx,setDetailTx]=useState<Tx|null>(null),[receiptCounts,setReceiptCounts]=useState<Record<string,number>>({});
@@ -90,12 +79,18 @@ export default function Finance({household,readOnly=false}:{household:Household;
  const [splitMethod,setSplitMethod]=useState<SplitMethod>('equal');
  const [memberFinance,setMemberFinance]=useState<Record<string,MemberFinanceDraft>>({});
  const [incomePlans,setIncomePlans]=useState<IncomePlan[]>([]),[incomePlanError,setIncomePlanError]=useState(false);
+ const [payDays,setPayDays]=useState<Record<string,PayDays>>({}),[usdRateSetting,setUsdRateSetting]=useState<number|null>(null),[showImport,setShowImport]=useState(false);
  const loadSequence=useRef(0),loadedFor=useRef(''),incomeScope=useRef('');incomeScope.current=household.id+':'+monthDate(month);
  const [categoryRules,setCategoryRules]=useState<Record<string,CategoryRuleDraft>>({});
  const [categoryCustom,setCategoryCustom]=useState<Record<string,Record<string,string>>>({});
  const [historyTxs,setHistoryTxs]=useState<HistoryTx[]>([]),[historyContributions,setHistoryContributions]=useState<HistoryContribution[]>([]),[historyAllocations,setHistoryAllocations]=useState<HistoryAllocation[]>([]),[comparisonRange,setComparisonRange]=useState<3|6|12>(6);
 
  useEffect(()=>{load()},[household.id,month.getFullYear(),month.getMonth()]);
+ const importBusy=useRef(false);
+ // Payments already recorded between members this month: the "Balance entre nosotros" card nets them.
+ const [settled,setSettled]=useState<{from_user_id:string;to_user_id:string;amount:number}[]>([]),[settledVersion,setSettledVersion]=useState(0);
+ useEffect(()=>{let live=true;supabase.from('finance_settlements').select('from_user_id,to_user_id,amount').eq('household_id',household.id).eq('period_month',monthDate(month)).then(({data,error})=>{if(live)setSettled(error?[]:(data||[]) as {from_user_id:string;to_user_id:string;amount:number}[])});return()=>{live=false}},[household.id,month.getFullYear(),month.getMonth(),settledVersion]);
+ const settledNet=(id:string)=>settled.reduce((n,r)=>n+(r.from_user_id===id?toCents(r.amount):0)-(r.to_user_id===id?toCents(r.amount):0),0)/100;
  useEffect(()=>{let active=true;setLedgerEnabled(false);supabase.rpc('get_savings_ledger_capability',{p_household_id:household.id}).then(({data})=>{if(active)setLedgerEnabled(data===true)});return()=>{active=false}},[household.id]);
 
  useEffect(()=>{setDetailTx(null);setEditingContribution(null);setEditingRecurring(null);setRemoving(null);setManagementError('');setContributionGoal('all');setContributionLimit(20)},[household.id]);
@@ -123,19 +118,19 @@ export default function Finance({household,readOnly=false}:{household:Household;
   const userPromise=supabase.auth.getUser();
   const [catR,txR,allocR,goalR,contR,recR,accR,accTxR,transferR,assetR,netWorthR,memberR,financeSettingsR,memberFinanceR,categorySettingsR,categoryMemberR,historyTxR,historyContR,historyAllocR,incomePlanR,userR]=await Promise.all([
    supabase.from('budget_categories').select('id,name,icon,budget_group').eq('household_id',household.id).order('created_at'),
-   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,account_id,is_shared,notes,recurring_transaction_id').eq('household_id',household.id).gte('transaction_date',bounds.start).lte('transaction_date',bounds.end).order('transaction_date',{ascending:false}).order('created_at',{ascending:false}).order('id').range(from,to))),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,account_id,is_shared,notes,recurring_transaction_id,original_currency,original_amount,exchange_rate').eq('household_id',household.id).gte('transaction_date',bounds.start).lte('transaction_date',bounds.end).order('transaction_date',{ascending:false}).order('created_at',{ascending:false}).order('id').range(from,to))),
    supabase.from('budget_allocations').select('id,category_id,planned_amount,month,first_half_amount,second_half_amount').eq('household_id',household.id).eq('month',m),
    supabase.from('savings_goals').select('id,name,target_amount,target_date,icon,active').eq('household_id',household.id).order('created_at'),
    pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('id,goal_id,amount,contribution_date,created_by').eq('household_id',household.id).order('contribution_date',{ascending:false}).order('created_at',{ascending:false}).order('id').range(from,to))),
    supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,account_id,paid_by,is_shared,active,created_at').eq('household_id',household.id).order('due_day'),
    supabase.from('finance_accounts').select('id,name,account_type,account_class,opening_balance,owner_user_id,is_shared,active,institution,credit_limit,statement_day,payment_due_day,apr,minimum_payment,notes').eq('household_id',household.id).eq('active',true).order('created_at'),
-   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('account_id,type,amount').eq('household_id',household.id).lte('transaction_date',isoDate()).not('account_id','is',null).order('id').range(from,to))),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('account_id,type,amount,transaction_date').eq('household_id',household.id).lte('transaction_date',isoDate()).not('account_id','is',null).order('id').range(from,to))),
    pagedResult(()=>fetchAllRows((from,to)=>supabase.from('finance_transfers').select('id,from_account_id,to_account_id,amount,transfer_date,description').eq('household_id',household.id).lte('transfer_date',isoDate()).order('transfer_date',{ascending:false}).order('created_at',{ascending:false}).order('id').range(from,to))),
    supabase.from('finance_assets').select('id,name,asset_type,estimated_value,purchase_value,owner_user_id,is_shared,notes,active').eq('household_id',household.id).eq('active',true).order('created_at'),
    supabase.from('finance_net_worth_snapshots').select('snapshot_date,account_assets,manual_assets,liabilities,net_worth').eq('household_id',household.id).order('snapshot_date',{ascending:false}).limit(365),
    supabase.from('household_members').select('user_id,role').eq('household_id',household.id),
-   supabase.from('finance_household_settings').select('household_id,split_method').eq('household_id',household.id).maybeSingle(),
-   supabase.from('finance_member_settings').select('user_id,monthly_income,custom_share_percent').eq('household_id',household.id),
+   supabase.from('finance_household_settings').select('household_id,split_method,usd_rate').eq('household_id',household.id).maybeSingle(),
+   supabase.from('finance_member_settings').select('user_id,monthly_income,custom_share_percent,first_pay_day,second_pay_day').eq('household_id',household.id),
    supabase.from('finance_category_settings').select('category_id,split_method,responsible_user_id').eq('household_id',household.id),
    supabase.from('finance_category_member_settings').select('category_id,user_id,custom_share_percent').eq('household_id',household.id),
    pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('amount,type,transaction_date,category_id').eq('household_id',household.id).gte('transaction_date',historyStart).lte('transaction_date',bounds.end).order('id').range(from,to))),
@@ -172,14 +167,13 @@ export default function Finance({household,readOnly=false}:{household:Household;
   const txData=(txR.data||[]) as unknown as Tx[];
   const txIds=txData.map(t=>t.id);
   const splitR=await pagedResult(async()=>{const rows:Split[]=[];for(let i=0;i<txIds.length;i+=100)rows.push(...await fetchAllRows<Split>((from,to)=>supabase.from('transaction_splits').select('transaction_id,user_id,share_amount').eq('household_id',household.id).in('transaction_id',txIds.slice(i,i+100)).order('id').range(from,to)));return rows});
-  const recurringRows=(recR.data||[]) as unknown as Recurring[];
   const occurrenceR=await supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,period_month,due_date,status,paid_at,transaction_id,details_snapshot').eq('household_id',household.id).eq('period_month',m).order('due_date');
   if(sequence!==loadSequence.current)return;
   setIncomePlans((incomePlanR.data||[]) as IncomePlan[]);setIncomePlanError(Boolean(incomePlanR.error));
   setCategories((catR.data||[]) as Category[]);setTxs(txData);setAllocations((allocR.data||[]) as unknown as Allocation[]);
   setGoals((goalR.data||[]) as unknown as Goal[]);setContributions((contR.data||[]) as unknown as Contribution[]);setRecurring((recR.data||[]) as unknown as Recurring[]);setOccurrences((occurrenceR.data||[]) as unknown as RecurringOccurrence[]);
   setAccounts((accR.data||[]) as unknown as Account[]);setAccountTxs((accTxR.data||[]) as unknown as any[]);setTransfers((transferR.data||[]) as unknown as Transfer[]);setAssets((assetR.data||[]) as unknown as FinanceAsset[]);setNetWorthSnapshots(((netWorthR.data||[]) as unknown as NetWorthSnapshot[]).slice().reverse());setMembers(memberData);setSplits((splitR.data||[]) as unknown as Split[]);
-  setSplitMethod(((financeSettingsR.data as any)?.split_method||'equal') as SplitMethod);setMemberFinance(financeDraft);setCategoryRules(categoryRuleDraft);setCategoryCustom(categoryCustomDraft);
+  setSplitMethod(((financeSettingsR.data as any)?.split_method||'equal') as SplitMethod);setMemberFinance(financeDraft);setUsdRateSetting((financeSettingsR.data as any)?.usd_rate==null?null:Number((financeSettingsR.data as any).usd_rate));setPayDays(Object.fromEntries(financeRows.map(x=>[x.user_id,{first_pay_day:x.first_pay_day??null,second_pay_day:x.second_pay_day??null}])));setCategoryRules(categoryRuleDraft);setCategoryCustom(categoryCustomDraft);
   setCurrentUser(userR.data.user?.id||'');
   setHistoryTxs((historyTxR.data||[]) as unknown as HistoryTx[]);setHistoryContributions((historyContR.data||[]) as unknown as HistoryContribution[]);setHistoryAllocations((historyAllocR.data||[]) as unknown as HistoryAllocation[]);
   const draft:Record<string,string>={};const groupDraft:Record<string,BudgetGroup>={};
@@ -245,9 +239,10 @@ export default function Finance({household,readOnly=false}:{household:Household;
   return{accountAssets,manualAssets,totalAssets,liabilities,liquidAssets,netWorth,debtRatio,creditUsed,creditLimit,creditUtilization:creditLimit>0?creditUsed/creditLimit*100:0};
  },[accountBalances,assets]);
 
+ const debtAccounts=useMemo(()=>accountBalances.filter(a=>a.account_class==='liability'&&a.balance>0).map(a=>({id:a.id,name:a.name,balance:a.balance,apr:a.apr,minimum_payment:a.minimum_payment})),[accountBalances]);
+ const cardStatus=useMemo(()=>new Map(creditCardStatus(accounts,accountTxs,transfers,isoDate()).map(c=>[c.id,c])),[accounts,accountTxs,transfers]);
  const shareContext:ShareContext=useMemo(()=>({members,plans:incomePlanError?[]:incomePlans,references:Object.fromEntries(members.map(m=>[m.user_id,Number(memberFinance[m.user_id]?.monthly_income||0)])),method:splitMethod,custom:Object.fromEntries(members.map(m=>[m.user_id,Number(memberFinance[m.user_id]?.custom_share_percent||0)])),rules:categoryRules,categoryCustom:Object.fromEntries(Object.entries(categoryCustom).map(([cat,values])=>[cat,Object.fromEntries(Object.entries(values).map(([id,value])=>[id,Number(value)]))])),month:monthDate(month)}),[members,incomePlans,incomePlanError,memberFinance,splitMethod,categoryRules,categoryCustom,month]);
  const contributionRatios=useMemo(()=>periodShares(shareContext,'month').rows,[shareContext]);
- function ratiosForCategory(categoryId:string|null){return periodShares(shareContext,'month',categoryId).rows}
 
  async function makeSplitRows(transactionId:string,amount:number,paidBy:string,shared:boolean,categoryId:string|null,date:string){
   if(!shared||members.length<=1)return paidBy?[{transaction_id:transactionId,household_id:household.id,user_id:paidBy,share_amount:amount}]:[];
@@ -379,7 +374,8 @@ export default function Finance({household,readOnly=false}:{household:Household;
  async function addTransaction(form:HTMLFormElement,requestId:string):Promise<boolean>{
   if(readOnly){setMessage('Modo solo lectura.');return false}
   setBusy(true);setMessage('');const f=new FormData(form);
-  const values={description:String(f.get('description')||'').trim(),amount:Number(f.get('amount')),type:String(f.get('type')),date:String(f.get('date')),category_id:String(f.get('category_id')||'')||null,account_id:String(f.get('account_id')||'')||null,paid_by:String(f.get('paid_by')||currentUser)||null,is_shared:String(f.get('share_mode')||'shared')==='shared',notes:String(f.get('notes')||'').trim()||null,recurring:f.get('recurring')==='on',due_day:String(f.get('due_day')||'')||null};
+  let entry:ReturnType<typeof entryAmount>;try{entry=entryAmount(f,usdRate(usdRateSetting))}catch(err){setBusy(false);setMessage((err as Error).message);return false}
+  const values={description:String(f.get('description')||'').trim(),amount:entry.amount,type:String(f.get('type')),date:String(f.get('date')),category_id:String(f.get('category_id')||'')||null,account_id:String(f.get('account_id')||'')||null,paid_by:String(f.get('paid_by')||currentUser)||null,is_shared:String(f.get('share_mode')||'shared')==='shared',notes:String(f.get('notes')||'').trim()||null,recurring:f.get('recurring')==='on',due_day:String(f.get('due_day')||'')||null,...(entry.original.original_currency?entry.original:{})};
   try{
    const {data,error}=await supabase.rpc('save_transaction_once',{p_household_id:household.id,p_request_id:requestId,p_values:values});
    if(error||!data){setMessage(error?.message||'No se pudo confirmar el movimiento.');return false}
@@ -426,8 +422,9 @@ export default function Finance({household,readOnly=false}:{household:Household;
   try{
   if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();if(!editingTx)return;setBusy(true);setMessage('');const f=new FormData(e.currentTarget);
-  const type=String(f.get('type')) as 'income'|'expense',amount=Number(f.get('amount')),paidBy=String(f.get('paid_by')||currentUser),shareMode=String(f.get('share_mode')||'shared');
-  const payload={description:String(f.get('description')).trim(),amount,type,transaction_date:String(f.get('date')),category_id:String(f.get('category_id')||'')||null,account_id:String(f.get('account_id')||'')||null,paid_by:paidBy||null,is_shared:shareMode==='shared',notes:String(f.get('notes')||'')||null};
+  let entry:ReturnType<typeof entryAmount>;try{entry=entryAmount(f,usdRate(usdRateSetting))}catch(err){setBusy(false);setMessage((err as Error).message);return}
+  const type=String(f.get('type')) as 'income'|'expense',amount=entry.amount,paidBy=String(f.get('paid_by')||currentUser),shareMode=String(f.get('share_mode')||'shared');
+  const payload={description:String(f.get('description')).trim(),amount,type,transaction_date:String(f.get('date')),category_id:String(f.get('category_id')||'')||null,account_id:String(f.get('account_id')||'')||null,paid_by:paidBy||null,is_shared:shareMode==='shared',notes:String(f.get('notes')||'')||null,...entry.original};
   const newSplits=type==='expense'?await makeSplitRows(editingTx.id,amount,paidBy,shareMode==='shared',payload.category_id,payload.transaction_date):[];
   const {error}=await supabase.from('transactions').update(payload).eq('id',editingTx.id).eq('household_id',household.id);
   if(error){setBusy(false);setMessage(error.message);return}
@@ -589,9 +586,9 @@ export default function Finance({household,readOnly=false}:{household:Household;
 
   {message&&<div className="finance-message" role="status">{message}<button type="button" aria-label="Cerrar mensaje" onClick={()=>setMessage('')}><X size={15} aria-hidden="true"/></button></div>}
 
-  {tab==='fortnight'&&<FortnightBudget key={household.id+':'+monthDate(month)} householdId={household.id} householdName={household.name} readOnly={readOnly} onPayments={()=>setTab('recurring')} onMovements={()=>{setTransactionQuery('');setCategoryFilter(null);setTransactionType('all');setTab('transactions')}} month={monthDate(month)} label={monthLabel(month)} context={shareContext} allocations={allocations} categories={categories} movements={actualTxs} savings={actualContributions} splits={splits} loadError={incomePlanError||periodDataError} onIncome={()=>setTab('income')} onBudget={()=>setTab('budget')} onRules={()=>setTab('contributions')}/>}
+  {tab==='fortnight'&&<FortnightBudget key={household.id+':'+monthDate(month)} householdId={household.id} householdName={household.name} readOnly={readOnly} onPayments={()=>setTab('recurring')} onMovements={()=>{setTransactionQuery('');setCategoryFilter(null);setTransactionType('all');setTab('transactions')}} month={monthDate(month)} label={monthLabel(month)} context={shareContext} allocations={allocations} categories={categories} movements={actualTxs} savings={actualContributions} splits={splits} loadError={incomePlanError||periodDataError} onIncome={()=>setTab('income')} onBudget={()=>setTab('budget')} onRules={()=>setTab('contributions')} payDays={payDays}/>}
 
-  {tab==='income'&&<MonthlyIncomePlan key={household.id+':'+monthDate(month)} householdId={household.id} month={monthDate(month)} label={monthLabel(month)} summary={incomeSummary} readOnly={readOnly} loadError={incomePlanError||periodDataError} onReload={()=>load()} onSaved={plans=>{if(incomeScope.current===household.id+':'+monthDate(month))setIncomePlans(plans)}} onMovements={()=>{setCategoryFilter(null);setTransactionQuery('');setTransactionType('income');setTab('transactions')}}/>}
+  {tab==='income'&&<MonthlyIncomePlan key={household.id+':'+monthDate(month)} householdId={household.id} month={monthDate(month)} label={monthLabel(month)} summary={incomeSummary} readOnly={readOnly} loadError={incomePlanError||periodDataError} onReload={()=>load()} onSaved={plans=>{if(incomeScope.current===household.id+':'+monthDate(month))setIncomePlans(plans)}} onMovements={()=>{setCategoryFilter(null);setTransactionQuery('');setTransactionType('income');setTab('transactions')}} payDays={payDays} usdRate={usdRateSetting} onSettingsSaved={(days,rate)=>{setPayDays(current=>({...current,...days}));setUsdRateSetting(rate)}}/>}
 
   {tab==='summary'&&(summaryError?<div className="workspace-status error" role="alert"><AlertTriangle/><p>No se pudo verificar el balance y la proyección. Reintenta antes de usar estos importes.</p><button onClick={()=>load()}>Reintentar</button></div>:<>
    <FinanceSimulator key={monthDate(month)} base={smartBudget.projectedClose} verified={!summaryError} label={monthLabel(month)}/>
@@ -602,7 +599,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
    <details className={'finance-panel studio-projection '+smartBudget.health}><summary><span className="studio-projection-icon">{smartBudget.health==='good'?<TrendingUp/>:<AlertTriangle/>}</span><span><small>DESPUÉS DE TU PLAN</small><strong>Cierre estimado <b className={smartBudget.projectedClose>=0?'positive':'negative'}>{currency(smartBudget.projectedClose)}</b></strong></span><ChevronRight size={18}/></summary><p className="muted">Incluye ingresos esperados, compromisos, ahorro y presupuesto pendiente.</p><div className="projection-grid"><div><small>Disponible hoy</small><strong>{currency(totals.available)}</strong></div><div><small>Compromisos por cubrir</small><strong>{currency(smartBudget.fixedCommitments)}</strong></div><div><small>Ahorro pendiente</small><strong>{currency(smartBudget.savingsRemaining)}</strong></div><div><small>Libre tras compromisos</small><strong>{currency(smartBudget.availableAfterCommitments)}</strong></div></div><div className="projection-footer"><span>Ingreso esperado <b>+{currency(smartBudget.expectedIncomeRemaining)}</b></span><span>Variables por usar <b>−{currency(smartBudget.variableRemaining)}</b></span></div><button className="studio-chart-open" onClick={()=>setTab('income')}>Ajustar ingresos esperados <ArrowUpRight size={15}/></button><button className="studio-chart-open" onClick={()=>setTab('budget')}>Ajustar mi presupuesto <ArrowUpRight size={15}/></button></details>
    <div className="finance-panel studio-budget-used"><div className="panel-heading"><div><span>Presupuesto utilizado</span><strong>{totals.plannedExpense?Math.round(totals.expense/totals.plannedExpense*100)+'%':'Sin definir'}</strong></div><small>{totals.plannedExpense?currency(totals.expense)+' de '+currency(totals.plannedExpense):'Dale un destino a tu dinero'}</small></div><Progress value={pct(totals.expense,totals.plannedExpense)}/><button className="studio-chart-open" onClick={()=>setTab('budget')}>Ver mi presupuesto <ArrowUpRight size={15}/></button></div>
    <div className="finance-columns"><div className="finance-panel studio-goal-panel"><div className="panel-title"><div><p className="eyebrow">LO QUE VIENE</p><h3>Un paso más cerca</h3></div><button onClick={()=>setTab('goals')}>Mis metas <ChevronRight size={16}/></button></div>{featuredGoal?<button className="studio-featured-goal" onClick={()=>setTab('goals')}><span className="studio-ring" style={{'--ring-progress':pct(featuredSaved,Number(featuredGoal.target_amount))+'%'} as React.CSSProperties}><Target size={27}/></span><div><strong>{featuredGoal.name}</strong><b>{currency(featuredSaved)} <small>de {currency(Number(featuredGoal.target_amount))}</small></b><span>{pct(featuredSaved,Number(featuredGoal.target_amount))}% completado</span></div></button>:<div className="studio-chart-empty"><Target size={31}/><strong>Las grandes metas empiezan aquí</strong><span>Una casa, un viaje o tranquilidad para el futuro.</span><button className="studio-chart-open" onClick={()=>setTab('goals')}>Explorar metas <ArrowUpRight size={15}/></button></div>}</div><div className="finance-panel"><div className="panel-title"><div><p className="eyebrow">EN EL RADAR</p><h3>Próximos pagos</h3><small>{recurringStats.overdue?recurringStats.overdue+' vencido(s)':'Tus compromisos del mes'}</small></div><button onClick={()=>setTab('recurring')}>Ver todos <ChevronRight size={16}/></button></div>{occurrences.filter(o=>recurringById(o.recurring_transaction_id)?.type==='expense'&&o.status==='pending').length?occurrences.filter(o=>recurringById(o.recurring_transaction_id)?.type==='expense'&&o.status==='pending').slice(0,4).map(o=>{const r=recurringById(o.recurring_transaction_id)!;const status=occurrenceStatus(o);return <div className="due-row recurring-summary-row" key={o.id}><span className="due-day">{new Date(o.due_date+'T12:00').getDate()}</span><div><strong>{r.description}</strong><small className={'status-text '+status}>{statusLabel(status)}</small></div><div className="due-actions"><b>{entryMoney(Number(r.amount))}</b>{!readOnly&&<button disabled={busy} onClick={()=>payRecurringOccurrence(o)}>Pagar</button>}</div></div>}):<div className="studio-chart-empty"><CalendarClock size={27}/><strong>Tu calendario de pagos está despejado</strong><span>No hay gastos recurrentes pendientes este mes.</span></div>}</div></div>
-   {members.length>1&&<div className="finance-panel"><div className="panel-title"><div><h3>Balance entre nosotros</h3><small>{splitMethodLabel(splitMethod)} · gastos compartidos.</small></div><button onClick={()=>setTab('contributions')}>Ver aportes <ChevronRight size={16}/></button></div><div className="couple-grid">{contributionOverview.map(b=><div className="couple-card" key={b.user_id}><span>{b.full_name}</span><strong className={b.balance>=0?'positive':'negative'}>{b.balance>=0?'+':''}{currency(b.balance)}</strong><small>{b.balance>0?'A favor':b.balance<0?'Por compensar':'En equilibrio'}</small></div>)}</div></div>}
+   {members.length>1&&<div className="finance-panel"><div className="panel-title"><div><h3>Balance entre nosotros</h3><small>{splitMethodLabel(splitMethod)} · gastos compartidos.</small></div><button onClick={()=>setTab('contributions')}>Ver aportes <ChevronRight size={16}/></button></div><div className="couple-grid">{contributionOverview.map(row=>({...row,balance:Math.round((row.balance+settledNet(row.user_id))*100)/100})).map(b=><div className="couple-card" key={b.user_id}><span>{b.full_name}</span><strong className={b.balance>=0?'positive':'negative'}>{b.balance>=0?'+':''}{currency(b.balance)}</strong><small>{b.balance>0?'A favor':b.balance<0?'Por compensar':'En equilibrio'}</small></div>)}</div>{settled.length>0&&<small className="muted">Incluye {settled.length===1?'1 pago registrado':settled.length+' pagos registrados'} entre ustedes este mes.</small>}</div>}
    <div className="finance-panel"><div className="panel-title"><div><p className="eyebrow">TU ACTIVIDAD</p><h3>Movimientos recientes</h3></div><button onClick={()=>{setCategoryFilter(null);setTab('transactions')}}>Ver todos <ChevronRight size={16}/></button></div><TransactionRows txs={txs.slice(0,5)} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction} onDetail={setDetailTx} receiptCounts={receiptCounts} readOnly={readOnly}/>{!txs.length&&<EmptyFinance text="Registra tu primer movimiento para empezar a ver tu actividad."/>}</div>
   </>)}
   {tab==='budget'&&<>
@@ -620,7 +617,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
     <button className="finance-primary" disabled={busy||readOnly||periodDataError} onClick={saveBudget}><Check size={17}/>{busy?'Guardando...':'Guardar presupuesto'}</button>
    </div>
   </>}
-  {tab==='transactions'&&<div className="finance-panel"><div className="panel-title"><div><h3>Movimientos del mes</h3><small>{filteredTransactions.length} de {txs.length} registros · {currency(filteredTransactions.reduce((sum,t)=>sum+(t.type==='income'?1:-1)*toCents(t.amount),0)/100)} netos</small></div>{!readOnly&&<button className="mini-add" onClick={()=>setShowTxForm(true)}><Plus size={16}/> Agregar</button>}</div><div className="studio-transaction-filters"><label>Buscar movimiento<input value={transactionQuery} onChange={e=>setTransactionQuery(e.target.value)} placeholder="Nombre, categoría o nota"/></label><label>Tipo<select aria-label="Tipo de movimiento" value={transactionType} onChange={e=>setTransactionType(e.target.value)}><option value="all">Todos los movimientos</option><option value="expense">Gastos</option><option value="income">Ingresos</option></select></label><label>Categoría de gasto<select aria-label="Categoría de gasto" value={categoryFilter||'all'} onChange={e=>setCategoryFilter(e.target.value==='all'?null:e.target.value)}><option value="all">Todas las categorías</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}<option value="uncategorized">Sin categoría</option></select></label></div>{categoryFilter&&<button className="studio-filter-chip" onClick={()=>setCategoryFilter(null)}>{categoryFilter==='uncategorized'?'Sin categoría':categoryName(categoryFilter)} <X size={14}/> Quitar filtro</button>}<TransactionRows txs={filteredTransactions} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction} onDetail={setDetailTx} receiptCounts={receiptCounts} readOnly={readOnly}/>{!filteredTransactions.length&&<EmptyFinance text={txs.length?'No hay movimientos con estos filtros.':'Todavía no hay movimientos en este mes.'}/>}</div>}
+  {tab==='transactions'&&<div className="finance-panel"><div className="panel-title"><div><h3>Movimientos del mes</h3><small>{filteredTransactions.length} de {txs.length} registros · {currency(filteredTransactions.reduce((sum,t)=>sum+(t.type==='income'?1:-1)*toCents(t.amount),0)/100)} netos</small></div>{!readOnly&&<div className="tools-actions"><button className="secondary-action" onClick={()=>setShowImport(true)}><FileSpreadsheet size={15}/> Importar estado de cuenta</button><button className="mini-add" onClick={()=>setShowTxForm(true)}><Plus size={16}/> Agregar</button></div>}</div><div className="studio-transaction-filters"><label>Buscar movimiento<input value={transactionQuery} onChange={e=>setTransactionQuery(e.target.value)} placeholder="Nombre, categoría o nota"/></label><label>Tipo<select aria-label="Tipo de movimiento" value={transactionType} onChange={e=>setTransactionType(e.target.value)}><option value="all">Todos los movimientos</option><option value="expense">Gastos</option><option value="income">Ingresos</option></select></label><label>Categoría de gasto<select aria-label="Categoría de gasto" value={categoryFilter||'all'} onChange={e=>setCategoryFilter(e.target.value==='all'?null:e.target.value)}><option value="all">Todas las categorías</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}<option value="uncategorized">Sin categoría</option></select></label></div>{categoryFilter&&<button className="studio-filter-chip" onClick={()=>setCategoryFilter(null)}>{categoryFilter==='uncategorized'?'Sin categoría':categoryName(categoryFilter)} <X size={14}/> Quitar filtro</button>}<TransactionRows txs={filteredTransactions} categoryName={categoryName} memberName={memberName} onEdit={setEditingTx} onDelete={deleteTransaction} onDetail={setDetailTx} receiptCounts={receiptCounts} readOnly={readOnly}/>{!filteredTransactions.length&&<EmptyFinance text={txs.length?'No hay movimientos con estos filtros.':'Todavía no hay movimientos en este mes.'}/>}</div>}
 
   {tab==='goals'&&<>
    <div className="finance-panel">
@@ -734,6 +731,8 @@ export default function Finance({household,readOnly=false}:{household:Household;
     {!totals.planned&&<div className="finance-note">Configura el presupuesto del mes para ver cuánto debería aportar cada persona al plan.</div>}
    </div>
 
+   {members.length>1&&!periodDataError&&<SettlementsPanel key={household.id+':'+monthDate(month)} householdId={household.id} month={monthDate(month)} label={monthLabel(month)} members={members} transactions={actualTxs} splits={splits} currentUser={currentUser} readOnly={readOnly} onChanged={()=>setSettledVersion(v=>v+1)}/>}
+
    <div className="finance-panel category-rule-panel">
     <div className="panel-title"><div><h3>Reglas por categoría</h3><small>Una categoría puede usar la regla general o tener su propia distribución.</small></div></div>
     <div className="category-rule-list">
@@ -800,9 +799,11 @@ export default function Finance({household,readOnly=false}:{household:Household;
     {!readOnly&&<div className="account-card-actions"><button type="button" title="Editar" aria-label={'Editar cuenta '+a.name} onClick={()=>{setEditingAccount(a);setShowAccountForm(true)}}><Pencil aria-hidden="true"/></button><button type="button" title="Archivar" aria-label={'Archivar cuenta '+a.name} disabled={busy} onClick={()=>archiveAccount(a)}><Trash2 aria-hidden="true"/></button></div>}
     {connectedEnabled&&<button className="secondary-action account-reconcile-action" onClick={()=>setReconciling(a)}>Conciliar {a.name}</button>}
     {a.account_class==='liability'&&<div className="account-debt-details">{a.credit_limit?<div><span>Límite</span><b>{currency(Number(a.credit_limit))}</b></div>:null}{a.statement_day?<div><span>Corte</span><b>Día {a.statement_day}</b></div>:null}{a.payment_due_day?<div><span>Pago</span><b>Día {a.payment_due_day}</b></div>:null}{a.minimum_payment?<div><span>Mínimo</span><b>{currency(Number(a.minimum_payment))}</b></div>:null}{a.apr!=null?<div><span>Tasa</span><b>{Number(a.apr).toFixed(2)}%</b></div>:null}</div>}
+    {cardStatus.has(a.id)&&(()=>{const c=cardStatus.get(a.id)!,day=(d:string)=>new Date(d+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'}).replace('.','');return <p className={'account-card-status '+c.state}>{c.statementDate&&<span>Corte el {day(c.statementDate)}</span>}{c.dueDate&&<span>Pago el {day(c.dueDate)}{c.state==='overdue'?' · vencido':''}</span>}<span>Para no pagar intereses: <b>{currency(c.toAvoidInterest)}</b></span>{c.minimum!==null&&c.toAvoidInterest>0&&<span>Mínimo: {currency(c.minimum)}</span>}</p>})()}
     {a.account_type==='credit'&&a.credit_limit?<div className="account-utilization"><div><span>Utilización</span><b>{Math.round(Math.max(0,a.balance)/Number(a.credit_limit)*100)}%</b></div><Progress value={Math.max(0,a.balance)/Number(a.credit_limit)*100}/></div>:null}
    </article>)}</div>
    {!accounts.length&&<EmptyFinance text="Agrega cuentas, tarjetas o préstamos para controlar de dónde sale el dinero y cuánto debes."/>}
+   {debtAccounts.length>0&&<DebtPlanner debts={debtAccounts}/>}
 
    <div className="finance-panel transfer-history">
     <div className="panel-title"><div><h3>Transferencias y pagos de deuda</h3><small>Mover dinero entre cuentas no altera tus ingresos o gastos.</small></div>{!readOnly&&<button onClick={()=>setShowTransferForm(true)} disabled={accounts.length<2}><Plus size={15}/> Registrar</button>}</div>
@@ -813,13 +814,16 @@ export default function Finance({household,readOnly=false}:{household:Household;
 
   {reconciling&&<AccountReconciliation householdId={household.id} account={reconciling} readOnly={readOnly} onClose={()=>setReconciling(null)}/>}
   {detailTx&&<Modal title="Detalle del movimiento" close={()=>setDetailTx(null)}>
-   <div className="transaction-detail-summary"><strong>{detailTx.description}</strong><b className={detailTx.type}>{currency(Number(detailTx.amount))}</b><dl><div><dt>Fecha</dt><dd>{new Date(detailTx.transaction_date+'T12:00').toLocaleDateString('es-GT')}</dd></div><div><dt>Categoría</dt><dd>{categoryName(detailTx.category_id)}</dd></div><div><dt>Pagado por</dt><dd>{memberName(detailTx.paid_by)}</dd></div><div><dt>Tipo</dt><dd>{detailTx.is_shared?'Compartido':'Personal'}</dd></div></dl>{detailTx.notes&&<p>{detailTx.notes}</p>}</div>
+   <div className="transaction-detail-summary"><strong>{detailTx.description}</strong><b className={detailTx.type}>{formatEntryAmount(Number(detailTx.amount),detailTx)}</b><dl>{detailTx.original_currency==='USD'&&detailTx.exchange_rate?<div><dt>Tipo de cambio</dt><dd>Q {Number(detailTx.exchange_rate)} por US$</dd></div>:null}<div><dt>Fecha</dt><dd>{new Date(detailTx.transaction_date+'T12:00').toLocaleDateString('es-GT')}</dd></div><div><dt>Categoría</dt><dd>{categoryName(detailTx.category_id)}</dd></div><div><dt>Pagado por</dt><dd>{memberName(detailTx.paid_by)}</dd></div><div><dt>Tipo</dt><dd>{detailTx.is_shared?'Compartido':'Personal'}</dd></div></dl>{detailTx.notes&&<p>{detailTx.notes}</p>}</div>
    <TransactionReceipts key={detailTx.id} householdId={household.id} transactionId={detailTx.id} readOnly={readOnly} onChanged={refreshReceiptCounts}/>
    <EntityComments key={'comments-'+detailTx.id} householdId={household.id} transactionId={detailTx.id} readOnly={readOnly}/>
   </Modal>}
 
+  {showImport&&!readOnly&&<Modal title="Importar estado de cuenta" close={()=>{if(importBusy.current&&!window.confirm('La importación sigue en curso. Si cierras, se terminará de guardar pero no verás el resumen. ¿Cerrar de todos modos?'))return;setShowImport(false)}}><ImportStatement onBusy={busy=>{importBusy.current=busy}} householdId={household.id} currentUser={currentUser} accounts={accounts} categories={categories} memberCount={members.length} onImported={()=>void load()} onClose={()=>setShowImport(false)}/></Modal>}
+
   {showTxForm&&!readOnly&&<Modal title="Nuevo movimiento" close={()=>setShowTxForm(false)}><DraftForm key={household.id+currentUser} userId={currentUser} householdId={household.id} kind="movement" errorMessage={message} onSubmit={addTransaction} onSaved={()=>setShowTxForm(false)}>
-   <div className="two"><label>Tipo<select name="type" defaultValue="expense"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label><label>Monto<input name="amount" type="number" min=".01" step=".01" placeholder="0.00" required/></label></div>
+   <label>Tipo<select name="type" defaultValue="expense"><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>
+   <AmountField householdRate={usdRate(usdRateSetting)}/>
    <label>Descripción<input name="description" placeholder="Ej. Supermercado" required/></label>
    <div className="two"><label>Categoría<select name="category_id"><option value="">Sin categoría</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input name="date" type="date" defaultValue={isoDate()} required/></label></div>
    <div className="two"><label>Pagado por<select name="paid_by" defaultValue={currentUser}>{members.map(m=><option key={m.user_id} value={m.user_id}>{m.full_name}</option>)}</select></label><label>Cuenta<select name="account_id"><option value="">Sin cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label></div>
@@ -831,7 +835,8 @@ export default function Finance({household,readOnly=false}:{household:Household;
   </DraftForm></Modal>}
 
   {editingTx&&!readOnly&&<Modal title="Editar movimiento" close={()=>setEditingTx(null)}><form className="finance-form" onSubmit={editTransaction}>
-   <div className="two"><label>Tipo<select name="type" defaultValue={editingTx.type}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label><label>Monto<input name="amount" type="number" min=".01" step=".01" defaultValue={Number(editingTx.amount)} required/></label></div>
+   <label>Tipo<select name="type" defaultValue={editingTx.type}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>
+   <AmountField householdRate={usdRate(usdRateSetting)} initial={editingTx}/>
    <label>Descripción<input name="description" defaultValue={editingTx.description} required/></label>
    <div className="two"><label>Categoría<select name="category_id" defaultValue={editingTx.category_id||''}><option value="">Sin categoría</option>{categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select></label><label>Fecha<input name="date" type="date" defaultValue={editingTx.transaction_date} required/></label></div>
    <div className="two"><label>Pagado por<select name="paid_by" defaultValue={editingTx.paid_by||currentUser}>{members.map(member=><option key={member.user_id} value={member.user_id}>{member.full_name}</option>)}</select></label><label>Cuenta<select name="account_id" defaultValue={editingTx.account_id||''}><option value="">Sin cuenta</option>{accounts.map(account=><option key={account.id} value={account.id}>{account.name}</option>)}</select></label></div>
@@ -902,69 +907,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
  </section>
 }
 
-function Kpi({label,value,icon,tone}:{label:string;value:string;icon:any;tone:string}){return <div className={'finance-kpi '+tone}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div></div>}
-function Progress({value}:{value:number}){return <div className="progress"><span style={{width:`${Math.max(0,Math.min(100,value))}%`}}/></div>}
-function EmptyFinance({text}:{text:string}){return <div className="finance-empty">{text}</div>}
-
-function TransactionRows({txs,categoryName,memberName,onEdit,onDelete,onDetail,receiptCounts,readOnly}:{txs:Tx[];categoryName:(x:string|null)=>string;memberName:(x:string|null)=>string;onEdit:(tx:Tx)=>void;onDelete:(tx:Tx)=>void;onDetail:(tx:Tx)=>void;receiptCounts:Record<string,number>;readOnly:boolean}){
- return <div className="transaction-list">{txs.map(t=>{const category=categoryName(t.category_id),count=receiptCounts[t.id]||0;return <div className="transaction-row polished" key={t.id}><span className={'transaction-icon '+t.type}>{transactionIcon(t.type,category)}</span><div className="transaction-main"><button type="button" className="transaction-detail-link" onClick={()=>onDetail(t)} aria-label={'Ver detalle de '+t.description}>{t.description}</button><small>{category} · {memberName(t.paid_by)}{t.is_shared?' · Compartido':''}{t.recurring_transaction_id?' · Recurrente':''}{t.transaction_date>isoDate()?' · Fecha futura: excluido del balance real':''}</small>{!!count&&<small className="transaction-receipt-count"><Paperclip/>{count} comprobante{count===1?'':'s'}</small>}</div><div className="transaction-value"><b className={t.type}>{t.type==='income'?'+':'−'}{currency(Number(t.amount))}</b><small>{new Date(t.transaction_date+'T12:00').toLocaleDateString('es-GT',{day:'2-digit',month:'short'})}</small></div><div className="transaction-actions"><button type="button" className="transaction-action receipt" title="Ver detalle y comprobantes" aria-label={'Ver detalle y comprobantes de '+t.description} onClick={()=>onDetail(t)}><Paperclip/></button>{!readOnly&&<><button className="transaction-action edit" title="Editar movimiento" aria-label="Editar movimiento" onClick={()=>onEdit(t)}><Pencil/></button><button className="transaction-action delete" title="Eliminar movimiento" aria-label="Eliminar movimiento" onClick={()=>onDelete(t)}><Trash2/></button></>}</div></div>})}</div>
-}
-
-function ComparisonKpi({label,value,delta,goodWhenUp}:{label:string;value:number;delta:number;goodWhenUp:boolean}){
- const up=delta>0,neutral=Math.abs(delta)<.05,good=neutral?true:(up===goodWhenUp);
- return <div className="comparison-kpi"><div><small>{label}</small><strong>{currency(value)}</strong></div><span className={neutral?'neutral':good?'good':'bad'}>{neutral?'—':up?<TrendingUp/>:<TrendingDown/>}{neutral?'Sin cambio':Math.abs(delta).toFixed(1)+'%'}</span></div>
-}
-
-function MonthlyBars({data}:{data:MonthMetric[]}){return <InteractiveTrend data={data}/>}
-
-function BalanceChart({data}:{data:MonthMetric[]}){
- const max=Math.max(1,...data.map(row=>Math.abs(row.balance)));
- return <div className="balance-chart">{data.map(row=><div className="balance-column" key={row.key}><div className="balance-track"><span className={row.balance>=0?'positive':'negative'} style={{height:(Math.abs(row.balance)/max*48)+'%',bottom:row.balance>=0?'50%':'auto',top:row.balance<0?'50%':'auto'}} title={currency(row.balance)}/><i/></div><small>{row.label}</small></div>)}</div>
-}
-
-function SavingsRateChart({data}:{data:MonthMetric[]}){
- const max=Math.max(10,...data.map(row=>Math.abs(row.savingRate)));
- return <div className="savings-rate-chart">{data.map(row=><div key={row.key}><div className="saving-rate-track"><span style={{height:Math.min(100,Math.abs(row.savingRate)/max*100)+'%',background:row.savingRate<0?'var(--nh-chart-danger)':undefined}}/><b>{Math.round(row.savingRate)}%</b></div><small>{row.label}</small></div>)}</div>
-}
-
-function CategoryComparison({rows}:{rows:{id:string;name:string;current:number;previous:number;delta:number}[]}){
- const max=Math.max(1,...rows.flatMap(row=>[row.current,row.previous]));
- if(!rows.length)return <EmptyFinance text="Aún no hay suficientes movimientos para comparar categorías."/>;
- return <div className="category-comparison"><div className="category-comparison-legend"><span><i className="previous"/>Mes anterior</span><span><i className="current"/>Mes actual</span></div>{rows.map(row=><div className="category-compare-row" key={row.id}><div><strong>{row.name}</strong><small className={row.delta>0?'negative':row.delta<0?'positive':''}>{row.previous===0&&row.current>0?'Nueva':Math.abs(row.delta)<.05?'Sin cambio':(row.delta>0?'+':'')+row.delta.toFixed(0)+'%'}</small></div><div className="category-bars"><span className="previous" style={{width:(row.previous/max*100)+'%'}}/><span className="current" style={{width:(row.current/max*100)+'%'}}/></div><div><small>{currency(row.previous)}</small><strong>{currency(row.current)}</strong></div></div>)}</div>
-}
-
-function GoalCard({goal,saved,busy,readOnly,onContribute,onWithdraw}:{goal:Goal;saved:number;busy:boolean;readOnly:boolean;onContribute:(id:string,amount:number)=>Promise<boolean>;onWithdraw?:()=>void}){
- const [amount,setAmount]=useState('');const progress=pct(saved,Number(goal.target_amount));
- return <div className="goal-card"><div className="goal-head"><span className="studio-ring" style={{'--ring-progress':progress+'%'} as React.CSSProperties}><Target/></span><div><strong>{goal.name}</strong><small>{goal.target_date?'Meta '+new Date(goal.target_date+'T12:00').toLocaleDateString('es-GT'):'Sin fecha límite'}</small></div></div><div className="goal-amount"><strong>{currency(saved)}</strong><span>de {currency(Number(goal.target_amount))}</span></div><Progress value={progress}/><div className="goal-footer"><small>{progress}% completado</small>{!readOnly&&<div><input aria-label={'Nuevo aporte para '+goal.name} value={amount} onChange={e=>setAmount(e.target.value)} type="number" min="0.01" step="0.01" placeholder="Aporte"/><button aria-label={'Agregar aporte a '+goal.name} disabled={busy} onClick={async()=>{if(await onContribute(goal.id,Number(amount)))setAmount('')}}>+</button>{onWithdraw&&<button type="button" disabled={busy} onClick={onWithdraw}>Retirar</button>}</div>}</div></div>
-}
-
 function Modal({title,close,children}:{title:string;close:()=>void;children:any}){
  const titleId=useId(),dialog=useRef<HTMLDivElement>(null),closeRef=useRef(close);closeRef.current=close;
  useEffect(()=>{const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.preventDefault();closeRef.current()}};document.addEventListener('keydown',onKey);if(dialog.current&&!dialog.current.contains(document.activeElement))dialog.current.focus({preventScroll:true});return()=>document.removeEventListener('keydown',onKey)},[]);
  return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}><div className="finance-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={dialog}><div className="modal-head"><h3 id={titleId}>{title}</h3><button type="button" aria-label={'Cerrar: '+title} onClick={close}><X aria-hidden="true"/></button></div>{children}</div></div>}
-function transactionIcon(type:'income'|'expense',category:string){
- if(type==='income')return <ArrowDownLeft/>;
- const key=category.toLocaleLowerCase('es-GT');
- if(key.includes('vivienda'))return <ModuleIcon name="home"/>;
- if(key.includes('aliment'))return <ShoppingCart/>;
- if(key.includes('transport'))return <Car/>;
- if(key.includes('servicio'))return <ReceiptText/>;
- if(key.includes('salud'))return <ModuleIcon name="health"/>;
- if(key.includes('educa'))return <GraduationCap/>;
- if(key.includes('ahorro'))return <PiggyBank/>;
- if(key.includes('viaje'))return <Plane/>;
- if(key.includes('entreten'))return <Sparkles/>;
- return <ModuleIcon name="finance"/>;
-}
-function statusLabel(status:string){return status==='paid'?'Pagado':status==='overdue'?'Vencido':status==='skipped'?'Omitido':'Pendiente'}
-function splitMethodLabel(method:SplitMethod){return method==='income'?'Proporcional a ingresos':method==='custom'?'Porcentaje personalizado':'Partes iguales'}
-function categoryRuleLabel(method:CategoryRuleMethod,globalMethod:SplitMethod){return method==='inherit'?`General · ${splitMethodLabel(globalMethod)}`:method==='equal'?'Partes iguales':method==='income'?'Según ingresos':method==='custom'?'Porcentaje personalizado':'Una persona cubre 100%'}
-function NetWorthChart({data}:{data:NetWorthSnapshot[]}){
- if(!data.length)return <EmptyFinance text="El histórico comenzará a construirse desde hoy."/>;
- const rows=data.slice(-90),values=rows.map(x=>Number(x.net_worth)),min=Math.min(...values,0),max=Math.max(...values,1),range=Math.max(1,max-min);
- return <div className="net-worth-chart"><div className="net-worth-chart-bars">{rows.map((row,index)=>{const h=Math.max(4,((Number(row.net_worth)-min)/range)*100);return <div className="net-worth-chart-col" key={row.snapshot_date} title={new Date(row.snapshot_date+'T12:00').toLocaleDateString('es-GT')+' · '+currency(Number(row.net_worth))}><span style={{height:h+'%'}}/><small>{index===0||index===rows.length-1||index%Math.max(1,Math.floor(rows.length/4))===0?new Date(row.snapshot_date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'}):''}</small></div>})}</div><div className="net-worth-chart-summary"><span>Inicio <b>{currency(Number(rows[0].net_worth))}</b></span><span>Actual <b className={Number(rows[rows.length-1]?.net_worth||0)>=Number(rows[0].net_worth)?'positive':'negative'}>{currency(Number(rows[rows.length-1]?.net_worth||0))}</b></span></div></div>
-}
-function accountIcon(type:string){if(type==='credit')return <CreditCard/>;if(type==='loan'||type==='mortgage')return <CircleDollarSign/>;if(type==='investment')return <TrendingUp/>;if(type==='cash')return <ModuleIcon name="finance"/>;if(type==='savings')return <PiggyBank/>;return <Landmark/>}
-function assetIcon(type:FinanceAsset['asset_type']){if(type==='property')return <Building2/>;if(type==='vehicle')return <Car/>;if(type==='investment')return <TrendingUp/>;if(type==='valuable')return <Gem/>;return <ModuleIcon name="finance"/>}
-function assetTypeName(type:FinanceAsset['asset_type']){return({property:'Propiedad',vehicle:'Vehículo',investment:'Inversión',valuable:'Objeto de valor',other:'Otro activo'} as Record<string,string>)[type]||'Activo'}
-function accountTypeName(type:string){return({cash:'Efectivo',checking:'Cuenta bancaria',savings:'Ahorro',investment:'Inversión',credit:'Tarjeta de crédito',loan:'Préstamo',mortgage:'Hipoteca',other:'Otra'} as Record<string,string>)[type]||'Cuenta'}

@@ -60,6 +60,10 @@ Deno.serve(async(req:Request)=>{
     if(!enabledPrefs.has(notification.household_id+":"+notification.user_id))continue;
     const userSubs=subs.filter(s=>s.user_id===notification.user_id&&s.household_id===notification.household_id&&s.enabled);
     if(!userSubs.length)continue;
+    // Never push a notification to someone who lost access to its module (e.g. finance alerts to a teen).
+    const {data:allowed,error:accessError}=await admin.rpc("notification_push_allowed",{p_household_id:notification.household_id,p_user_id:notification.user_id,p_action_tab:notification.action_tab||""});
+    if(accessError){console.error("push access",notification.id,accessError.message);continue}
+    if(allowed!==true)continue;
     let delivered=false;
     const payload=JSON.stringify({title:notification.title,body:notification.body||"",icon:"/nuestro-hogar/icon.svg",badge:"/nuestro-hogar/icon.svg",tag:"nh-"+notification.id,data:{url:"/nuestro-hogar/?tab="+(notification.action_tab||"inicio"),notification_id:notification.id},severity:notification.severity,type:notification.type});
     for(const subscription of userSubs){

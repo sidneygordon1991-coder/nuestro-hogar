@@ -3,7 +3,8 @@ import {parse} from 'postcss';
 import commands from '../GlobalCommandCenter.tsx?raw';
 // @ts-ignore Vitest runs in Node; the application tsconfig excludes Node types.
 import {readFileSync} from 'node:fs';
-const styles=parse(readFileSync(new URL('../styles.css',import.meta.url),'utf8'));
+const readCss=(url:URL):string=>readFileSync(url,'utf8').replace(/@import '([^']+)';/g,(_:string,file:string)=>readCss(new URL(file,url)));// styles.css is an index of partials
+const styles=parse(readCss(new URL('../styles.css',import.meta.url)));
 function declarations(selector:string,property:string,mobile=false){
  const values:string[]=[];
  styles.walkRules(rule=>{

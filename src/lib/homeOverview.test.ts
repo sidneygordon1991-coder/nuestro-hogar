@@ -98,3 +98,30 @@ describe('home 2026: margin, projection and personal lens',()=>{
   expect(overviewPeriod(withZero,'second').complete).toBe(true);
  });
 });
+
+import {dailyAllowance,expectedIncomeEvents,goalPace} from './homeOverview';
+describe('pay days, daily allowance and goal pace',()=>{
+ const src:CashFlowSource={month:'2026-10-01',today:'2026-10-16',transactions:[],savings:[],categories:[],allocations:[],
+  members:[{user_id:'a',full_name:'A'},{user_id:'b',full_name:'B'},{user_id:'c',full_name:'C'}],
+  plans:[{month:'2026-10-01',user_id:'a',expected_amount:9000,first_half_amount:4500,second_half_amount:4500},{month:'2026-10-01',user_id:'b',expected_amount:7000,first_half_amount:3500,second_half_amount:3500}],
+  references:{c:1000},recurring:[],occurrences:[],paydays:{a:{first:10,second:25},b:{first:15,second:31}}};
+ it('places each member income on their pay day; late income shows today',()=>{
+  expect(expectedIncomeEvents(src,'second','2026-10-31')).toEqual([{date:'2026-10-25',amount:450000},{date:'2026-10-31',amount:350000}]);
+  // Month view: the unpaid first half is late (today), references without a plan go on the default second pay day.
+  expect(expectedIncomeEvents(src,'month','2026-10-31')).toEqual([{date:'2026-10-16',amount:800000},{date:'2026-10-25',amount:450000},{date:'2026-10-31',amount:450000}]);
+  expect(expectedIncomeEvents({...src,month:'2026-02-01',today:'2026-02-16',plans:src.plans.map(p=>({...p,month:'2026-02-01'}))},'second','2026-02-28').map(e=>e.date)).toEqual(['2026-02-25','2026-02-28']);
+ });
+ it('spreads the margin over the days left until the next income',()=>{
+  const t=balanceTimeline(src,'second',null);
+  expect(dailyAllowance(4650,t)).toEqual({perDay:516.66,until:'2026-10-25',days:9,nextIncome:'2026-10-25'});
+  expect(dailyAllowance(-50,t).perDay).toBe(0);
+  const noIncome=balanceTimeline({...src,plans:[],references:{}},'second',null);
+  expect(dailyAllowance(1600,noIncome)).toMatchObject({until:'2026-10-31',days:16,perDay:100,nextIncome:null});
+ });
+ it('tells how much to set aside per fortnight to reach a goal on time',()=>{
+  expect(goalPace({target_amount:15000,target_date:'2027-06-30',saved:9000},'2026-10-16')).toEqual({state:'on-track',remaining:6000,perFortnight:352.95,fortnights:17});
+  expect(goalPace({target_amount:100,target_date:null,saved:20},'2026-10-16').state).toBe('no-date');
+  expect(goalPace({target_amount:100,target_date:'2026-10-01',saved:20},'2026-10-16').state).toBe('late');
+  expect(goalPace({target_amount:100,target_date:'2027-01-01',saved:150},'2026-10-16').state).toBe('done');
+ });
+});

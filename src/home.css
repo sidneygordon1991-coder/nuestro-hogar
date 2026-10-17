@@ -294,5 +294,56 @@
  .home-hero-minis strong{font-size:15px}
  .home-scope>button{font-size:14px}
 }
+
+/* ---------- v31: daily allowance, cards, settlements, private movements, goal pace ---------- */
+.home-hero-daily{display:inline-block;max-width:100%;margin:4px 0 8px;padding:6px 12px;border-radius:14px;line-height:1.45;background:color-mix(in srgb,var(--nh-hero-text) 12%,transparent);font-size:13px}
+.home-hero-daily b{font-weight:700}
+.home-goal-pace{grid-column:1/-1;font-size:13px;color:var(--nh-text);padding:8px 10px;border-radius:10px;background:var(--nh-accent-soft)}
+.home-card-list,.home-settle-list,.home-private-list{display:grid;margin:0;padding:0;list-style:none}
+.home-card-list>li+li,.home-settle-list>li+li,.home-private-list>li+li{border-top:1px solid var(--nh-border)}
+.home-card-list button{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;padding:11px 0 8px;border:0;background:none;color:var(--nh-text);text-align:left}
+.home-card-copy{display:grid;gap:2px;min-width:0}.home-card-copy strong{font-size:14px}.home-card-copy small{font-size:12px;color:var(--nh-muted)}
+.home-card-amount{display:grid;justify-items:end;gap:1px;text-align:right}.home-card-amount b{font-size:15px;white-space:nowrap}.home-card-amount small{font-size:11px;color:var(--nh-muted)}
+.home-card-list .is-overdue .home-card-amount b{color:var(--nh-danger)}.home-card-list .is-soon .home-card-amount b{color:var(--nh-warning)}
+.home-card-usage{display:block;height:6px;margin:0 0 10px 54px;border-radius:99px;background:var(--nh-track);overflow:hidden}
+.home-card-usage>i{display:block;height:100%;border-radius:inherit;background:var(--nh-chart-blue)}
+.home-card-note{margin:-4px 0 10px 54px;font-size:12px;color:var(--nh-muted)}
+.home-settle-list>li{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:6px 12px;padding:10px 0}
+.home-settle-list p{margin:0;display:grid;gap:2px}.home-settle-list strong{font-size:14px}.home-settle-list small{font-size:12px;color:var(--nh-muted)}
+.home-settle-button{grid-column:2;justify-self:start;min-height:36px;padding:0 14px;border:1px solid var(--nh-accent-border);border-radius:10px;background:var(--nh-accent-soft);color:var(--nh-accent);font-size:13px;font-weight:650}
+.home-settle-even{display:flex;align-items:center;gap:8px;margin:0;color:var(--nh-success);font-size:14px}
+.home-private .home-card-head>svg{color:var(--nh-muted)}
+.home-private-list>li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:9px 0}
+.home-private-copy{display:grid;gap:2px;min-width:0}.home-private-copy strong{font-size:14px;overflow-wrap:anywhere}.home-private-copy small{font-size:12px;color:var(--nh-muted)}
+.home-private-list b{font-size:14px;white-space:nowrap;color:var(--nh-success)}.home-private-list b.is-expense{color:var(--nh-text)}
+@media(max-width:760px){
+ .home-settle{order:4}.home-private{order:4}.home-cards{order:5}
+ .home-hero-daily{font-size:12px;margin-top:2px}
+}
+
+.home-start{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px 18px;margin-bottom:20px;border-color:var(--nh-accent-border);background:var(--nh-accent-soft)}
+.home-start h3{margin:0 0 4px;font-size:18px}.home-start p{margin:0;color:var(--nh-muted);font-size:14px;line-height:1.5}
+.home-start-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+@media(max-width:760px){.home-start{grid-template-columns:auto minmax(0,1fr);margin-bottom:14px}.home-start-actions{grid-column:1/-1}}
+/* Example preview: the real Inicio at a reduced scale inside a dialog. */
+.app .finance-modal.demo-preview{width:min(1180px,calc(100vw - 32px));max-width:none}
+.demo-preview-note{display:flex;align-items:flex-start;gap:8px;margin:0 0 14px;padding:10px 12px;border-radius:12px;background:var(--nh-accent-soft);color:var(--nh-text);font-size:13px;line-height:1.5}
+.demo-preview-note>svg{flex:none;color:var(--nh-accent);margin-top:2px}
+.demo-preview-canvas{max-height:62dvh;overflow:auto;padding:14px;border:1px solid var(--nh-border);border-radius:16px;background:var(--nh-page)}
+.demo-preview-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:14px}.demo-preview-actions>.finance-primary{width:auto;flex:0 1 auto;padding-inline:22px}
+/* Fortnight recap */
+.recap-card{display:grid;gap:14px;padding:22px;border-radius:18px;background:linear-gradient(118deg,var(--nh-hero-start),var(--nh-hero) 55%,var(--nh-hero-end));color:var(--nh-hero-text)}
+.recap-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:color-mix(in srgb,var(--nh-hero-text) 14%,transparent)}
+.recap-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.recap-stats small{display:block;font-size:12px;opacity:.85}.recap-stats strong{font-size:20px;white-space:nowrap}
+.recap-card ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14px;line-height:1.45}
+.recap-note{margin:0;font-size:12px;opacity:.85}
+.recap-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.recap-actions>button{flex:1 1 180px;width:auto;justify-content:center}
+.recap-secondary{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 16px;border:1px solid var(--nh-border);border-radius:12px;background:var(--nh-subtle);color:var(--nh-text);font-weight:600}
+/* Microinteractions: bars grow in, buttons give tactile feedback. */
+@keyframes nh-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.home-budget-bar>i,.home-progress>i,.home-card-usage>i{transform-origin:left center;animation:nh-grow .7s cubic-bezier(.2,.8,.2,1) both}
+.home-register:active,.home-settle-button:active,.home-kpi:active,.home-segmented>button:active,.mobile-register:active{transform:scale(.97)}
+.home-register,.home-settle-button,.home-kpi,.home-segmented>button,.mobile-register{transition:transform .12s ease,background-color .2s ease,color .2s ease}
+@media(prefers-reduced-motion:reduce){.home-budget-bar>i,.home-progress>i,.home-card-usage>i{animation:none}.home-register,.home-settle-button,.home-kpi,.home-segmented>button,.mobile-register{transition:none}}
 @media(prefers-reduced-motion:reduce){.home-register,.home-link{transition:none}}
 .premium-home[data-focus=plans] .home-agenda-slot{order:-1}

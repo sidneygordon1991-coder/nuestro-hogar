@@ -2,7 +2,8 @@ import {describe,expect,it} from 'vitest';
 import {parse} from 'postcss';
 // @ts-ignore Vitest runs in Node; browser application types exclude Node built-ins.
 import {readFileSync} from 'node:fs';
-const sheet=parse(readFileSync(new URL('../styles.css',import.meta.url),'utf8'));
+const readCss=(url:URL):string=>readFileSync(url,'utf8').replace(/@import '([^']+)';/g,(_:string,file:string)=>readCss(new URL(file,url)));// styles.css is an index of partials
+const sheet=parse(readCss(new URL('../styles.css',import.meta.url)));
 function value(selector:string,property:string){
  let result='';
  sheet.walkRules(rule=>{

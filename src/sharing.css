@@ -15,3 +15,6 @@
 @media(max-width:620px){.sharing-card {padding:20px}.sharing-dialog-actions>button {flex:1}.sharing-welcome-banner>button {width:100%}.sharing-review p {flex-wrap:wrap}}
 .app .finance-form label.sharing-optimize,.app .receipt-upload .sharing-optimize {display:flex;align-items:center;gap:9px;font-size:13px;color:var(--nh-muted);margin:12px 0 4px}
 .app .sharing-optimize input {width:18px;min-width:18px;height:18px;padding:0;accent-color:var(--nh-accent);margin:0}
+
+.sharing-welcome-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sharing-welcome-banner .sharing-secondary{min-height:40px;padding:0 14px;border:1px solid var(--nh-accent-border);border-radius:12px;background:var(--nh-surface);color:var(--nh-accent);font-weight:650}

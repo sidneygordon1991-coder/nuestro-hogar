@@ -1,10 +1,14 @@
 import DraftForm from './DraftForm';
 import {useFocusTrap} from './lib/useFocusTrap';
 import ModuleIcon from './ModuleIcon';
-import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowDownLeft,ArrowUpRight,Car,Check,Package,Plus,ReceiptText,Search,ShoppingCart,X} from 'lucide-react';
+import {FormEvent,useEffect,useId,useMemo,useRef,useState} from 'react';
+import {ArrowDownLeft,ArrowUpRight,Car,Check,History,Lock,Package,Plus,ReceiptText,Search,ShoppingCart,User,Users,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {ensureShoppingList} from './lib/shoppingList';
+import {formatMoney} from './lib/money';
+import {formatEntryAmount,usdRate,usdToQuetzales} from './lib/currency';
+import {HISTORY_LIMIT,defaultVisibility,historyStart,isValidAmount,recentRepeats,suggestCategory,visibilityHint,type EntryCurrency,type EntryVisibility,type MovementType,type QuickHistoryRow,type RepeatChip} from './lib/quickEntry';
+import './quick-entry.css';
 
 type Household={id:string;name:string;invite_code:string};
 type Mode='search'|'quick'|null;
@@ -17,7 +21,6 @@ type Asset={id:string;name:string;asset_type:string};
 type Member={user_id:string;full_name:string};
 
 const iso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
-const money=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:2}).format(n);
 
 export default function GlobalCommandCenter({household,access,onNavigate,onChanged}:{household:Household;access?:Record<string,'none'|'view'|'edit'>;onNavigate:(tab:string)=>void;onChanged?:()=>void}){
  const canEdit=(module:string)=>!access||access[module]==='edit';
@@ -26,6 +29,9 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
  const [query,setQuery]=useState(''),[results,setResults]=useState<SearchResult[]>([]),[searching,setSearching]=useState(false);
  const [categories,setCategories]=useState<Category[]>([]),[accounts,setAccounts]=useState<Account[]>([]),[lists,setLists]=useState<ListRow[]>([]),[assets,setAssets]=useState<Asset[]>([]),[members,setMembers]=useState<Member[]>([]),[userId,setUserId]=useState('');
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const [history,setHistory]=useState<QuickHistoryRow[]>([]),[rateValue,setRateValue]=useState<unknown>(null),[prefill,setPrefill]=useState<RepeatChip|null>(null),[saved,setSaved]=useState<{type:MovementType;text:string;detail:string}|null>(null);
+ const rateFor=useRef(''),currentHousehold=useRef(household.id),againButton=useRef<HTMLButtonElement>(null);currentHousehold.current=household.id;
+ const repeats=useMemo(()=>canEdit('finance')?recentRepeats(history,{since:historyStart()}):[],[history,access]);
  const searchInput=useRef<HTMLInputElement|null>(null),panel=useRef<HTMLElement>(null);
  useFocusTrap(panel,Boolean(mode),close);
 
@@ -36,7 +42,9 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
   return()=>{window.removeEventListener('keydown',key);window.removeEventListener('nh:quick-add',quick as EventListener)}
  },[household.id]);
 
- useEffect(()=>{if(!mode)return;loadMeta();if(mode==='search')setTimeout(()=>searchInput.current?.focus(),20)},[mode,household.id]);
+ useEffect(()=>{if(!mode)return;loadMeta();if(mode==='quick')loadQuickFinance();if(mode==='search')setTimeout(()=>searchInput.current?.focus(),20)},[mode,household.id]);
+ useEffect(()=>{setHistory([]);setRateValue(null);rateFor.current=''},[household.id]);
+ useEffect(()=>{if(saved)againButton.current?.focus()},[saved]);
 
  useEffect(()=>{
   if(mode!=='search'){setResults([]);return}
@@ -71,19 +79,56 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
   setMembers(ids.map((id:string)=>({user_id:id,full_name:String(names.get(id)||'Miembro')})));
  }
 
+ // Recent movements (chips and category suggestions) plus the household dollar rate, read once per household.
+ async function loadQuickFinance(){
+  if(!canEdit('finance'))return;const hid=household.id;
+  const [histR,rateR]=await Promise.all([
+   supabase.from('transactions').select('description,type,category_id,amount,transaction_date,created_at').eq('household_id',hid).gte('transaction_date',historyStart()).order('transaction_date',{ascending:false}).order('created_at',{ascending:false}).limit(HISTORY_LIMIT),
+   rateFor.current===hid?Promise.resolve(null):supabase.from('finance_household_settings').select('usd_rate').eq('household_id',hid).maybeSingle()
+  ]);
+  if(currentHousehold.current!==hid)return;
+  setHistory(histR.error?[]:(histR.data||[]) as QuickHistoryRow[]);
+  if(rateR&&!rateR.error){rateFor.current=hid;const row=Array.isArray(rateR.data)?rateR.data[0]:rateR.data;setRateValue((row as any)?.usd_rate??null)}
+ }
+
  function openSearch(){setAction(null);setMessage('');setMode('search')}
- function openQuick(){setAction(null);setMessage('');setMode('quick')}
- function close(){setMode(null);setAction(null);setMessage('');setQuery('');setResults([])}
+ function openQuick(){setAction(null);setMessage('');setSaved(null);setPrefill(null);setMode('quick')}
+ function close(){setMode(null);setAction(null);setMessage('');setSaved(null);setPrefill(null);setQuery('');setResults([])}
+ function pickAction(next:QuickAction){setSaved(null);setPrefill(null);setMessage('');setAction(next)}
  function success(text:string){setBusy(false);setMessage(text);setAction(null);onChanged?.()}
 
  function openResult(row:SearchResult){close();onNavigate(row.action_tab)}
 
- async function saveTransaction(form:HTMLFormElement,requestId:string,type:'expense'|'income'):Promise<boolean>{
-  setBusy(true);setMessage('');const f=new FormData(form),amount=Number(f.get('amount')||0);
+ async function saveTransaction(form:HTMLFormElement,requestId:string):Promise<boolean>{
+  setBusy(true);setMessage('');const f=new FormData(form);
+  const type:MovementType=f.get('type')==='income'?'income':'expense',usd=f.get('currency')==='USD',choice=String(f.get('visibility')||'');
+  const visibility:EntryVisibility=choice==='private'&&canEdit('finance')?'private':choice==='personal'?'personal':'shared';
+  const entered=Number(f.get('amount')||0),rate=usdRate(rateValue),amount=usd?usdToQuetzales(entered,rate):entered;
+  const description=String(f.get('description')||'').trim(),notes=String(f.get('notes')||'').trim()||null,date=String(f.get('date')||iso()),category=String(f.get('category_id')||'')||null;
+  if(!isValidAmount(entered)||!isValidAmount(amount)){setBusy(false);setMessage('Escribe un monto mayor que cero, con hasta dos decimales.');return false}
+  if(!description){setBusy(false);setMessage('Escribe una descripción.');return false}
+  // Dollars: the movement keeps quetzales as its amount and also stores what was paid and the rate used (one atomic save).
+  const original=usd?{original_currency:'USD',original_amount:entered,exchange_rate:rate}:null;
   try{
-   const {data,error}=await supabase.rpc('save_transaction_once',{p_household_id:household.id,p_request_id:requestId,p_values:{description:String(f.get('description')||'').trim(),amount,type,date:String(f.get('date')||iso()),category_id:String(f.get('category_id')||'')||null,account_id:String(f.get('account_id')||'')||null,paid_by:userId||null,is_shared:f.get('is_shared')==='on',notes:String(f.get('notes')||'').trim()||null,recurring:false}});
-   if(error||!data){setMessage(error?.message||'No se confirmó el movimiento.');return false}
-   success((type==='expense'?'Gasto':'Ingreso')+' guardado: '+money(amount));return true;
+   if(visibility==='private'){
+    // The request id is the row id: a retry after a lost response finds the row already saved instead of duplicating it.
+    const values={id:requestId,household_id:household.id,description,amount,type,transaction_date:date,category_id:category,notes,original_currency:original?.original_currency||null,original_amount:original?.original_amount??null,exchange_rate:original?.exchange_rate??null};
+    const {error}=await supabase.from('private_transactions').insert(values);
+    if(error&&error.code!=='23505'){setMessage(error.message||'No se pudo guardar el movimiento privado.');return false}
+    if(error){
+     const saved=await supabase.from('private_transactions').select('id,household_id,description,amount,type,transaction_date,category_id,notes,original_currency,original_amount,exchange_rate').eq('id',requestId).maybeSingle();
+     const row=saved.data as Record<string,unknown>|null;
+     const same=!saved.error&&row&&Object.entries(values).every(([key,value])=>['amount','original_amount','exchange_rate'].includes(key)?(value===null?row[key]===null:Number(row[key])===Number(value)):row[key]===value);
+     if(!same){setMessage('Este borrador ya se guardó con otros datos o no pudimos verificarlo. Revisa tus movimientos privados antes de registrar otro.');return false}
+    }
+   }else{
+    const {data,error}=await supabase.rpc('save_transaction_once',{p_household_id:household.id,p_request_id:requestId,p_values:{description,amount,type,date,category_id:category,account_id:String(f.get('account_id')||'')||null,paid_by:userId||null,is_shared:visibility==='shared',notes,recurring:false,...(original||{})}});
+    if(error||!data){setMessage(error?.message||'No se confirmó el movimiento.');return false}
+    setHistory(current=>[{description,type,category_id:category,amount,transaction_date:date,created_at:new Date().toISOString()},...current].slice(0,HISTORY_LIMIT));
+   }
+   try{navigator.vibrate?.(12)}catch{/* Vibration is optional. */}
+   setSaved({type,text:formatEntryAmount(amount,original||{}),detail:description+' · '+(visibility==='private'?'Solo tú lo ves':(type==='expense'?'Gasto':'Ingreso')+' '+(visibility==='shared'?'compartido':'personal'))});
+   setAction(null);setPrefill(null);onChanged?.();return true;
   }catch{setMessage('No se confirmó el guardado. Reintenta con este borrador.');return false}finally{setBusy(false)}
  }
 
@@ -201,18 +246,25 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
    </>}
 
    {mode==='quick'&&<>
-    {!action?<div className="quick-action-grid">
-      {canEdit('finance')&&<QuickCard icon={<ArrowDownLeft/>} tone="expense" title="Gasto" subtitle="Registra un gasto y reparte automáticamente" onClick={()=>setAction('expense')}/>}
-      {canEdit('finance')&&<QuickCard icon={<ArrowUpRight/>} tone="income" title="Ingreso" subtitle="Registra dinero que entró al hogar" onClick={()=>setAction('income')}/>}
-      {canEdit('lists')&&<QuickCard icon={<ModuleIcon name="lists"/>} tone="task" title="Tarea" subtitle="Pendiente para ti o la familia" onClick={()=>setAction('task')}/>}
-      {canEdit('lists')&&<QuickCard icon={<ShoppingCart/>} tone="shopping" title="Compra" subtitle="Agrega algo a Supermercado" onClick={()=>setAction('shopping')}/>}
-      {canEdit('calendar')&&<QuickCard icon={<ModuleIcon name="calendar"/>} tone="event" title="Evento" subtitle="Cita o actividad en la agenda" onClick={()=>setAction('event')}/>}
-      {canEdit('documents')&&<QuickCard icon={<ModuleIcon name="documents"/>} tone="document" title="Documento" subtitle="Guarda archivo o vencimiento" onClick={()=>setAction('document')}/>}
-      {canEdit('maintenance')&&<QuickCard icon={<ModuleIcon name="maintenance"/>} tone="maintenance" title="Mantenimiento" subtitle="Programa casa, vehículo o equipo" onClick={()=>setAction('maintenance')}/>}
+    {saved&&!action?<div className="quick-entry-success" role="status">
+      <span className="quick-entry-success-check" aria-hidden="true"><Check/></span>
+      <strong>Registrado</strong><span className="quick-entry-success-amount">{saved.text}</span><small>{saved.detail}</small>
+      <div className="quick-entry-success-actions"><button ref={againButton} type="button" className="finance-primary" onClick={()=>pickAction(saved.type)}><Plus aria-hidden="true"/>Registrar otro</button><button type="button" className="quick-entry-done" onClick={close}>Listo</button></div>
+     </div>
+    :!action?<>
+     {canEdit('finance')&&repeats.length>0&&<RepeatChips chips={repeats} categories={categories} onPick={chip=>{pickAction(chip.type);setPrefill(chip)}}/>}
+     <div className="quick-action-grid">
+      {canEdit('finance')&&<QuickCard icon={<ArrowDownLeft/>} tone="expense" title="Gasto" subtitle="Registra un gasto y reparte automáticamente" onClick={()=>pickAction('expense')}/>}
+      {canEdit('finance')&&<QuickCard icon={<ArrowUpRight/>} tone="income" title="Ingreso" subtitle="Registra dinero que entró al hogar" onClick={()=>pickAction('income')}/>}
+      {canEdit('lists')&&<QuickCard icon={<ModuleIcon name="lists"/>} tone="task" title="Tarea" subtitle="Pendiente para ti o la familia" onClick={()=>pickAction('task')}/>}
+      {canEdit('lists')&&<QuickCard icon={<ShoppingCart/>} tone="shopping" title="Compra" subtitle="Agrega algo a Supermercado" onClick={()=>pickAction('shopping')}/>}
+      {canEdit('calendar')&&<QuickCard icon={<ModuleIcon name="calendar"/>} tone="event" title="Evento" subtitle="Cita o actividad en la agenda" onClick={()=>pickAction('event')}/>}
+      {canEdit('documents')&&<QuickCard icon={<ModuleIcon name="documents"/>} tone="document" title="Documento" subtitle="Guarda archivo o vencimiento" onClick={()=>pickAction('document')}/>}
+      {canEdit('maintenance')&&<QuickCard icon={<ModuleIcon name="maintenance"/>} tone="maintenance" title="Mantenimiento" subtitle="Programa casa, vehículo o equipo" onClick={()=>pickAction('maintenance')}/>}
       <QuickCard icon={<Search/>} tone="search" title="Buscar" subtitle="Encuentra cualquier información permitida" onClick={openSearch}/>
-     </div>:<div className="quick-form-wrap">
-      <button className="quick-back" onClick={()=>{setAction(null);setMessage('')}}>‹ Volver a acciones</button>
-      {(action==='expense'||action==='income')&&<TransactionForm key={household.id+userId+action} householdId={household.id} userId={userId} errorMessage={message} type={action} categories={categories} accounts={accounts} busy={busy} onSubmit={(form,requestId)=>saveTransaction(form,requestId,action)}/>}
+     </div></>:<div className="quick-form-wrap">
+      <button className="quick-back" onClick={()=>pickAction(null)}>‹ Volver a acciones</button>
+      {(action==='expense'||action==='income')&&<TransactionForm key={household.id+userId+action+(prefill?.key||'')} householdId={household.id} userId={userId} errorMessage={message} type={action} categories={categories} accounts={accounts} busy={busy} history={history} repeats={repeats} rateValue={rateValue} memberCount={members.length} canPrivate={canEdit('finance')} prefill={prefill} onSubmit={saveTransaction}/>}
       {action==='task'&&<TaskForm lists={lists} members={members} busy={busy} onSubmit={saveTask}/>}
       {action==='shopping'&&<ShoppingForm busy={busy} onSubmit={saveShopping}/>}
       {action==='event'&&<EventForm members={members} busy={busy} onSubmit={saveEvent}/>}
@@ -226,17 +278,69 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
 
 function QuickCard({icon,tone,title,subtitle,onClick}:{icon:React.ReactNode;tone:string;title:string;subtitle:string;onClick:()=>void}){return <button className={'quick-action-card '+tone} onClick={onClick}><span>{icon}</span><div><strong>{title}</strong><small>{subtitle}</small></div><Plus/></button>}
 
-function TransactionForm({type,categories,accounts,busy,onSubmit,householdId,userId,errorMessage}:{householdId:string;userId:string;errorMessage:string;type:'expense'|'income';categories:Category[];accounts:Account[];busy:boolean;onSubmit:(form:HTMLFormElement,requestId:string)=>Promise<boolean>}){
- const isExpense=type==='expense';
- return <DraftForm className="finance-form global-quick-form" userId={userId} householdId={householdId} kind={'quick-'+type} errorMessage={errorMessage} onSubmit={onSubmit}><div className="quick-form-title"><span className={isExpense?'expense':'income'}>{isExpense?<ArrowDownLeft/>:<ArrowUpRight/>}</span><div><p className="eyebrow">{isExpense?'GASTO':'INGRESO'}</p><h3>{isExpense?'Registrar gasto':'Registrar ingreso'}</h3></div></div>
-  <label>Descripción<input name="description" placeholder={isExpense?'Ej. Supermercado':'Ej. Salario'} required/></label>
-  <div className="two"><label>Monto<input name="amount" type="number" min=".01" step=".01" placeholder="0.00" required/></label><label>Fecha<input name="date" type="date" defaultValue={iso()} required/></label></div>
-  <div className="two"><label>Categoría<select name="category_id" defaultValue=""><option value="">Sin categoría</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Cuenta<select name="account_id" defaultValue=""><option value="">Sin cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label></div>
-  <label>Nota<input name="notes" placeholder="Opcional"/></label>
-  {isExpense&&<label className="check-line"><input type="checkbox" name="is_shared" defaultChecked/> Gasto compartido según las reglas de aportes</label>}
-  {!isExpense&&<input type="hidden" name="is_shared" value="on"/>}
+function RepeatChips({chips,categories,onPick}:{chips:RepeatChip[];categories:Category[];onPick:(chip:RepeatChip)=>void}){
+ const names=new Map(categories.map(c=>[c.id,c.name]));
+ return <div className="quick-repeats" role="group" aria-labelledby="quick-repeats-title"><p className="quick-repeats-title" id="quick-repeats-title"><History aria-hidden="true"/>Repetir reciente</p><div className="quick-repeats-list">{chips.map(chip=>{const label=(chip.type==='income'?'Ingreso':'Gasto')+(chip.category_id&&names.get(chip.category_id)?' · '+names.get(chip.category_id):'');return <button type="button" key={chip.key} className={'quick-repeat-chip '+chip.type} title={label} aria-label={'Repetir '+chip.description+', '+label+', '+formatMoney(chip.amount)} onClick={()=>onPick(chip)}><span>{chip.description}</span><b>{formatMoney(chip.amount)}</b></button>})}</div></div>
+}
+
+type Field=HTMLInputElement|HTMLSelectElement;
+/** Sets a field like the user would, so the draft (form onChange) records chips and toggles too. */
+function setField(el:Field|null,value:string,notify=true){
+ if(!el)return;
+ const proto=el instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;
+ Object.getOwnPropertyDescriptor(proto,'value')?.set?.call(el,value);
+ if(notify)el.dispatchEvent(new Event(el instanceof HTMLSelectElement?'change':'input',{bubbles:true}));
+}
+
+function TransactionForm({type,categories,accounts,busy,onSubmit,householdId,userId,errorMessage,history,repeats,rateValue,memberCount,canPrivate,prefill}:{householdId:string;userId:string;errorMessage:string;type:MovementType;categories:Category[];accounts:Account[];busy:boolean;history:QuickHistoryRow[];repeats:RepeatChip[];rateValue:unknown;memberCount:number;canPrivate:boolean;prefill:RepeatChip|null;onSubmit:(form:HTMLFormElement,requestId:string)=>Promise<boolean>}){
+ const amountId=useId(),initialVisibility=defaultVisibility(memberCount),rate=usdRate(rateValue),referenceRate=rateValue==null||Number(rateValue)!==rate;
+ const amountRef=useRef<HTMLInputElement>(null),descriptionRef=useRef<HTMLInputElement>(null),categoryRef=useRef<HTMLSelectElement>(null),typeRef=useRef<HTMLInputElement>(null),currencyRef=useRef<HTMLInputElement>(null),visibilityRef=useRef<HTMLInputElement>(null);
+ const [kind,setKind]=useState<MovementType>(prefill?.type||type),[currency,setCurrency]=useState<EntryCurrency>('GTQ'),[visibility,setVisibility]=useState<EntryVisibility>(initialVisibility),[amount,setAmount]=useState(prefill?String(prefill.amount):''),[suggested,setSuggested]=useState(false);
+ // A category chosen by hand (or by a repeated movement) is never replaced by a suggestion.
+ const touched=useRef({category:Boolean(prefill?.category_id),visibility:false}),automatic=useRef(false);
+ const isExpense=kind==='expense',usd=currency==='USD',entered=Number(amount),converted=usd&&isValidAmount(entered)?usdToQuetzales(entered,rate):0;
+ // Members load after the dialog opens: follow the household default until the person chooses.
+ useEffect(()=>{if(touched.current.visibility||!visibilityRef.current)return;setField(visibilityRef.current,initialVisibility,false);setVisibility(initialVisibility)},[initialVisibility]);
+ function suggest(description:string,movement:MovementType){
+  if(touched.current.category||!categoryRef.current)return;
+  const id=suggestCategory(description,history,categories,movement);
+  if(id){setField(categoryRef.current,id,false);setSuggested(true)}else if(suggested){setField(categoryRef.current,'',false);setSuggested(false)}
+ }
+ function chooseType(next:MovementType){setField(typeRef.current,next);setKind(next);suggest(descriptionRef.current?.value||'',next)}
+ function chooseCurrency(next:EntryCurrency){setField(currencyRef.current,next);setCurrency(next);amountRef.current?.focus()}
+ function chooseVisibility(next:EntryVisibility){touched.current.visibility=true;setField(visibilityRef.current,next);setVisibility(next)}
+ function repeat(chip:RepeatChip){
+  automatic.current=true;
+  setField(typeRef.current,chip.type,false);setField(descriptionRef.current,chip.description,false);setField(categoryRef.current,chip.category_id||'',false);setField(amountRef.current,String(chip.amount));
+  automatic.current=false;touched.current.category=Boolean(chip.category_id);setKind(chip.type);setAmount(String(chip.amount));setSuggested(false);
+ }
+ // Recovering or discarding a draft rewrites the fields directly: mirror them back into the toggles.
+ function syncFromFields(){
+  const pick=(el:HTMLInputElement|null,fallback:string)=>el?.value||fallback;
+  const nextType=pick(typeRef.current,type)==='income'?'income':'expense',nextCurrency=pick(currencyRef.current,'GTQ')==='USD'?'USD':'GTQ',nextVisibility=pick(visibilityRef.current,initialVisibility) as EntryVisibility;
+  setKind(nextType);setCurrency(nextCurrency);setVisibility(canPrivate||nextVisibility!=='private'?nextVisibility:initialVisibility);setAmount(amountRef.current?.value||'');setSuggested(false);
+  touched.current={category:Boolean(categoryRef.current?.value),visibility:true};
+ }
+ const audiences:[EntryVisibility,string,React.ReactNode][]=[['shared','Compartido',<Users aria-hidden="true"/>],['personal','Personal',<User aria-hidden="true"/>],...(canPrivate?[['private','Solo yo',<Lock aria-hidden="true"/>] as [EntryVisibility,string,React.ReactNode]]:[])];
+ return <div className="quick-entry" onClick={e=>{if((e.target as HTMLElement).closest?.('.draft-recovery button'))syncFromFields()}}><DraftForm className="finance-form global-quick-form quick-entry-form" userId={userId} householdId={householdId} kind={'quick-'+type} errorMessage={errorMessage} onSubmit={onSubmit}>
+  <div className="quick-form-title"><span className={isExpense?'expense':'income'}>{isExpense?<ArrowDownLeft/>:<ArrowUpRight/>}</span><div><p className="eyebrow">{isExpense?'GASTO':'INGRESO'}</p><h3>{isExpense?'Registrar gasto':'Registrar ingreso'}</h3></div>
+   <div className="quick-segmented quick-type" role="group" aria-label="Tipo de movimiento"><button type="button" aria-pressed={isExpense} onClick={()=>chooseType('expense')}>Gasto</button><button type="button" aria-pressed={!isExpense} onClick={()=>chooseType('income')}>Ingreso</button></div>
+  </div>
+  <input ref={typeRef} type="text" name="type" defaultValue={prefill?.type||type} hidden readOnly tabIndex={-1} aria-hidden="true"/>
+  <input ref={currencyRef} type="text" name="currency" defaultValue="GTQ" hidden readOnly tabIndex={-1} aria-hidden="true"/>
+  <input ref={visibilityRef} type="text" name="visibility" defaultValue={initialVisibility} hidden readOnly tabIndex={-1} aria-hidden="true"/>
+  <div className={'quick-amount'+(usd?' is-usd':'')}>
+   <div className="quick-amount-field"><label className="quick-amount-label" htmlFor={amountId}>Monto</label><span className="quick-amount-row"><span className="quick-amount-symbol" aria-hidden="true">{usd?'US$':'Q'}</span><input ref={amountRef} id={amountId} className="quick-amount-input" name="amount" type="number" inputMode="decimal" min=".01" step=".01" placeholder="0.00" defaultValue={prefill?String(prefill.amount):undefined} onChange={e=>setAmount(e.currentTarget.value)} autoFocus required/></span></div>
+   <div className="quick-segmented quick-currency" role="group" aria-label="Moneda"><button type="button" aria-pressed={!usd} aria-label="Quetzales" onClick={()=>chooseCurrency('GTQ')}>Q</button><button type="button" aria-pressed={usd} aria-label="Dólares" onClick={()=>chooseCurrency('USD')}>US$</button></div>
+   {usd&&<p className="quick-amount-convert" aria-live="polite"><b>≈ {formatMoney(converted)}</b><small>{'Tipo de cambio '+rate.toLocaleString('es-GT',{maximumFractionDigits:4})+(referenceRate?' (referencia; ajústalo en Finanzas)':' del hogar')}</small></p>}
+  </div>
+  {repeats.length>0&&<RepeatChips chips={repeats} categories={categories} onPick={repeat}/>}
+  <label>Descripción<input ref={descriptionRef} name="description" placeholder={isExpense?'Ej. Supermercado':'Ej. Salario'} maxLength={visibility==='private'?140:250} defaultValue={prefill?.description} onChange={e=>suggest(e.currentTarget.value,kind)} required/></label>
+  <div className="two"><label>Categoría{suggested&&<em className="quick-suggested"> · sugerida</em>}<select ref={categoryRef} name="category_id" defaultValue={prefill?.category_id||''} onChange={()=>{if(!automatic.current){touched.current.category=true;setSuggested(false)}}}><option value="">Sin categoría</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input name="date" type="date" defaultValue={iso()} required/></label></div>
+  <div className="quick-visibility"><span className="quick-visibility-label" id="quick-visibility-label">¿Quién lo ve?</span><div className="quick-segmented quick-audience" role="group" aria-labelledby="quick-visibility-label">{audiences.map(([value,label,icon])=><button key={value} type="button" aria-pressed={visibility===value} onClick={()=>chooseVisibility(value)}>{icon}{label}</button>)}</div><p className="quick-visibility-hint">{visibilityHint(visibility)}</p></div>
+  <div className="two">{visibility!=='private'&&<label>Cuenta<select name="account_id" defaultValue=""><option value="">Sin cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}<label>Nota<input name="notes" placeholder="Opcional" maxLength={visibility==='private'?500:2000}/></label></div>
   <button className="finance-primary" disabled={busy}><Check/>{busy?'Guardando...':'Guardar '+(isExpense?'gasto':'ingreso')}</button>
- </DraftForm>
+ </DraftForm></div>
 }
 
 function TaskForm({lists,members,busy,onSubmit}:{lists:ListRow[];members:Member[];busy:boolean;onSubmit:(e:FormEvent<HTMLFormElement>)=>void}){
