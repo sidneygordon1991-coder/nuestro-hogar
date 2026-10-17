@@ -18,6 +18,7 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
  const [total,setTotal]=useState(0),[unreadTotal,setUnreadTotal]=useState(0),[loadingMore,setLoadingMore]=useState(false),[loading,setLoading]=useState(true);
  const [historyError,setHistoryError]=useState('');
  const root=useRef<HTMLDivElement>(null),panel=useRef<HTMLElement>(null),bell=useRef<HTMLButtonElement>(null),scope=useRef(household.id);scope.current=household.id;
+ useEffect(()=>{const show=()=>setOpen(true);window.addEventListener('nh:notifications',show);return()=>window.removeEventListener('nh:notifications',show)},[]);
  const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
  const unread=useMemo(()=>Math.max(unreadTotal,items.filter(n=>!n.read_at).length),[items,unreadTotal]);
  useEffect(()=>{panel.current?.querySelector('.notification-scroll')?.scrollTo({top:0})},[settings,open]);

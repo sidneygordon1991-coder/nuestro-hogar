@@ -2,30 +2,32 @@
    Component styles consume these roles; only this file defines theme colors. */
 html {
  color-scheme:dark;
- --nh-page:#0d141c; --nh-surface:#17212b; --nh-subtle:#111b24; --nh-raised:#202e3b;
+ --nh-page:#0d1c20; --nh-surface:#162b30; --nh-subtle:#112328; --nh-raised:#20383e;
  --nh-text:#edf3f8; --nh-muted:#a6b7c6; --nh-border:#35495a; --nh-track:#304557;
- --nh-accent:#7ad7f5; --nh-blue:#9bbcff; --nh-purple:#c7a7ff;
+ --nh-accent:#91e4d0; --nh-blue:#9bbcff; --nh-purple:#c7a7ff;
  --nh-success:#83dfb6; --nh-warning:#f4c37e; --nh-danger:#ffa7b2;
- --nh-accent-soft:#163346; --nh-blue-soft:#1c2e49; --nh-purple-soft:#302740;
+ --nh-accent-soft:#183a34; --nh-blue-soft:#1c2e49; --nh-purple-soft:#302740;
  --nh-success-soft:#18372e; --nh-warning-soft:#3c3020; --nh-danger-soft:#3e2630;
  --nh-neutral-soft:#202e3b; --nh-accent-border:#477f99; --nh-success-border:#497d69;
- --nh-chart-accent:#67c9ed; --nh-chart-blue:#8baeff; --nh-chart-purple:#b896ef;
+ --nh-chart-accent:#70cdb7; --nh-chart-blue:#8baeff; --nh-chart-purple:#b896ef;
  --nh-chart-previous:#758c9e; --nh-chart-success:#67cda2; --nh-chart-warning:#edb365; --nh-chart-danger:#ed8b98;
- --nh-action:#78d0ef; --nh-on-action:#092735; --nh-on-brand:#ffffff;
+ --nh-action:#91e4d0; --nh-on-action:#092e28; --nh-on-brand:#ffffff;
+ --nh-hero:#146b60; --nh-hero-text:#ffffff; --nh-brand:#102c31; --nh-brand-muted:#bad2ce; --nh-brand-accent:#91e4d0;
  --nh-shadow:#00000030; --nh-highlight:#ffffff0d; --nh-scrim:#06111fb3;
 }
 html[data-theme="light"] {
  color-scheme:light;
- --nh-page:#f3f7fb; --nh-surface:#ffffff; --nh-subtle:#f5f8fb; --nh-raised:#eaf1f7;
+ --nh-page:#f4f5f1; --nh-surface:#ffffff; --nh-subtle:#f6f8f4; --nh-raised:#eaf1f7;
  --nh-text:#203547; --nh-muted:#4e6679; --nh-border:#cbd9e4; --nh-track:#dbe6ee;
- --nh-accent:#086785; --nh-blue:#335dad; --nh-purple:#7245a2;
+ --nh-accent:#146c60; --nh-blue:#335dad; --nh-purple:#7245a2;
  --nh-success:#176b4a; --nh-warning:#8c560d; --nh-danger:#aa3446;
- --nh-accent-soft:#e4f2fa; --nh-blue-soft:#e8effb; --nh-purple-soft:#f0eafa;
+ --nh-accent-soft:#e5f2ed; --nh-blue-soft:#e8effb; --nh-purple-soft:#f0eafa;
  --nh-success-soft:#e5f3ec; --nh-warning-soft:#fff3e0; --nh-danger-soft:#fbe9ed;
  --nh-neutral-soft:#edf3f8; --nh-accent-border:#9fc6d9; --nh-success-border:#a2cfb9;
- --nh-chart-accent:#1685ad; --nh-chart-blue:#5278c2; --nh-chart-purple:#9164ce;
+ --nh-chart-accent:#238777; --nh-chart-blue:#5278c2; --nh-chart-purple:#9164ce;
  --nh-chart-previous:#758c9e; --nh-chart-success:#258560; --nh-chart-warning:#b47926; --nh-chart-danger:#c65b6b;
- --nh-action:#78d0ef; --nh-on-action:#092735; --nh-on-brand:#ffffff;
+ --nh-action:#146c60; --nh-on-action:#ffffff; --nh-on-brand:#ffffff;
+ --nh-hero:#146b60; --nh-hero-text:#ffffff; --nh-brand:#102c31; --nh-brand-muted:#bad2ce; --nh-brand-accent:#91e4d0;
  --nh-shadow:#28465e14; --nh-highlight:#ffffff99; --nh-scrim:#10273d80;
 }
 /* Filled actions use a dedicated pair, separate from data-series colors. */

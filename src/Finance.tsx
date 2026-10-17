@@ -53,7 +53,7 @@ type HistoryAllocation={planned_amount:number;month:string;category_id:string};
 type MonthMetric={key:string;label:string;income:number;expense:number;saving:number;budget:number;balance:number;savingRate:number};
 
 const entryMoney=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',minimumFractionDigits:0,maximumFractionDigits:2}).format(n);
-const currency=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',maximumFractionDigits:0}).format(n||0);
+const currency=(n:number)=>new Intl.NumberFormat('es-GT',{style:'currency',currency:'GTQ',minimumFractionDigits:0,maximumFractionDigits:2}).format(n||0);
 const isoDate=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
 const monthDate=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
 const monthBounds=(d:Date)=>{const start=new Date(d.getFullYear(),d.getMonth(),1),end=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:isoDate(start),end:isoDate(end)}};
@@ -64,8 +64,9 @@ const dueDateForMonth=(d:Date,dueDay:number)=>{const last=new Date(d.getFullYear
 export default function Finance({household,readOnly=false}:{household:Household;readOnly?:boolean}){
  const [connectedEnabled,setConnectedEnabled]=useState(false),[goalLinks,setGoalLinks]=useState<GoalLink[]|null>(null),[reconciling,setReconciling]=useState<Account|null>(null);
  useEffect(()=>{let live=true;setConnectedEnabled(false);setGoalLinks(null);supabase.rpc('get_connected_finance_capability',{p_household_id:household.id}).then(({data,error})=>{if(live)setConnectedEnabled(!error&&data===true)});return()=>{live=false}},[household.id]);
- const [tab,setTab]=useState<FinanceSection>(()=>financeSection(new URLSearchParams(window.location.search).get('finance')));
- useEffect(()=>{const restore=()=>setTab(financeSection(new URLSearchParams(window.location.search).get('finance')));window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore)},[]);
+ const [tab,setTabState]=useState<FinanceSection>(()=>financeSection(new URLSearchParams(window.location.search).get('finance')));
+ function setTab(next:FinanceSection){setTabState(next);const url=new URL(window.location.href);url.searchParams.set('finance',next);window.history.replaceState({},'',url);window.dispatchEvent(new Event('nh:finance-section'))}
+ useEffect(()=>{const restore=()=>setTabState(financeSection(new URLSearchParams(window.location.search).get('finance')));window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore)},[]);
  const [editingContribution,setEditingContribution]=useState<Contribution|null>(null),[editingRecurring,setEditingRecurring]=useState<Recurring|null>(null),[removing,setRemoving]=useState<{kind:'contribution';row:Contribution}|{kind:'recurring';row:Recurring}|null>(null),[managementError,setManagementError]=useState('');
  const [contributionGoal,setContributionGoal]=useState('all'),[contributionPeriod,setContributionPeriod]=useState('month'),[contributionLimit,setContributionLimit]=useState(20);
  const [categoryFilter,setCategoryFilter]=useState<string|null>(null),[transactionQuery,setTransactionQuery]=useState(''),[transactionType,setTransactionType]=useState('all');

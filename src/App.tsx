@@ -1,7 +1,8 @@
 import {clearLocalDrafts} from './lib/formDrafts';
 import {WorkspaceHeadingSlot} from './WorkspaceHeading';
 import ConnectionStatus from './ConnectionStatus';
-import {buildCashFlow} from './lib/cashFlow';
+import {buildCashFlow,type CashFlowSource} from './lib/cashFlow';
+import type {HomeFinance as FinanceHome} from './lib/homeOverview';
 import {financeSection} from './lib/financeNavigation';
 import {useDialogFocus} from './lib/useDialogFocus';
 import DesktopRail from './DesktopRail';
@@ -36,7 +37,6 @@ type Household={id:string;name:string;invite_code:string};
 type ListRow={id:string;title:string};
 type EventRow={id:string;title:string;event_date:string;start_time:string|null};
 type Tx={id:string;description:string;amount:number;type:string;transaction_date:string;category_id:string|null};
-type FinanceHome={income:number;expense:number;saving:number;available:number;pending:number;projected:number;overdue:number;nextPayment:string|null;nextPaymentAmount:number;nextPaymentDate:string|null;goalName:string|null;goalProgress:number;remainingExpenses?:number;savingsRemaining?:number;expectedIncomeRemaining?:number;futureCount?:number;planComplete?:boolean;error?:string;loading?:boolean};
 type AccessLevel='none'|'view'|'edit';
 type HouseholdAccess={role:string;can_manage_members:boolean;can_view_audit:boolean;modules:Record<string,AccessLevel>};
 
@@ -75,6 +75,7 @@ export default function App(){
   url.searchParams.delete('quick');
   if(normalized==='presupuesto'&&section)url.searchParams.set('finance',financeSection(section));else url.searchParams.delete('finance');
   window.history.pushState({},'',url);
+  window.dispatchEvent(new PopStateEvent('popstate'));
   window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
  }
  useEffect(()=>{if(household){setAccess(null);setAccessError('');loadAccess(household.id);loadData(household.id)}},[household?.id,session?.user.id]);
@@ -95,13 +96,13 @@ export default function App(){
    supabase.from('lists').select('id,title').eq('household_id',id).order('created_at',{ascending:false}),
    supabase.from('events').select('id,title,event_date,start_time').eq('household_id',id).gte('event_date',today()).order('event_date').limit(6),
    supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by').eq('household_id',id).gte('transaction_date',period.start).lte('transaction_date',period.end).order('transaction_date',{ascending:false}),
-   supabase.from('budget_categories').select('id,budget_group').eq('household_id',id),
-   supabase.from('budget_allocations').select('category_id,planned_amount,month').eq('household_id',id).eq('month',period.month),
+   supabase.from('budget_categories').select('id,name,icon,budget_group').eq('household_id',id),
+   supabase.from('budget_allocations').select('category_id,planned_amount,month,first_half_amount,second_half_amount').eq('household_id',id).eq('month',period.month),
    supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id).gte('contribution_date',period.start).lte('contribution_date',period.end),
    supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,created_at').eq('household_id',id).eq('active',true),
    supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status,transaction_id,details_snapshot').eq('household_id',id).eq('period_month',period.month),
    supabase.from('finance_member_settings').select('user_id,monthly_income').eq('household_id',id),
-   supabase.from('savings_goals').select('id,name,target_amount,target_date').eq('household_id',id).eq('active',true).order('target_date',{ascending:true,nullsFirst:false}),
+   supabase.from('savings_goals').select('id,name,target_amount,target_date,icon').eq('household_id',id).eq('active',true).order('target_date',{ascending:true,nullsFirst:false}),
    supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id),
    supabase.from('finance_income_plans').select('user_id,month,expected_amount,first_half_amount,second_half_amount').eq('household_id',id).eq('month',period.month),
    supabase.from('household_members').select('user_id').eq('household_id',id)
@@ -112,11 +113,12 @@ export default function App(){
    setFinanceHome(current=>({...current,loading:false,error:'No pudimos verificar el resumen financiero. Reintenta para ver cifras actualizadas.'}));return;
   }
   const members=(membersR.data||[]).map((r:any)=>({user_id:r.user_id,full_name:'Integrante'}));
-  const flow=buildCashFlow({month:period.month,today:today(),transactions:(txR.data||[]) as any[],savings:(contR.data||[]) as any[],categories:catR.data||[],allocations:(allocR.data||[]) as any[],members,plans:planR.data||[],references:Object.fromEntries((memberFinanceR.data||[]).map((r:any)=>[r.user_id,Number(r.monthly_income)])),recurring:(recR.data||[]) as any[],occurrences:(occR.data||[]) as any[]});
+  const source:CashFlowSource={month:period.month,today:today(),transactions:(txR.data||[]) as any[],savings:(contR.data||[]) as any[],categories:catR.data||[],allocations:(allocR.data||[]) as any[],members,plans:planR.data||[],references:Object.fromEntries((memberFinanceR.data||[]).map((r:any)=>[r.user_id,Number(r.monthly_income)])),recurring:(recR.data||[]) as any[],occurrences:(occR.data||[]) as any[]};
+  const flow=buildCashFlow(source);
   const primaryGoal=(goalR.data||[])[0] as any;
   const goalSaved=primaryGoal?(goalContR.data||[]).filter((r:any)=>r.goal_id===primaryGoal.id&&r.contribution_date<=today()).reduce((sum:number,r:any)=>sum+Math.round(Number(r.amount)*100),0)/100:0;
   const goalProgress=primaryGoal&&Number(primaryGoal.target_amount)>0?Math.min(100,Math.round(goalSaved/Number(primaryGoal.target_amount)*100)):0;
-  setFinanceHome({income:flow.income,expense:flow.expense,saving:flow.saving,available:flow.available,pending:flow.fixedCommitments,projected:flow.projectedClose,overdue:flow.overdue,nextPayment:flow.nextPayment?.terms.description||null,nextPaymentAmount:Number(flow.nextPayment?.terms.amount||0),nextPaymentDate:flow.nextPayment?.due_date||null,goalName:primaryGoal?.name||null,goalProgress,remainingExpenses:flow.remainingExpenses,savingsRemaining:flow.savingsRemaining,expectedIncomeRemaining:flow.expectedIncomeRemaining,futureCount:flow.futureCount,planComplete:members.length>0&&members.every((m:any)=>(planR.data||[]).some((p:any)=>p.user_id===m.user_id))&&(allocR.data||[]).length>0});
+  setFinanceHome({source,goals:goalR.data||[],goalEntries:(goalContR.data||[]) as any[],income:flow.income,expense:flow.expense,saving:flow.saving,available:flow.available,pending:flow.fixedCommitments,projected:flow.projectedClose,overdue:flow.overdue,nextPayment:flow.nextPayment?.terms.description||null,nextPaymentAmount:Number(flow.nextPayment?.terms.amount||0),nextPaymentDate:flow.nextPayment?.due_date||null,goalName:primaryGoal?.name||null,goalProgress,remainingExpenses:flow.remainingExpenses,savingsRemaining:flow.savingsRemaining,expectedIncomeRemaining:flow.expectedIncomeRemaining,futureCount:flow.futureCount,planComplete:members.length>0&&members.every((m:any)=>(planR.data||[]).some((p:any)=>p.user_id===m.user_id))&&(allocR.data||[]).length>0});
  }
  if(loading)return <div className="center"><div className="loader"/></div>;
  if(recovery)return <UpdatePassword onDone={()=>{setRecovery(false);window.history.replaceState({},'',authRedirectUrl())}}/>;
@@ -177,7 +179,7 @@ function Shell(p:any){
  {p.tab==='presupuesto'&&<Finance household={p.household} readOnly={level==='view'}/>} 
  {p.tab==='familia'&&<FamilyCenter household={p.household} onHouseholdRenamed={p.onHouseholdRenamed} onChanged={()=>{p.onRefresh();p.onAccessChanged?.()}}/>} {p.tab==='documentos'&&<DocumentVault household={p.household} readOnly={level==='view'}/>}  {p.tab==='comidas'&&<MealsCenter household={p.household} canManageShopping={p.access.modules.lists==='edit'} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='mantenimiento'&&<MaintenanceCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='salud'&&<HouseholdHealthCenter household={p.household} canEditFinance={p.access?.modules.finance==='edit'} onNavigate={p.setTab}/>} {p.tab==='automatizaciones'&&<AutomationCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='cierre'&&<MonthlyCloseCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>}  {p.tab==='planeacion'&&<PlanningCenter household={p.household} readOnly={level==='view'} onNavigate={p.setTab}/>} {p.tab==='respaldos'&&<BackupCenter household={p.household}/>} {p.tab==='diagnostico'&&<DiagnosticCenter household={p.household} onNavigate={p.setTab}/>}
  </Suspense>}{appearanceOpen&&<Suspense fallback={<ModuleFallback/>}><AppearanceDialog key={preferenceKey} value={appearance} access={p.access.modules} onSave={saveAppearance} onClose={()=>setAppearanceOpen(false)}/></Suspense>}
- </main><PwaInstallPrompt/><PwaUpdatePrompt/><nav aria-label="Navegación principal"><button className={p.tab==='inicio'?'active':''} onClick={()=>p.setTab('inicio')}><ModuleIcon name="home"/><span>Inicio</span></button><button disabled={p.access.modules.calendar==='none'} className={p.tab==='calendario'?'active':''} onClick={()=>p.setTab('calendario')}><ModuleIcon name="calendar"/><span>Calendario</span></button><button className="fab" onClick={()=>window.dispatchEvent(new CustomEvent('nh:quick-add'))} aria-label="Agregar rápido"><Plus/></button><button disabled={p.access.modules.finance==='none'} className={p.tab==='presupuesto'?'active':''} onClick={()=>p.setTab('presupuesto')}><ModuleIcon name="finance"/><span>Finanzas</span></button><button className={p.tab==='familia'?'active':''} onClick={()=>p.setTab('familia')}><ModuleIcon name="family"/><span>Familia</span></button></nav></div></WorkspaceHeadingSlot.Provider>
+ </main><PwaInstallPrompt/><PwaUpdatePrompt/></div></WorkspaceHeadingSlot.Provider>
 }
 
 function AccessDenied({role,onHome}:{role:string;onHome:()=>void}){return <section className="access-denied"><span><ShieldOff/></span><h2>Módulo restringido</h2><p>Tu rol de {role==='teen'?'Adolescente':role==='guest'?'Invitado':role==='admin'?'Administrador':role==='owner'?'Propietario':'Adulto'} no tiene acceso a esta sección. Un administrador del hogar puede cambiar el permiso desde Familia.</p><button onClick={onHome}>Volver a Inicio</button></section>}

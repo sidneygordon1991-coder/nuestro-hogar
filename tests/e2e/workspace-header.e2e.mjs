@@ -27,7 +27,7 @@ test('heading actions retain module state and personalization remains reachable'
  try{
   await ready(s,'presupuesto');await s.page.locator('.workspace-header').getByRole('button',{name:'Movimiento',exact:true}).click();await expect(s.page.getByRole('heading',{name:'Nuevo movimiento',exact:true})).toBeVisible();await expect(s.page.locator('.app>nav')).not.toBeVisible();await s.page.keyboard.press('Escape');await expect(s.page.locator('.finance-modal')).toHaveCount(0);
   await s.page.getByRole('button',{name:'Abrir navegación',exact:true}).click();await s.page.getByRole('button',{name:'Personalizar mi espacio',exact:true}).click();await expect(s.page.getByRole('heading',{name:'Personaliza tu espacio',exact:true})).toBeVisible();await s.page.keyboard.press('Escape');
-  await s.page.locator('nav[aria-label="Navegación principal"]').getByRole('button',{name:'Familia',exact:true}).click();await expect(s.page.locator('.workspace-header .page-title')).toHaveText('Mi familia');await s.page.locator('.workspace-header').getByRole('button',{name:'Mi perfil',exact:true}).click();await expect(s.page.locator('.modal-backdrop')).toBeVisible();await s.page.keyboard.press('Escape');
+  await s.page.locator('nav[aria-label="Navegación principal"]').getByRole('button',{name:'Mi hogar',exact:true}).click();await s.page.getByRole('dialog',{name:'Mi hogar',exact:true}).getByRole('button',{name:'Familia y permisos',exact:true}).click();await expect(s.page.locator('.workspace-header .page-title')).toHaveText('Mi familia');await s.page.locator('.workspace-header').getByRole('button',{name:'Mi perfil',exact:true}).click();await expect(s.page.locator('.modal-backdrop')).toBeVisible();await s.page.keyboard.press('Escape');
   await s.page.getByLabel('Cambiar de familia',{exact:true}).selectOption(rid);await expect(s.page.getByLabel('Cambiar de familia',{exact:true})).toHaveValue(rid);await expect(s.page.locator('.workspace-header .workspace-title')).toHaveCount(1);await healthy(s);
  }finally{await s.context.close()}
 });
@@ -40,7 +40,7 @@ test('long household names and agenda-first personalization fit without stale he
   await s.page.route('**/rest/v1/household_members?**',route=>{if(!new URL(route.request().url()).searchParams.get('select')?.includes('households('))return route.fallback();return route.fulfill({json:[{user_id:uid,household_id:hh,households:{id:hh,name,invite_code:'QA'}}]})});
   await ready(s,'');await expect(s.page.locator('.workspace-header .home-intro')).toHaveCount(1);await expect(s.page.locator('.content .home-intro')).toHaveCount(0);await expect(s.page.locator('.home-select-label')).toHaveText(name);
   for(const width of [320,390,768,1100,1280]){await s.page.setViewportSize({width,height:844});await healthy(s);const label=await s.page.locator('.home-select-label').evaluate(e=>({height:e.clientHeight,scroll:e.scrollHeight}));expect(label.scroll).toBeLessThanOrEqual(label.height+1)}
-  const agenda=await s.page.locator('.studio-agenda').boundingBox(),hero=await s.page.locator('.studio-home-hero').boundingBox();expect(agenda.y+agenda.height).toBeLessThanOrEqual(hero.y+1);
+  const agenda=await s.page.locator('.studio-agenda').boundingBox(),priority=await s.page.locator('.premium-attention').boundingBox();expect(agenda.y+agenda.height).toBeLessThanOrEqual(priority.y+1);
   await s.page.locator('.global-search-trigger').click();await s.page.keyboard.press('Escape');await healthy(s);
  }finally{await s.context.close()}
 });
