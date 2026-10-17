@@ -1,17 +1,17 @@
 import WorkspaceHeading from './WorkspaceHeading';
 import HomeAgenda from './HomeAgenda';
 import type {DailyAgendaItem as AgendaItem} from './lib/dailyAgenda';
-import BalanceFlow from './BalanceFlow';
+import HomeMoneyWorkspace from './HomeMoneyWorkspace';
+import type {HomeFinance as FinanceHome} from './lib/homeOverview';
 import HouseScene from './HouseScene';
 import {moduleCatalog,type Appearance} from './lib/appearance';
 import type {ModuleIconName} from './ModuleIcon';
 import ModuleIcon from './ModuleIcon';
-import {useEffect,useMemo,useRef,useState} from 'react';
-import {AlertTriangle,Bell,CheckCircle2,ChevronRight,Clock3,Package,PiggyBank,ReceiptText,Target,ArrowUpRight,Palette,ChevronDown,Sparkles} from 'lucide-react';
+import {useEffect,useRef,useState} from 'react';
+import {AlertTriangle,Bell,CheckCircle2,ChevronRight,Clock3,Package,Target,ArrowUpRight,Palette,ChevronDown,Plus} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
-type FinanceHome={income:number;expense:number;saving:number;available:number;pending:number;projected:number;overdue:number;nextPayment:string|null;nextPaymentAmount:number;nextPaymentDate:string|null;goalName:string|null;goalProgress:number;remainingExpenses?:number;savingsRemaining?:number;expectedIncomeRemaining?:number;futureCount?:number;planComplete?:boolean;error?:string;loading?:boolean};
 type Attention={id:string;type:string;severity:'info'|'warning'|'danger'|'success';title:string;body:string|null;action_tab:string|null;created_at:string};
 type EventSource={id:string;title:string;event_date:string;start_time:string|null;location:string|null;event_type:string|null;recurrence:'none'|'weekly'|'monthly'|'yearly';recurrence_until:string|null;assigned_to:string|null;all_day:boolean};
 type SetupState={profile:boolean;finance:boolean;lists:boolean;family:boolean;backup:boolean};
@@ -115,16 +115,9 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
  }
 
  const today=iso();
- const todayItems=useMemo(()=>agenda.filter(item=>item.date===today),[agenda,today]);
- const laterItems=useMemo(()=>agenda.filter(item=>item.date>today).slice(0,5),[agenda,today]);
- const weekCounts=useMemo(()=>({events:agenda.filter(x=>x.kind==='event'||x.kind==='birthday').length,tasks:agenda.filter(x=>x.kind==='task').length,payments:agenda.filter(x=>x.kind==='payment'&&x.date>=today).length}),[agenda]);
  const urgent=attention.filter(x=>x.severity==='danger'||x.severity==='warning');
  const overdueItems=agenda.filter(x=>x.date<today);
- const hasAttention=urgent.length>0||overdueItems.length>0;
- const hasFinance=Boolean(finance.income||finance.expense||finance.saving||finance.pending);
  const greeting=greetingLabel();
- const statusTitle=urgent.length?urgent.length+' asunto'+(urgent.length===1?' requiere':'s requieren')+' atención':overdueItems.length?'Tienes pendientes por revisar':'Tu hogar está al día';
- const statusCopy=hasAttention?'Revisa los avisos y los pendientes de días anteriores.':'No hay alertas urgentes. Puedes revisar lo programado para hoy y esta semana.';
  const setupSteps=[
   {key:'profile',done:setup.profile,title:'Completa tu perfil',detail:'Nombre, relación y datos básicos',tab:'familia',show:true},
   {key:'finance',done:setup.finance,title:'Agrega una cuenta',detail:'Efectivo, banco o tarjeta para empezar',tab:'presupuesto',show:can('finance')},
@@ -138,27 +131,12 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
  const favorites=appearance.favorites.map(tab=>availableModules.find(m=>m.tab===tab)).filter(Boolean) as typeof availableModules;
  const showFinance=can('finance')&&!finance.error;
  if(loading||(showFinance&&finance.loading))return <div className="studio-skeleton" role="status" aria-label="Cargando tu hogar"><span/><i/><div><b/><b/><b/></div><i/><i/></div>;
- return <section className="home-dashboard home-control home-canvas" data-focus={appearance.focus}>
-  <WorkspaceHeading><div className="home-intro"><div><p className="eyebrow">TU ESPACIO, CADA DÍA</p><h2>{greeting}{firstName?', '+firstName:''}<span>.</span></h2><p>Lo importante de tu hogar, en una sola mirada.</p></div><button aria-label="Personalizar mi espacio" onClick={onPersonalize}><Palette size={16}/><span>Personalizar</span></button></div></WorkspaceHeading>
+ const agendaView=<HomeAgenda items={agenda} members={members} today={today} end={iso(endOfWeek())} error={agendaError} refresh={()=>load(false)} onNavigate={onNavigate} canCalendar={can('calendar')}/>;
+ const attentionView=<section className="premium-card premium-attention" aria-label="Prioridades del hogar"><div className="premium-card-head"><div><p className="eyebrow">TU SIGUIENTE PASO</p><h3>Lo importante hoy</h3></div><Bell size={19}/></div>{urgent.length?urgent.slice(0,3).map(item=><button className={'premium-attention-row '+item.severity} key={item.id} onClick={()=>openAttention(item)}><span>{attentionIcon(item.type)}</span><div><strong>{item.title}</strong>{item.body&&<small>{item.body}</small>}</div><ChevronRight size={16}/></button>):overdueItems.length?overdueItems.slice(0,3).map(item=><button className="premium-attention-row" key={item.id} onClick={()=>onNavigate(item.tab)}><span><Clock3 size={18}/></span><div><strong>{item.title}</strong><small>Pendiente de días anteriores</small></div><ChevronRight size={16}/></button>):<p className="premium-caption">{agendaError?'Hay actividades pendientes de verificar.':'No hay avisos urgentes registrados. Consulta tu agenda y tus próximos pagos.'}</p>}{can('finance')&&!finance.error&&finance.nextPayment&&<button className="premium-attention-row" onClick={()=>onNavigate('presupuesto:recurring')}><span><Clock3 size={18}/></span><div><strong>{finance.nextPayment}</strong><small>{finance.nextPaymentDate?new Date(finance.nextPaymentDate+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'}):'Próximo pago'} · {money(finance.nextPaymentAmount)} · Recurrente pendiente</small></div><ChevronRight size={16}/></button>}{urgent.length>3&&<button className="premium-text-link" onClick={()=>window.dispatchEvent(new CustomEvent('nh:notifications'))}>Ver todos los avisos</button>}</section>;
+ return <section className="home-dashboard home-control premium-home" data-focus={appearance.focus}>
+  <WorkspaceHeading><div className="home-intro premium-intro"><div><p className="eyebrow">{greeting}{firstName?', '+firstName:''}</p><h2>{can('finance')?'Tu dinero, en perspectiva.':'Tu hogar, en perspectiva.'}</h2><p>Tu hogar y tus planes, conectados.</p></div><div className="premium-intro-actions"><button className="premium-personalize" aria-label="Personalizar mi espacio" onClick={onPersonalize}><Palette size={17}/></button>{access?.finance!=='view'&&can('finance')&&<button className="premium-register" onClick={()=>window.dispatchEvent(new CustomEvent('nh:quick-add'))}><Plus size={18}/> Registrar</button>}</div></div></WorkspaceHeading>
   {can('finance')&&finance.error&&<div className="workspace-status error" role="alert"><AlertTriangle size={20}/><p>{finance.error}</p><button type="button" onClick={onRefresh}>Reintentar</button></div>}
-  <section className={'control-hero studio-home-hero '+(hasAttention?'attention ':'')+(finance.projected<0?'risk':'')}>
-   {appearance.cover&&<img className="home-cover" src={appearance.cover} alt=""/>}
-   <div className="control-hero-copy"><p className="eyebrow">{showFinance?'TU BALANCE DEL MES':'TU HOGAR, CONECTADO'}</p><h2>{showFinance?money(finance.available):household.name}</h2><p>{showFinance?'Ingresos − gastos − ahorro registrados hasta hoy.':statusCopy}</p><div className="control-hero-tags"><span><ModuleIcon name="calendar"/> {todayItems.length} hoy</span><span><Clock3/> {weekCounts.payments} pago{weekCounts.payments===1?'':'s'} esta semana</span></div>{showFinance&&<button className="home-hero-link" onClick={()=>onNavigate('presupuesto:fortnight')}>Ver mi quincena <ArrowUpRight size={16}/></button>}</div>{showFinance?<BalanceFlow income={finance.income} expense={finance.expense} saving={finance.saving} onOpen={()=>onNavigate('presupuesto:transactions')}/>:<div className="home-art"><HouseScene/></div>}
-   {showFinance&&<div className="home-hero-bottom"><span><i className={finance.projected<0?'risk':''}/>{hasFinance?'Cierre estimado':'Tu próximo comienzo'}</span><button type="button" onClick={()=>hasFinance?onNavigate('presupuesto:fortnight'):window.dispatchEvent(new CustomEvent('nh:quick-add'))}>{hasFinance?money(finance.projected):'Agrega tu primer movimiento'} <ArrowUpRight size={15}/></button></div>}
-  </section>
-  {showFinance&&<div className="control-finance-strip studio-metrics">
-   <button onClick={()=>onNavigate('presupuesto:income')}><span className="control-finance-icon available"><ArrowUpRight/></span><div><small>Ingresos</small><strong>{money(finance.income)}</strong><em>Registrados este mes</em></div></button>
-   <button onClick={()=>onNavigate('presupuesto:transactions')}><span className="control-finance-icon expense"><ReceiptText/></span><div><small>Gastado</small><strong>{money(finance.expense)}</strong><em>{finance.income?Math.round(finance.expense/finance.income*100)+'% de ingresos':'Este mes'}</em></div></button>
-   <button onClick={()=>onNavigate('presupuesto:goals')}><span className="control-finance-icon saving"><PiggyBank/></span><div><small>Ahorrado</small><strong>{money(finance.saving)}</strong><em>{finance.goalName?finance.goalProgress+'% de tu meta':'Para tus metas'}</em></div></button>
-  </div>}
-  <section className="home-priority-strip"><span className={hasAttention?'warning':'success'}>{hasAttention?<AlertTriangle size={19}/>:<CheckCircle2 size={19}/>}</span><div><strong>{hasAttention?statusTitle:'Todo bajo control'}</strong><small>{urgent.length?urgent[0].title:overdueItems.length?overdueItems[0].title:'Tus pendientes urgentes están al día.'}</small></div>{hasAttention&&<button onClick={()=>urgent.length?openAttention(urgent[0]):onNavigate(overdueItems[0].tab)}>Revisar <ChevronRight size={16}/></button>}</section>
-  {showFinance&&<div className="home-money-answers" aria-label="Lo siguiente para tu dinero">
-   <button onClick={()=>onNavigate('presupuesto:recurring')}><small>Pagos y fijos por cubrir</small><strong>{money(finance.pending)}</strong><span>Compromisos pendientes de este mes</span></button>
-   <button onClick={()=>onNavigate('presupuesto:income')}><small>Ingreso aún esperado</small><strong>{money(finance.expectedIncomeRemaining||0)}</strong><span>Un plan; todavía no es dinero recibido</span></button>
-   <button onClick={()=>onNavigate('presupuesto:fortnight')}><small>Margen tras el plan</small><strong className={finance.projected<0?'negative':''}>{money(finance.projected)}</strong><span>{finance.planComplete?'Estimado al recibir lo esperado y cubrir el plan':'Plan parcial: confirma ingresos y presupuesto'}</span></button>
-  </div>}
-  <HomeAgenda items={agenda} members={members} today={today} end={iso(endOfWeek())} error={agendaError} refresh={()=>load(false)} onNavigate={onNavigate} canCalendar={can('calendar')}/>
-  {showFinance&&finance.goalName&&<button className="home-goal-preview" onClick={()=>onNavigate('presupuesto:goals')}><span className="studio-ring" style={{'--ring-progress':Math.max(0,Math.min(100,finance.goalProgress))+'%'} as React.CSSProperties}><Target size={22}/></span><div><p className="eyebrow">UN PASO MÁS CERCA</p><strong>{finance.goalName}</strong><small>{finance.goalProgress}% de tu meta completado</small></div><ArrowUpRight size={20}/></button>}
+  {showFinance&&finance.source?<HomeMoneyWorkspace householdId={household.id} finance={finance} onNavigate={onNavigate} onRefresh={onRefresh} agenda={agendaView} attention={attentionView} canHealth={can('health')} cover={appearance.cover}/>:<div className="premium-home-without-finance"><section className="premium-card premium-welcome"><HouseScene/><div><p className="eyebrow">TU HOGAR, CONECTADO</p><h3>{household.name}</h3><p>Tu agenda, tus pendientes y los espacios que compartes.</p></div></section>{attentionView}{agendaView}</div>}
   <section className="home-favorites-section"><div className="control-section-head"><div><p className="eyebrow">A TU MANERA</p><h3>Tus favoritos</h3></div><button aria-label="Personalizar mi espacio" onClick={onPersonalize}>Editar <Palette size={15}/></button></div>{favorites.length?<div className="studio-favorites">{favorites.map(m=><button key={m.tab} className={'favorite-card module-'+m.icon} onClick={()=>onNavigate(m.tab)}><span><ModuleIcon name={m.icon as ModuleIconName} size={30}/></span><ArrowUpRight className="favorite-arrow" size={17}/><strong>{m.label}</strong><small>{m.detail}</small></button>)}</div>:<button className="home-see-more" onClick={onPersonalize}>Elige tus módulos favoritos <Palette size={16}/></button>}</section>
   <details className="control-section home-all-modules"><summary><span><p className="eyebrow">EXPLORA TU HOGAR</p><strong>Todos los espacios</strong></span><span>{availableModules.length} módulos <ChevronDown size={17}/></span></summary><div className="control-module-grid">{availableModules.map(m=><button key={m.tab} onClick={()=>onNavigate(m.tab)}><span className={m.icon}><ModuleIcon name={m.icon as ModuleIconName}/></span><div><strong>{m.label}</strong><small>{m.detail}</small></div><ChevronRight/></button>)}</div></details>
   {showSetup&&<details className="control-section home-setup-section"><summary><span><p className="eyebrow">TU PRÓXIMO PASO</p><strong>Prepara tu hogar</strong></span><span className="home-setup-count">{setupCompleted}/{setupSteps.length}<ChevronDown size={15}/></span></summary><div className="home-setup-progress"><span style={{width:Math.round(setupCompleted/setupSteps.length*100)+'%'}}/></div><div className="home-setup-list">{setupSteps.map((step,i)=><button key={step.key} className={step.done?'done':''} onClick={()=>!step.done&&onNavigate(step.tab)} disabled={step.done}><span>{step.done?<CheckCircle2/>:i+1}</span><div><strong>{step.title}</strong><small>{step.done?'Listo':step.detail}</small></div>{!step.done&&<ChevronRight/>}</button>)}</div></details>}
@@ -166,13 +144,7 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
  </section>
 }
 
-function AgendaRow({item,onNavigate,compact=false}:{item:AgendaItem;onNavigate:(tab:string)=>void;compact?:boolean}){
- return <button className={'agenda-home-row '+(compact?'compact ':'')+item.kind} onClick={()=>onNavigate(item.tab)}><span className="agenda-home-icon">{agendaIcon(item.kind)}</span><div><strong>{item.title}</strong><small>{compact?formatDate(item.date)+' · ':''}{item.time?item.time+' · ':''}{item.subtitle}</small></div><ChevronRight/></button>
-}
-
 function attentionIcon(type:string){if(type==='payment')return <Clock3/>;if(type==='task')return <ModuleIcon name="lists"/>;if(type==='event')return <ModuleIcon name="calendar"/>;if(type==='birthday')return <ModuleIcon name="family"/>;if(type==='budget')return <AlertTriangle/>;if(type==='goal')return <Target/>;if(type==='document')return <ModuleIcon name="documents"/>;if(type==='maintenance')return <ModuleIcon name="maintenance"/>;if(type==='pantry')return <Package/>;if(type==='planning')return <ModuleIcon name="planning"/>;return <Bell/>}
-function agendaIcon(kind:AgendaItem['kind']){if(kind==='payment')return <Clock3/>;if(kind==='task')return <ModuleIcon name="lists"/>;if(kind==='birthday')return <ModuleIcon name="family"/>;return <ModuleIcon name="calendar"/>}
-function formatDate(value:string){const date=new Date(value+'T12:00');return date.toLocaleDateString('es-GT',{weekday:'short',day:'numeric'}).replace('.','')}
 function greetingLabel(){const h=new Date().getHours();return h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches'}
 function eventOccursOn(event:EventSource,target:string){
  if(target<event.event_date)return false;if(event.recurrence_until&&target>event.recurrence_until)return false;if(event.recurrence==='none')return target===event.event_date;
