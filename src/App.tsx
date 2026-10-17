@@ -2,11 +2,13 @@ import {clearLocalDrafts} from './lib/formDrafts';
 import {WorkspaceHeadingSlot} from './WorkspaceHeading';
 import ConnectionStatus from './ConnectionStatus';
 import {buildCashFlow,type CashFlowSource} from './lib/cashFlow';
+import {fetchAllRows,pagedResult} from './lib/paging';
+import {usdRate} from './lib/currency';
+import {setAmountsHidden} from './lib/money';
 import type {HomeFinance as FinanceHome} from './lib/homeOverview';
 import {financeSection} from './lib/financeNavigation';
 import {useDialogFocus} from './lib/useDialogFocus';
 import {lazyWithReload} from './lib/lazyRetry';
-import {fetchAllRows,pagedResult} from './lib/paging';
 import DesktopRail from './DesktopRail';
 import BrandMark from './BrandMark';
 import {appearanceKey,readAppearance,type Appearance} from './lib/appearance';
@@ -17,7 +19,7 @@ import HouseholdWelcome from './HouseholdWelcome';
 import './sharing.css';
 import HouseholdStorageNote from './HouseholdStorageNote';
 import './master.css';
-import {FormEvent,Suspense,useEffect,useRef,useState} from 'react';import {ChevronDown,Sun,Moon,Eye,ShieldOff} from 'lucide-react';import {supabase} from './lib/supabase';import GlobalCommandCenter from './GlobalCommandCenter';import {AppErrorBoundary,ClientErrorReporter} from './AppDiagnostics';import AppMenu,{toggleTheme,useEffectiveTheme} from './AppMenu';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import PwaUpdatePrompt from './PwaUpdatePrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';import {validateStrongPassword} from './lib/authSecurity';
+import {FormEvent,Suspense,useEffect,useRef,useState} from 'react';import {ChevronDown,Sun,Moon,Eye,EyeOff,ShieldOff} from 'lucide-react';import {supabase} from './lib/supabase';import GlobalCommandCenter from './GlobalCommandCenter';import {AppErrorBoundary,ClientErrorReporter} from './AppDiagnostics';import AppMenu,{toggleTheme,useEffectiveTheme} from './AppMenu';import ProfileAvatar from './ProfileAvatar';import PwaInstallPrompt from './PwaInstallPrompt';import PwaUpdatePrompt from './PwaUpdatePrompt';import NotificationCenter from './NotificationCenter';import type {Session} from '@supabase/supabase-js';import {validateStrongPassword} from './lib/authSecurity';
 
 const HomeDashboard=lazyWithReload(()=>import('./HomeDashboard'));
 const AppearanceDialog=lazyWithReload(()=>import('./AppearancePanel'));
@@ -47,6 +49,27 @@ const localIso=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-
 const today=()=>localIso();
 const currentMonth=()=>{const d=new Date(),start=new Date(d.getFullYear(),d.getMonth(),1),end=new Date(d.getFullYear(),d.getMonth()+1,0);return{start:localIso(start),end:localIso(end),month:localIso(start)}};
 const authRedirectUrl=()=>`${window.location.origin}${import.meta.env.BASE_URL}`;
+
+type FinanceRead={transactions:any[];categories:any[];allocations:any[];contributions:any[];recurring:any[];occurrences:any[];member_settings:{user_id:string;monthly_income:number|string;first_pay_day?:number|null;second_pay_day?:number|null}[];goals:any[];goal_contributions:{goal_id:string;amount:number;contribution_date:string}[];plans:any[];members:{user_id:string}[];splits:any[];settlements:any[];private:any[];settings?:{usd_rate?:number|string|null}|null};
+function isFinanceRead(value:unknown):value is FinanceRead{const v=value as Record<string,unknown>|null;return Boolean(v&&typeof v==='object'&&!Array.isArray(v)&&['transactions','categories','allocations','contributions','recurring','occurrences','member_settings','goals','goal_contributions','plans','members','splits','settlements','private'].every(key=>Array.isArray(v[key])))}
+/** Legacy path (server without get_home_finance_source): the same data through individual reads. */
+async function readFinanceSeparately(id:string,period:{start:string;end:string;month:string}):Promise<FinanceRead|null>{
+ const [txR,catR,allocR,contR,recR,occR,memberFinanceR,goalR,goalContR,planR,membersR]=await Promise.all([
+  pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,is_shared').eq('household_id',id).gte('transaction_date',period.start).lte('transaction_date',period.end).order('transaction_date',{ascending:false}).order('id').range(from,to))),
+  supabase.from('budget_categories').select('id,name,icon,budget_group').eq('household_id',id),
+  supabase.from('budget_allocations').select('category_id,planned_amount,month,first_half_amount,second_half_amount').eq('household_id',id).eq('month',period.month),
+  pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('goal_id,amount,contribution_date,created_by').eq('household_id',id).gte('contribution_date',period.start).lte('contribution_date',period.end).order('id').range(from,to))),
+  supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,paid_by,is_shared,created_at').eq('household_id',id).eq('active',true),
+  supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status,transaction_id,details_snapshot').eq('household_id',id).eq('period_month',period.month),
+  supabase.from('finance_member_settings').select('user_id,monthly_income').eq('household_id',id),
+  supabase.from('savings_goals').select('id,name,target_amount,target_date,icon').eq('household_id',id).eq('active',true).order('target_date',{ascending:true,nullsFirst:false}),
+  pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id).order('id').range(from,to))),
+  supabase.from('finance_income_plans').select('user_id,month,expected_amount,first_half_amount,second_half_amount').eq('household_id',id).eq('month',period.month),
+  supabase.from('household_members').select('user_id').eq('household_id',id)
+ ]);
+ if([txR,catR,allocR,contR,recR,occR,memberFinanceR,goalR,goalContR,planR,membersR].some(r=>r.error))return null;
+ return {transactions:txR.data||[],categories:catR.data||[],allocations:allocR.data||[],contributions:contR.data||[],recurring:recR.data||[],occurrences:occR.data||[],member_settings:(memberFinanceR.data||[]) as FinanceRead['member_settings'],goals:goalR.data||[],goal_contributions:(goalContR.data||[]) as FinanceRead['goal_contributions'],plans:planR.data||[],members:(membersR.data||[]) as {user_id:string}[],splits:[],settlements:[],private:[],settings:null};
+}
 
 export default function App(){
  useDialogFocus();
@@ -96,33 +119,25 @@ export default function App(){
  async function loadData(id:string){
   const requestedScope=(session?.user.id||'')+':'+id,sequence=++dataSequence.current;
   const period=currentMonth();
-  const [listR,eventR,txR,catR,allocR,contR,recR,occR,memberFinanceR,goalR,goalContR,planR,membersR]=await Promise.all([
+  // One server read for the finance summary; older backends without it fall back to individual queries.
+  const [listR,eventR,homeR]=await Promise.all([
    supabase.from('lists').select('id,title').eq('household_id',id).order('created_at',{ascending:false}),
    supabase.from('events').select('id,title,event_date,start_time').eq('household_id',id).gte('event_date',today()).order('event_date').limit(6),
-   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,is_shared').eq('household_id',id).gte('transaction_date',period.start).lte('transaction_date',period.end).order('transaction_date',{ascending:false}).order('id').range(from,to))),
-   supabase.from('budget_categories').select('id,name,icon,budget_group').eq('household_id',id),
-   supabase.from('budget_allocations').select('category_id,planned_amount,month,first_half_amount,second_half_amount').eq('household_id',id).eq('month',period.month),
-   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('goal_id,amount,contribution_date,created_by').eq('household_id',id).gte('contribution_date',period.start).lte('contribution_date',period.end).order('id').range(from,to))),
-   supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,paid_by,is_shared,created_at').eq('household_id',id).eq('active',true),
-   supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status,transaction_id,details_snapshot').eq('household_id',id).eq('period_month',period.month),
-   supabase.from('finance_member_settings').select('user_id,monthly_income').eq('household_id',id),
-   supabase.from('savings_goals').select('id,name,target_amount,target_date,icon').eq('household_id',id).eq('active',true).order('target_date',{ascending:true,nullsFirst:false}),
-   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id).order('id').range(from,to))),
-   supabase.from('finance_income_plans').select('user_id,month,expected_amount,first_half_amount,second_half_amount').eq('household_id',id).eq('month',period.month),
-   supabase.from('household_members').select('user_id').eq('household_id',id)
+   supabase.rpc('get_home_finance_source',{p_household_id:id,p_month:period.month})
   ]);
+  const legacy=homeR.error&&['PGRST202','42883'].includes(homeR.error.code);
+  const read=isFinanceRead(homeR.data)&&!homeR.error?homeR.data:legacy?await readFinanceSeparately(id,period):null;
   if(scopeRef.current!==requestedScope||sequence!==dataSequence.current)return;
-  setLists(listR.data||[]);setEvents(eventR.data||[]);setTxs((txR.data||[]) as Tx[]);setDataScope(requestedScope);
-  if([txR,catR,allocR,contR,recR,occR,memberFinanceR,goalR,goalContR,planR,membersR].some(r=>r.error)){
-   setFinanceHome(current=>({...current,loading:false,error:'No pudimos verificar el resumen financiero. Reintenta para ver cifras actualizadas.'}));return;
-  }
-  const members=(membersR.data||[]).map((r:any)=>({user_id:r.user_id,full_name:'Integrante'}));
-  const source:CashFlowSource={month:period.month,today:today(),transactions:(txR.data||[]) as any[],savings:(contR.data||[]) as any[],categories:catR.data||[],allocations:(allocR.data||[]) as any[],members,plans:planR.data||[],references:Object.fromEntries((memberFinanceR.data||[]).map((r:any)=>[r.user_id,Number(r.monthly_income)])),recurring:(recR.data||[]) as any[],occurrences:(occR.data||[]) as any[]};
+  setLists(listR.data||[]);setEvents(eventR.data||[]);setTxs((read?.transactions||[]) as Tx[]);setDataScope(requestedScope);
+  if(!read){setFinanceHome(current=>({...current,loading:false,error:'No pudimos verificar el resumen financiero. Reintenta para ver cifras actualizadas.'}));return}
+  const members=read.members.map(r=>({user_id:r.user_id,full_name:'Integrante'}));
+  const paydays=Object.fromEntries(read.member_settings.map(r=>[r.user_id,{first:Number(r.first_pay_day)||15,second:Number(r.second_pay_day)||31}]));
+  const source:CashFlowSource={month:period.month,today:today(),transactions:read.transactions,savings:read.contributions,categories:read.categories,allocations:read.allocations,members,plans:read.plans,references:Object.fromEntries(read.member_settings.map(r=>[r.user_id,Number(r.monthly_income)])),recurring:read.recurring,occurrences:read.occurrences,paydays};
   const flow=buildCashFlow(source);
-  const primaryGoal=(goalR.data||[])[0] as any;
-  const goalSaved=primaryGoal?(goalContR.data||[]).filter((r:any)=>r.goal_id===primaryGoal.id&&r.contribution_date<=today()).reduce((sum:number,r:any)=>sum+Math.round(Number(r.amount)*100),0)/100:0;
+  const primaryGoal=read.goals[0];
+  const goalSaved=primaryGoal?read.goal_contributions.filter(r=>r.goal_id===primaryGoal.id&&r.contribution_date<=today()).reduce((sum,r)=>sum+Math.round(Number(r.amount)*100),0)/100:0;
   const goalProgress=primaryGoal&&Number(primaryGoal.target_amount)>0?Math.min(100,Math.round(goalSaved/Number(primaryGoal.target_amount)*100)):0;
-  setFinanceHome({source,goals:goalR.data||[],goalEntries:(goalContR.data||[]) as any[],income:flow.income,expense:flow.expense,saving:flow.saving,available:flow.available,pending:flow.fixedCommitments,projected:flow.projectedClose,overdue:flow.overdue,nextPayment:flow.nextPayment?.terms.description||null,nextPaymentAmount:Number(flow.nextPayment?.terms.amount||0),nextPaymentDate:flow.nextPayment?.due_date||null,goalName:primaryGoal?.name||null,goalProgress,remainingExpenses:flow.remainingExpenses,savingsRemaining:flow.savingsRemaining,expectedIncomeRemaining:flow.expectedIncomeRemaining,futureCount:flow.futureCount,planComplete:members.length>0&&members.every((m:any)=>(planR.data||[]).some((p:any)=>p.user_id===m.user_id))&&(allocR.data||[]).length>0});
+  setFinanceHome({source,goals:read.goals,goalEntries:read.goal_contributions,splits:read.splits,settlements:read.settlements,privateEntries:read.private,usdRate:usdRate(read.settings?.usd_rate),income:flow.income,expense:flow.expense,saving:flow.saving,available:flow.available,pending:flow.fixedCommitments,projected:flow.projectedClose,overdue:flow.overdue,nextPayment:flow.nextPayment?.terms.description||null,nextPaymentAmount:Number(flow.nextPayment?.terms.amount||0),nextPaymentDate:flow.nextPayment?.due_date||null,goalName:primaryGoal?.name||null,goalProgress,remainingExpenses:flow.remainingExpenses,savingsRemaining:flow.savingsRemaining,expectedIncomeRemaining:flow.expectedIncomeRemaining,futureCount:flow.futureCount,planComplete:members.length>0&&members.every(m=>read.plans.some(p=>p.user_id===m.user_id))&&read.allocations.length>0});
  }
  if(loading)return <div className="center"><div className="loader"/></div>;
  if(recovery)return <UpdatePassword onDone={()=>{setRecovery(false);window.history.replaceState({},'',authRedirectUrl())}}/>;
@@ -165,6 +180,10 @@ function MasterHeader({onBack,onProfile}:{onBack:()=>void;onProfile:()=>void}){
 function Shell(p:any){
  const [headingSlot,setHeadingSlot]=useState<HTMLDivElement|null>(null);
  const effectiveTheme=useEffectiveTheme();
+ // "Ocultar montos": masks every amount on this device (useful in public); Shell re-renders the whole workspace.
+ const [amountsMasked,setAmountsMasked]=useState(()=>{try{return localStorage.getItem('nh:amounts-hidden')==='1'}catch{return false}});
+ setAmountsHidden(amountsMasked);
+ function toggleAmounts(){const next=!amountsMasked;setAmountsHidden(next);setAmountsMasked(next);try{localStorage.setItem('nh:amounts-hidden',next?'1':'0')}catch{/* private mode */}}
  const preferenceKey=appearanceKey(p.userId,p.household.id);
  const [appearanceOpen,setAppearanceOpen]=useState(false),[savedAppearance,setSavedAppearance]=useState(()=>({key:preferenceKey,value:readAppearance(preferenceKey)}));
  const appearance=savedAppearance.key===preferenceKey?savedAppearance.value:readAppearance(preferenceKey);
@@ -172,7 +191,7 @@ function Shell(p:any){
 
  const module=tabModule(p.tab),level=module?p.access?.modules?.[module]:null,denied=level==='none';
  useEffect(()=>{const url=new URL(window.location.href);if(url.searchParams.get('quick')!=='1')return;const timer=window.setTimeout(()=>window.dispatchEvent(new CustomEvent('nh:quick-add')),180);url.searchParams.delete('quick');window.history.replaceState({},'',url);return()=>window.clearTimeout(timer)},[p.household.id]);
- return <WorkspaceHeadingSlot.Provider value={headingSlot}><div className="app app-studio" data-accent={appearance.accent} data-module={p.tab}><DesktopRail essential={appearance.view==='essential'} favorites={appearance.favorites} currentTab={p.tab} access={p.access.modules} isMaster={p.isMaster} onNavigate={p.setTab} onAppearance={()=>setAppearanceOpen(true)}/><a className="skip-link" href="#main-content">Saltar al contenido</a><header className="workspace-header"><div className="workspace-household"><div className="home-select-wrap household-pill">{appearance.cover?<img className="household-pill-photo" src={appearance.cover} alt=""/>:<span className="household-pill-photo" aria-hidden="true"><BrandMark size={16}/></span>}<span className="home-select-label" aria-hidden="true">{p.household.name}</span><select className="home-select" aria-label="Cambiar de familia" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={16} aria-hidden="true"/></div><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={effectiveTheme==='dark'} title={effectiveTheme==='light'?'Tema de día · cambiar a noche':'Tema de noche · cambiar a día'}><span className="theme-sun"><Sun size={16}/></span><span className="theme-moon"><Moon size={16}/></span></button></div><div className="header-actions"><AppMenu essential={appearance.view==='essential'} favorites={appearance.favorites} onPersonalize={()=>setAppearanceOpen(true)} isMaster={p.isMaster} currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar onClick={()=>p.setTab('familia')}/></div><div className="workspace-header-slot" ref={setHeadingSlot}/></header>
+ return <WorkspaceHeadingSlot.Provider value={headingSlot}><div className="app app-studio" data-accent={appearance.accent} data-module={p.tab}><DesktopRail essential={appearance.view==='essential'} favorites={appearance.favorites} currentTab={p.tab} access={p.access.modules} isMaster={p.isMaster} onNavigate={p.setTab} onAppearance={()=>setAppearanceOpen(true)}/><a className="skip-link" href="#main-content">Saltar al contenido</a><header className="workspace-header"><div className="workspace-household"><div className="home-select-wrap household-pill">{appearance.cover?<img className="household-pill-photo" src={appearance.cover} alt=""/>:<span className="household-pill-photo" aria-hidden="true"><BrandMark size={16}/></span>}<span className="home-select-label" aria-hidden="true">{p.household.name}</span><select className="home-select" aria-label="Cambiar de familia" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={16} aria-hidden="true"/></div><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={effectiveTheme==='dark'} title={effectiveTheme==='light'?'Tema de día · cambiar a noche':'Tema de noche · cambiar a día'}><span className="theme-sun"><Sun size={16}/></span><span className="theme-moon"><Moon size={16}/></span></button><button type="button" className="amounts-toggle" onClick={toggleAmounts} aria-pressed={amountsMasked} aria-label={amountsMasked?'Mostrar montos':'Ocultar montos'} title={amountsMasked?'Mostrar montos':'Ocultar montos'}>{amountsMasked?<EyeOff size={18}/>:<Eye size={18}/>}</button></div><div className="header-actions"><AppMenu essential={appearance.view==='essential'} favorites={appearance.favorites} onPersonalize={()=>setAppearanceOpen(true)} isMaster={p.isMaster} currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar onClick={()=>p.setTab('familia')}/></div><div className="workspace-header-slot" ref={setHeadingSlot}/></header>
  <main className="content" id="main-content" tabIndex={-1}><ConnectionStatus/>
  <HouseholdWelcome household={p.household} canManage={p.access.can_manage_members} onChanged={()=>{p.onRefresh();p.onAccessChanged?.()}}/>
  <HouseholdStorageNote householdId={p.household.id} version={p.tab+JSON.stringify(p.access.modules)}/>

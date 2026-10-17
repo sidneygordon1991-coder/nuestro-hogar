@@ -4,8 +4,9 @@ import mainRaw from '../main.tsx?raw';
 import appRaw from '../App.tsx?raw';
 // @ts-ignore Vitest runs in Node; application tsconfig intentionally excludes Node types.
 import {readFileSync} from 'node:fs';
-const names=['shell','home','connected-finance','workspace-header','budget-progress','daily-flow','refinement','finance-management','experience','FinancialDiagnosis','notifications','monthly-income','guided-fortnight-close','studio','premium','styles','AutomationCenter','BackupCenter','DiagnosticCenter','HouseholdHealthCenter','MonthlyCloseCenter','PlanningCenter'];
-const sheets=names.map(name=>({name,root:parse(readFileSync(new URL('../'+name+'.css',import.meta.url),'utf8'))}));
+const names=['shell','home','connected-finance','workspace-header','budget-progress','daily-flow','refinement','finance-management','experience','FinancialDiagnosis','notifications','monthly-income','guided-fortnight-close','studio','premium','styles','AutomationCenter','BackupCenter','DiagnosticCenter','HouseholdHealthCenter','MonthlyCloseCenter','PlanningCenter','quick-entry','finance-tools'];
+const readCss=(url:URL):string=>readFileSync(url,'utf8').replace(/@import '([^']+)';/g,(_:string,file:string)=>readCss(new URL(file,url)));// styles.css is an index of partials
+const sheets=names.map(name=>({name,root:parse(readCss(new URL('../'+name+'.css',import.meta.url)))}));
 const palette=parse(readFileSync(new URL('../theme-light.css',import.meta.url),'utf8'));
 const palettes=palette.nodes.filter(node=>node.type==='rule'&&(node.selector==='html'||node.selector==='html[data-theme="light"]')).map(node=>{
  const roles:Record<string,string>={};

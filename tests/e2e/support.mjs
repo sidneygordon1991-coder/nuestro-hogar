@@ -50,6 +50,7 @@ async function setup(browser,{loggedIn=true,master=false,aal='aal1',google=false
   else if(rich&&path.endsWith('/get_household_health_dashboard'))body={generated_at:new Date().toISOString(),overall_score:86,coverage_score:80,status:'good',status_label:'En buen camino',urgent_count:0,domains:[],recommendations:[],metrics:{}};
   else if(rich&&path.endsWith('/get_household_plan'))body={summary:{active:0,at_risk:0,due_soon:0,completed:0,monthly_required:0},goals:[],generated_at:new Date().toISOString()};
   else if(rich&&path.endsWith('/run_household_diagnostics'))body={run_id:rid,score:100,status:'healthy',error_count:0,warning_count:0,info_count:0,checks:[],generated_at:new Date().toISOString()};
+  else if(path.endsWith('/get_home_finance_source')){status=404;body={code:'PGRST202',message:'Legacy test backend: function unavailable'}}
   else if(path.endsWith('/settings'))body={external:{google}};
   else if(path.endsWith('/authorize')){assert.equal(url.searchParams.get('provider'),'google');assert.equal(url.searchParams.get('redirect_to'),'http://127.0.0.1:4173/nuestro-hogar/');await route.fulfill({status:200,contentType:'text/html',body:'<h1>Google redirect ready</h1>'});return}
   else if(path.endsWith('/user'))body={...user,factors:enrolled?[{id:factor,factor_type:'totp',status:verified?'verified':'unverified',friendly_name:'QA factor'}]:[]};

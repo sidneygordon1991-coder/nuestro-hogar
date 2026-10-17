@@ -1,0 +1,111 @@
+/* Dialogs, sheets and overlay stacking contract. */
+/* Command dialogs never inherit the legacy horizontal .quick toolbar. */
+.global-command-panel {display:block;min-width:0;overscroll-behavior:contain;}
+.global-command-head>div {min-width:0;}
+.global-command-head>button {flex:0 0 34px;}
+.global-command-panel .quick-action-grid {width:100%;min-width:0;gap:10px;}
+.global-command-panel .quick-action-card {
+ width:100%;min-width:0;min-height:82px;grid-template-columns:44px minmax(0,1fr) 18px;
+ gap:12px;padding:14px;background:var(--nh-surface);color:var(--nh-text);
+}
+.global-command-panel .quick-action-card>span {width:42px;height:42px;}
+.global-command-panel .quick-action-card>div {min-width:0;overflow-wrap:anywhere;}
+.global-command-panel .quick-action-card strong {font-size:14px;line-height:1.3;}
+.global-command-panel .quick-action-card small {font-size:12px;line-height:1.45;}
+.global-command-panel .quick-action-card .nh-object-icon {width:23px;height:23px;}
+.global-command-panel .quick-action-card:hover {border-color:var(--nh-accent-border);}
+@media(max-width:720px) {
+ .global-command-panel {
+  top:10px;bottom:auto;margin:0;max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);
+  padding-bottom:calc(14px + env(safe-area-inset-bottom));
+ }
+ .global-command-panel .quick-action-grid {grid-template-columns:minmax(0,1fr);}
+ .global-command-panel .global-command-head {margin-bottom:16px;}
+ .global-command-panel .global-command-head h3 {font-size:20px;line-height:1.3;}
+}
+
+/* Shared overlay contract: a child z-index cannot escape .content's stacking context. */
+.app {
+ --nh-nav-clearance:calc(112px + env(safe-area-inset-bottom));
+ padding-bottom:var(--nh-nav-clearance);
+}
+html {scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom));}
+.app>nav {bottom:calc(16px + env(safe-area-inset-bottom));}
+.app .content:has(.modal-backdrop) {z-index:100;}
+.app header:has(:is(.global-command-panel,.notification-panel,.app-menu-drawer)) {z-index:100;}
+.app:has(:is(.modal-backdrop,.global-command-panel,.notification-panel,.app-menu-drawer))>nav,
+.app:has(:is(.modal-backdrop,.global-command-panel,.notification-panel,.app-menu-drawer)) .pwa-install,
+.app:has(:is(.modal-backdrop,.global-command-panel,.notification-panel,.app-menu-drawer)) .pwa-update {
+ visibility:hidden;pointer-events:none;
+}
+body:has(.app :is(.modal-backdrop,.global-command-panel,.notification-panel,.app-menu-drawer)) {
+ overflow:hidden;
+}
+.app .modal-backdrop {
+ z-index:120;overflow-y:auto;overscroll-behavior:contain;
+ padding:12px;
+ padding:calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+}
+.app .finance-modal {
+ min-width:0;max-height:calc(100vh - 24px);
+ max-height:min(90dvh,calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+ overflow-y:auto;overscroll-behavior:contain;
+ padding-bottom:24px;scroll-padding-bottom:24px;
+}
+.app .finance-modal .finance-form {min-width:0;}
+.app .finance-modal .finance-primary {min-height:44px;flex-shrink:0;}
+
+/* Optional transaction evidence uses the same private, scrollable modal contract. */
+.transaction-detail-link{border:0;padding:0;background:transparent;color:var(--nh-text);font-weight:700;text-align:left;overflow-wrap:anywhere;}
+.transaction-receipt-count{display:flex!important;align-items:center;gap:4px;color:var(--nh-accent)!important;}
+.transaction-receipt-count svg{width:12px;height:12px;}
+.transaction-detail-summary{background:var(--nh-surface);border:1px solid var(--nh-border);border-radius:14px;padding:14px;margin-top:14px;}
+.transaction-detail-summary>strong,.transaction-detail-summary>b{display:block;overflow-wrap:anywhere;}
+.transaction-detail-summary>b{font-size:24px;margin-top:5px;font-variant-numeric:tabular-nums;}
+.transaction-detail-summary>b.income{color:var(--nh-success);}
+.transaction-detail-summary>b.expense{color:var(--nh-text);}
+.transaction-detail-summary dl{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 0;}
+.transaction-detail-summary dt{color:var(--nh-muted);font-size:11px;}
+.transaction-detail-summary dd{margin:2px 0 0;font-size:13px;overflow-wrap:anywhere;}
+.transaction-detail-summary>p{white-space:pre-wrap;font-size:13px;color:var(--nh-muted);}
+.receipt-section{display:grid;gap:12px;margin-top:18px;min-width:0;}
+.receipt-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.receipt-heading h4{margin:0;font-size:17px;}
+.receipt-heading>svg{width:20px;color:var(--nh-accent);}
+.receipt-help,.receipt-upload>small,.receipt-detail-form>small{color:var(--nh-muted);font-size:12px;line-height:1.5;margin:0;}
+.receipt-empty{display:flex;align-items:center;gap:10px;padding:14px;border:1px dashed var(--nh-border);border-radius:12px;color:var(--nh-muted);font-size:12px;}
+.receipt-empty svg{width:20px;flex-shrink:0;}
+.receipt-list{display:grid;gap:10px;}
+.receipt-card{border:1px solid var(--nh-border);border-radius:14px;padding:12px;background:var(--nh-surface);min-width:0;}
+.receipt-card-head{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px;align-items:center;}
+.receipt-card-head>span{width:36px;height:36px;border-radius:10px;background:var(--nh-accent-soft);color:var(--nh-accent);display:grid;place-items:center;}
+.receipt-card-head>span svg{width:19px;}
+.receipt-card-head strong,.receipt-pending strong{display:block;font-size:13px;overflow-wrap:anywhere;}
+.receipt-card-head small,.receipt-pending small{display:block;color:var(--nh-muted);font-size:11px;margin-top:3px;}
+.receipt-card-head>button,.receipt-upload-actions>button,.receipt-detail-form>div>button:not(.finance-primary){border:1px solid var(--nh-border);background:var(--nh-subtle);color:var(--nh-accent);border-radius:10px;padding:9px 12px;font-size:12px;min-height:40px;}
+.receipt-detail-trigger{display:flex;align-items:center;gap:5px;border:0;background:transparent;color:var(--nh-accent);font-size:12px;padding:10px 0 0;}
+.receipt-detail-trigger svg{width:14px;}
+.receipt-purchase-detail{margin-top:12px;padding:12px;border-radius:10px;background:var(--nh-subtle);font-size:12px;}
+.receipt-purchase-detail ul{margin:8px 0 0;padding-left:18px;white-space:pre-wrap;overflow-wrap:anywhere;}
+.receipt-preview{background:var(--nh-surface);border:1px solid var(--nh-border);border-radius:14px;padding:12px;min-width:0;}
+.receipt-preview>div{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;font-size:13px;overflow-wrap:anywhere;}
+.receipt-preview button,.receipt-pending button{background:transparent;color:var(--nh-muted);border:0;padding:6px;display:grid;place-items:center;flex-shrink:0;}
+.receipt-preview button svg,.receipt-pending button svg{width:18px;}
+.receipt-preview img{display:block;max-width:100%;max-height:60dvh;object-fit:contain;margin:auto;}
+.receipt-preview a{display:inline-block;color:var(--nh-accent);font-size:12px;margin-top:12px;}
+.receipt-upload{display:grid;gap:12px;border:1px dashed var(--nh-border);border-radius:14px;padding:12px;}
+.receipt-upload-actions{display:flex;flex-wrap:wrap;gap:8px;}
+.receipt-upload-actions>button{display:flex;align-items:center;gap:6px;}
+.receipt-upload-actions svg{width:17px;}
+.receipt-file-input{display:none;}
+.receipt-pending{display:grid;gap:8px;}
+.receipt-pending>div{display:grid;grid-template-columns:20px minmax(0,1fr) 30px;gap:8px;align-items:center;padding:8px;background:var(--nh-surface);border-radius:10px;}
+.receipt-pending>div>svg{width:18px;color:var(--nh-accent);}
+.receipt-detail-form{margin-top:0;padding:12px;border:1px solid var(--nh-border);border-radius:14px;background:var(--nh-surface);}
+.receipt-detail-form textarea{font:inherit;width:100%;padding:12px;border-radius:12px;border:1px solid var(--nh-border);background:var(--nh-subtle);color:var(--nh-text);resize:vertical;}
+.receipt-detail-form>div{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
+.receipt-detail-form .finance-primary{width:auto!important;margin:0;}
+.receipt-notice{display:flex;gap:7px;align-items:center;color:var(--nh-success);background:var(--nh-success-soft);border-radius:10px;padding:10px;margin:0;font-size:12px;}
+.receipt-notice svg{width:18px;flex-shrink:0;}
+.receipt-error{color:var(--nh-danger);background:var(--nh-danger-soft);border-radius:10px;padding:10px;margin:0;font-size:12px;overflow-wrap:anywhere;}
+@media(max-width:560px){.receipt-card-head{grid-template-columns:32px minmax(0,1fr) auto;gap:8px;}.receipt-card-head>span{width:32px;height:32px;}.receipt-card-head>button{padding:8px;}}

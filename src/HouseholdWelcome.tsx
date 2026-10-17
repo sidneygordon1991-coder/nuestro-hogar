@@ -1,4 +1,5 @@
-import {useEffect,useRef,useState} from 'react';
+import {lazy,Suspense,useEffect,useRef,useState} from 'react';
+const DemoPreview=lazy(()=>import('./DemoPreview'));
 import {ArrowLeft,ArrowRight,CheckCircle2,Copy,SlidersHorizontal,Sparkles,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {platformError} from './lib/platform';
@@ -10,6 +11,7 @@ const templates:Budget[]=[['Casa','fixed'],['Servicios','fixed'],['Alimentación
 const money=formatMoney;
 export default function HouseholdWelcome({household,canManage,onChanged}:{household:Household;canManage:boolean;onChanged:()=>void}){
  const [completed,setCompleted]=useState(true),[open,setOpen]=useState(false),[step,setStep]=useState(0),[incomes,setIncomes]=useState<Income[]>([]),[budgets,setBudgets]=useState<Budget[]>([]),[method,setMethod]=useState('equal'),[loading,setLoading]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState('');
+ const [demo,setDemo]=useState(false);
  const submission=useRef('');const month=useRef('');const [inviteCode,setInviteCode]=useState(household.invite_code);
  useEffect(()=>{setInviteCode(household.invite_code)},[household.id,household.invite_code]);
  // Familia can rotate the code while this component stays mounted: listen for it and re-read it from the server when the invite step opens.
@@ -37,7 +39,7 @@ export default function HouseholdWelcome({household,canManage,onChanged}:{househ
   setCompleted(true);setOpen(false);setSuccess('Configuración guardada. Puedes ajustar los valores desde Finanzas.');onChanged();
  }catch(err){setError(platformError(err))}finally{setBusy(false)}}
  if(!canManage)return null;
- return <>{!completed&&<section className="sharing-welcome-banner"><Sparkles/><div><strong>Comienza con tu familia</strong><p>Configura ingresos, aportes y presupuesto en tres pasos.</p></div><button className="sharing-primary" onClick={begin}>Configurar hogar</button></section>}{success&&<p className="sharing-success" role="status">{success}</p>}
+ return <>{!completed&&<section className="sharing-welcome-banner"><Sparkles/><div><strong>Comienza con tu familia</strong><p>Configura ingresos, aportes y presupuesto en tres pasos.</p></div><div className="sharing-welcome-actions"><button className="sharing-primary" onClick={begin}>Configurar hogar</button><button type="button" className="sharing-secondary" onClick={()=>setDemo(true)}>Ver un ejemplo</button></div></section>}{demo&&<Suspense fallback={null}><DemoPreview onClose={()=>setDemo(false)} onStart={()=>void begin()}/></Suspense>}{success&&<p className="sharing-success" role="status">{success}</p>}
  {open&&<div className="modal-backdrop"><section className="finance-modal sharing-wizard" role="dialog" aria-modal="true" aria-labelledby="welcome-title"><div className="sharing-dialog-head"><div><p className="eyebrow">{household.name} · PASO {step+1} DE 3</p><h2 id="welcome-title">{['Ingresos y aportes','Presupuesto del mes','Revisa y comienza'][step]}</h2></div><button disabled={busy} onClick={()=>setOpen(false)} aria-label="Cerrar bienvenida"><X/></button></div>
   <div className="sharing-steps">{['Ingresos','Presupuesto','Revisión'].map((label,index)=><span className={index===step?'active':''} key={label}>{index+1}. {label}</span>)}</div>
   {loading?<p role="status">Cargando la configuración actual…</p>:<>

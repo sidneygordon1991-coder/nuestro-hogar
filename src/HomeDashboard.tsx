@@ -9,8 +9,9 @@ import HouseScene from './HouseScene';
 import {moduleCatalog,readScope,saveScope,scopeKey,type Appearance,type FinanceScope} from './lib/appearance';
 import type {ModuleIconName} from './ModuleIcon';
 import ModuleIcon from './ModuleIcon';
-import {useEffect,useRef,useState} from 'react';
-import {AlertTriangle,CheckCircle2,ChevronRight,ArrowUpRight,Palette,ChevronDown,Plus} from 'lucide-react';
+import {lazy,Suspense,useEffect,useRef,useState} from 'react';
+const DemoPreview=lazy(()=>import('./DemoPreview'));
+import {AlertTriangle,CheckCircle2,ChevronRight,ArrowUpRight,Palette,ChevronDown,Plus,Sparkles} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household={id:string;name:string;invite_code:string};
@@ -30,6 +31,7 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
  const can=(module:string)=>!access||access[module]!=='none';
  const [attention,setAttention]=useState<Attention[]>([]),[agenda,setAgenda]=useState<AgendaItem[]>([]),[firstName,setFirstName]=useState(''),[loading,setLoading]=useState(true);
  const [setup,setSetup]=useState<SetupState>({profile:false,finance:false,lists:false,family:false,backup:false});
+ const [demo,setDemo]=useState(false);
  const [userId,setUserId]=useState(''),[scope,setScopeState]=useState<FinanceScope>('household');
  useEffect(()=>{if(userId)setScopeState(readScope(scopeKey(userId,household.id)))},[userId,household.id]);
  function setScope(next:FinanceScope){setScopeState(next);if(userId)saveScope(scopeKey(userId,household.id),next)}
@@ -159,7 +161,13 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
     </div>
    </div></WorkspaceHeading>
    {can('finance')&&finance.error&&<div className="workspace-status error" role="alert"><AlertTriangle size={20}/><p>{finance.error}</p><button type="button" onClick={onRefresh}>Reintentar</button></div>}
-   {showFinance&&finance.source?<HomeMoneyWorkspace householdId={household.id} userId={userId} scope={shared?scope:'household'} shared={shared} finance={finance} onNavigate={onNavigate} onRefresh={onRefresh} agenda={agendaView} agendaFirst={appearance.focus==='plans'} today={todayInput} canHealth={can('health')} cover={appearance.cover}/>
+   {showFinance&&finance.source&&!finance.source.transactions.length&&!finance.source.allocations.length&&<section className="home-card home-start" aria-labelledby="home-start-title">
+    <span className="home-goal-icon" aria-hidden="true"><Sparkles/></span>
+    <div><h3 id="home-start-title">Empieza en 3 minutos</h3><p>Agrega tus cuentas con su saldo, tus ingresos con su día de cobro y tres rubros de presupuesto. Mientras tanto, mira cómo se verá tu Inicio.</p></div>
+    <div className="home-start-actions"><button type="button" className="home-register" onClick={()=>onNavigate('presupuesto:accounts')}>Agregar mis cuentas</button><button type="button" className="home-link" onClick={()=>setDemo(true)}>Ver un ejemplo</button></div>
+   </section>}
+   {demo&&<Suspense fallback={null}><DemoPreview onClose={()=>setDemo(false)} onStart={()=>window.dispatchEvent(new CustomEvent('nh:setup'))}/></Suspense>}
+   {showFinance&&finance.source?<HomeMoneyWorkspace householdName={household.name} householdId={household.id} userId={userId} scope={shared?scope:'household'} shared={shared} members={members} canEdit={!access||access.finance==='edit'} finance={finance} onNavigate={onNavigate} onRefresh={onRefresh} agenda={agendaView} agendaFirst={appearance.focus==='plans'} today={todayInput} canHealth={can('health')} cover={appearance.cover}/>
     :<div className="home-grid home-grid--no-finance"><section className="home-card home-welcome"><HouseScene/><div><h3>{household.name}</h3><p>Tu agenda, tus pendientes y los espacios que compartes.</p></div></section><HomeToday notifications={urgent} actions={[]} overdue={overdueItems} agendaError={agendaError} onOpenNotification={openAttention} onNavigate={onNavigate}/><div className="home-agenda-slot">{agendaView}</div></div>}
   <section className="home-favorites-section"><div className="control-section-head"><div><p className="eyebrow">A TU MANERA</p><h3>Tus favoritos</h3></div><button aria-label="Personalizar mi espacio" onClick={onPersonalize}>Editar <Palette size={15}/></button></div>{favorites.length?<div className="studio-favorites">{favorites.map(m=><button key={m.tab} className={'favorite-card module-'+m.icon} onClick={()=>onNavigate(m.tab)}><span><ModuleIcon name={m.icon as ModuleIconName} size={30}/></span><ArrowUpRight className="favorite-arrow" size={17}/><strong>{m.label}</strong><small>{m.detail}</small></button>)}</div>:<button className="home-see-more" onClick={onPersonalize}>Elige tus módulos favoritos <Palette size={16}/></button>}</section>
   <details className="control-section home-all-modules"><summary><span><p className="eyebrow">EXPLORA TU HOGAR</p><strong>Todos los espacios</strong></span><span>{availableModules.length} módulos <ChevronDown size={17}/></span></summary><div className="control-module-grid">{availableModules.map(m=><button key={m.tab} onClick={()=>onNavigate(m.tab)}><span className={m.icon}><ModuleIcon name={m.icon as ModuleIconName}/></span><div><strong>{m.label}</strong><small>{m.detail}</small></div><ChevronRight/></button>)}</div></details>

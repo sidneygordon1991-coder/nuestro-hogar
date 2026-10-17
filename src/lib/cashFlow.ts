@@ -6,7 +6,9 @@ export type CashMovement={id:string;type:string;amount:number|string;transaction
 export type CashSaving={amount:number|string;contribution_date:string;created_by?:string|null};
 export type CashRecurring=RecurringTerms&{id:string;active?:boolean};
 export type CashOccurrence={id:string;recurring_transaction_id:string;due_date:string;status:string;transaction_id?:string|null;details_snapshot?:Partial<RecurringTerms>|null};
-export type CashFlowSource={month:string;today:string;period?:FinancePeriod;transactions:CashMovement[];savings:CashSaving[];categories:{id:string;budget_group?:string}[];allocations:PeriodAllocation[];members:IncomeMember[];plans:IncomePlan[];references?:Record<string,number>;recurring:CashRecurring[];occurrences:CashOccurrence[]};
+export type CashFlowSource={month:string;today:string;period?:FinancePeriod;transactions:CashMovement[];savings:CashSaving[];categories:{id:string;budget_group?:string}[];allocations:PeriodAllocation[];members:IncomeMember[];plans:IncomePlan[];references?:Record<string,number>;recurring:CashRecurring[];occurrences:CashOccurrence[];paydays?:Record<string,Payday>};
+/** Day of the month each member gets paid in each fortnight (second: 31 means the month's last day). */
+export type Payday={first:number;second:number};
 
 /** One budget and one recurrence describe the same commitment, not two expenses. */
 export function buildCashFlow(s:CashFlowSource){

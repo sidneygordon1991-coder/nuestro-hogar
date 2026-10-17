@@ -5,7 +5,7 @@ import {budgetProgress} from './budgetProgress';
 import {formatMoney} from './money';
 
 export type HomeGoal={id:string;name:string;target_amount:number;target_date:string|null;icon?:string};
-export type HomeFinance={income:number;expense:number;saving:number;available:number;pending:number;projected:number;overdue:number;nextPayment:string|null;nextPaymentAmount:number;nextPaymentDate:string|null;goalName:string|null;goalProgress:number;remainingExpenses?:number;savingsRemaining?:number;expectedIncomeRemaining?:number;futureCount?:number;planComplete?:boolean;error?:string;loading?:boolean;source?:CashFlowSource;goals?:HomeGoal[];goalEntries?:{goal_id:string;amount:number;contribution_date:string}[]};
+export type HomeFinance={splits?:{transaction_id:string;user_id:string;share_amount:number|string}[];settlements?:{id:string;from_user_id:string;to_user_id:string;amount:number|string;settled_on:string;note?:string|null}[];privateEntries?:PrivateEntry[];usdRate?:number;income:number;expense:number;saving:number;available:number;pending:number;projected:number;overdue:number;nextPayment:string|null;nextPaymentAmount:number;nextPaymentDate:string|null;goalName:string|null;goalProgress:number;remainingExpenses?:number;savingsRemaining?:number;expectedIncomeRemaining?:number;futureCount?:number;planComplete?:boolean;error?:string;loading?:boolean;source?:CashFlowSource;goals?:HomeGoal[];goalEntries?:{goal_id:string;amount:number;contribution_date:string}[]};
 export type OverviewAccount={id:string;name:string;account_type:string;account_class:string;opening_balance:number;active?:boolean;institution?:string|null};
 export type AccountMovement={account_id:string|null;type:string;amount:number;transaction_date:string};
 export type AccountTransfer={from_account_id:string;to_account_id:string;amount:number;transfer_date:string};
@@ -68,12 +68,15 @@ export type FinanceScope='household'|'personal';
  * Personal lens. Household budgets are shared, so they are left out; the member sees their own income,
  * their income plan, the movements and recurring payments they registered as Personal, and their savings entries.
  */
-export function scopeSource(source:CashFlowSource,scope:FinanceScope,userId:string):CashFlowSource{
+export type PrivateEntry={id:string;description:string;amount:number|string;type:string;transaction_date:string;category_id:string|null;original_currency?:string|null;original_amount?:number|string|null};
+export function scopeSource(source:CashFlowSource,scope:FinanceScope,userId:string,privateEntries:PrivateEntry[]=[]):CashFlowSource{
  if(scope==='household'||!userId)return source;
+ // Private movements ("Solo yo") only exist for their owner and only in the personal lens.
+ const privateRows=privateEntries.map(p=>({id:'private-'+p.id,type:p.type,amount:p.amount,transaction_date:p.transaction_date,category_id:p.category_id,paid_by:userId,is_shared:false}));
  const personal=(row:{paid_by?:string|null;is_shared?:boolean|null})=>row.paid_by===userId&&row.is_shared===false;
  const references=source.references&&userId in source.references?{[userId]:source.references[userId]}:{};
  return {...source,
-  transactions:source.transactions.filter(t=>t.type==='income'?t.paid_by===userId:personal(t)),
+  transactions:[...source.transactions.filter(t=>t.type==='income'?t.paid_by===userId:personal(t)),...privateRows],
   savings:source.savings.filter(s=>s.created_by===userId),
   allocations:[],
   members:source.members.filter(m=>m.user_id===userId),
@@ -146,27 +149,67 @@ export function balanceTimeline(source:CashFlowSource,period:FinancePeriod,accou
   const terms=occurrenceDetails(r,o.details_snapshot);
   return terms.type==='expense'?[{date:o.due_date<source.today?source.today:o.due_date,label:terms.description||'Pago',amount:toCents(terms.amount)}]:[];
  }).sort((a,b)=>a.date.localeCompare(b.date));
- const income=toCents(flow.expectedIncomeRemaining);
- const projected:TimelinePoint[]=[];let balance=toCents(startBalance),lowest:TimelinePoint|null=null;
+ // Expected income lands on each member's pay day (15 and the month's end unless configured);
+ // income that is late is shown today, never after the end of the period.
+ const incomes=expectedIncomeEvents(source,period,end);
+ const projected:TimelinePoint[]=[];let balance=toCents(startBalance),lowest:TimelinePoint|null=null,incomeSeen=false;
  for(let day=Number(source.today.slice(8));day<=Number(end.slice(8));day++){
   const d=monthDay(source.month,day);
   for(const p of payments)if(p.date===d)balance-=p.amount;
-  const beforeIncome={date:d,balance:balance/100};
-  if(!lowest||beforeIncome.balance<lowest.balance)lowest=beforeIncome;
-  if(d===end)balance+=income;
+  // "Before the next income": the lowest point is tracked until the first income arrives.
+  if(!incomeSeen&&(!lowest||balance/100<lowest.balance))lowest={date:d,balance:balance/100};
+  for(const i of incomes)if(i.date===d){balance+=i.amount;incomeSeen=true}
   projected.push({date:d,balance:balance/100});
  }
- const marks:TimelineMark[]=[...payments.map(p=>({date:p.date,label:p.label,kind:'payment' as const,amount:p.amount/100})),...(income>0?[{date:end,label:'Ingreso esperado',kind:'income' as const,amount:income/100}]:[])];
+ const marks:TimelineMark[]=[...payments.map(p=>({date:p.date,label:p.label,kind:'payment' as const,amount:p.amount/100})),...incomes.map(i=>({date:i.date,label:'Ingreso esperado',kind:'income' as const,amount:i.amount/100}))];
  const pendingPayments=payments.reduce((n,p)=>n+p.amount,0)/100;
  const status=lowest&&lowest.balance<0?'negative':pendingPayments>0&&lowest&&toCents(lowest.balance)<toCents(startBalance)*.2?'tight':'covered';
  return {...base,projected,marks,lowest,startBalance,pendingPayments,status};
 }
 const inPeriodRange=(date:string,start:string,end:string)=>date>=start&&date<=end;
+
+/** Pending expected income per pay date for a period, in cents, grouped by date. */
+export function expectedIncomeEvents(source:CashFlowSource,period:FinancePeriod,end:string){
+ const byDate=new Map<string,number>();
+ const place=(userId:string,half:'first'|'second',cents:number)=>{
+  if(cents<=0)return;
+  const pay=source.paydays?.[userId],day=half==='first'?(pay?.first||15):(pay?.second||31);
+  let date=monthDay(source.month,clampDay(source.month,day));
+  if(date>end)date=end;if(date<source.today)date=source.today;
+  byDate.set(date,(byDate.get(date)||0)+cents);
+ };
+ if(period==='month'){
+  // The month keeps references for members without a plan; the first-half part goes on the first pay day.
+  const month=buildCashFlow({...source,period:'month'}).incomePlan.rows,first=buildCashFlow({...source,period:'first'}).incomePlan.rows;
+  for(const row of month){const p1=Math.min(toCents(row.pending),toCents(first.find(r=>r.user_id===row.user_id)?.pending||0));place(row.user_id,'first',p1);place(row.user_id,'second',toCents(row.pending)-p1)}
+ }else for(const row of buildCashFlow({...source,period}).incomePlan.rows)place(row.user_id,period,toCents(row.pending));
+ return [...byDate.entries()].map(([date,amount])=>({date,amount})).sort((a,b)=>a.date.localeCompare(b.date));
+}
+const lastDayOf=(month:string)=>new Date(Number(month.slice(0,4)),Number(month.slice(5,7)),0).getDate();
+function clampDay(month:string,day:number){return Math.min(day,lastDayOf(month))}
+
+/** "Puedes gastar Q X por día": the margin spread over the days left until the next expected income. */
+export function dailyAllowance(margin:number,timeline:BalanceTimeline){
+ const today=timeline.today,next=timeline.marks.filter(m=>m.kind==='income'&&m.date>today).map(m=>m.date).sort()[0]||null;
+ const until=next||timeline.end,days=Math.max(1,dayDiff(today,until)+(next?0:1));
+ return {perDay:Math.max(0,Math.floor(toCents(margin)/days))/100,until,days,nextIncome:next};
+}
+
+/** Pace for a savings goal: how much to set aside each fortnight to reach it on its date. */
+export function goalPace(goal:{target_amount:number|string;target_date:string|null;saved:number},today:string){
+ const remaining=Math.max(0,toCents(goal.target_amount)-toCents(goal.saved));
+ if(remaining===0)return {state:'done' as const,remaining:0,perFortnight:0,fortnights:0};
+ if(!goal.target_date)return {state:'no-date' as const,remaining:remaining/100,perFortnight:null,fortnights:null};
+ const days=dayDiff(today,goal.target_date);
+ if(days<=0)return {state:'late' as const,remaining:remaining/100,perFortnight:remaining/100,fortnights:0};
+ const fortnights=Math.max(1,Math.ceil(days/15.2));
+ return {state:'on-track' as const,remaining:remaining/100,perFortnight:Math.ceil(remaining/fortnights)/100,fortnights};
+}
 /** Calendar arithmetic on local YYYY-MM-DD strings (noon avoids daylight-saving edges). */
 export function shiftDay(date:string,days:number){const d=new Date(date+'T12:00');d.setDate(d.getDate()+days);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
 export function dayDiff(from:string,to:string){return Math.round((new Date(to+'T12:00').getTime()-new Date(from+'T12:00').getTime())/86400000)}
 
-export type HomeAction={id:string;kind:'reconcile'|'review'|'payment';title:string;detail:string;route:string};
+export type HomeAction={id:string;kind:'reconcile'|'review'|'payment'|'card'|'recap';title:string;detail:string;route:string};
 /** Small, concrete next steps derived from registered data (no external services). */
 export function homeActions({source,accounts,reconciliations,today}:{source:CashFlowSource;accounts:{id:string;name:string;liquid:boolean}[];reconciliations:{account_id:string;cutoff:string}[];today:string}):HomeAction[]{
  const actions:HomeAction[]=[];

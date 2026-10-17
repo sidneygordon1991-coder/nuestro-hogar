@@ -1,14 +1,17 @@
-import {formatMoney as money,formatMoneyRounded} from './lib/money';
+import {amountsHidden,formatMoney as money,formatMoneyRounded} from './lib/money';
 import {useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
 import {AlertTriangle,ArrowRight,ArrowUpRight,CalendarDays,CheckCircle2,Coins,CreditCard,Ellipsis,EllipsisVertical,FileText,HeartPulse,Info,Landmark,Mountain,PiggyBank,RefreshCw,Wallet} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {fetchAllRows} from './lib/paging';
 import {halfOf,toCents,type FinancePeriod} from './lib/financePeriods';
-import {balanceTimeline,dayDiff,homeActions,homeMargin,overviewAccounts,overviewGoal,overviewPeriod,periodBounds,scopeAccounts,scopeSource,
+import {balanceTimeline,dailyAllowance,dayDiff,goalPace,homeActions,homeMargin,overviewAccounts,overviewGoal,overviewPeriod,periodBounds,scopeAccounts,scopeSource,
  type AccountMovement,type AccountTransfer,type BalanceTimeline,type FinanceScope,type HomeFinance,type OverviewAccount} from './lib/homeOverview';
 import {budgetPercent} from './lib/budgetProgress';
 import {categoryIcon} from './BudgetCategoryProgress';
 import HomeToday,{type Attention} from './HomeToday';
+import FortnightRecap from './FortnightRecap';
+import {HomeCards,HomePrivate,HomeSettlements} from './HomeExtras';
+import {creditCardStatus,type CardAccount} from './lib/creditCards';
 import type {DailyAgendaItem} from './lib/dailyAgenda';
 
 const shortDate=(date:string)=>new Date(date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'}).replace('.','');
@@ -17,24 +20,28 @@ const tileTones=['success','blue','warning','purple','accent','danger'] as const
 
 type Account=OverviewAccount&{owner_user_id?:string|null;is_shared?:boolean|null};
 type Reconciliation={account_id:string;cutoff:string};
-type AccountData={accounts:Account[];movements:AccountMovement[];transfers:AccountTransfer[];reconciliations:Reconciliation[]};
+export type AccountData={accounts:Account[];movements:AccountMovement[];transfers:AccountTransfer[];reconciliations:Reconciliation[]};
 export type TodayInput={notifications:Attention[];overdue:DailyAgendaItem[];agendaError:string;onOpenNotification:(item:Attention)=>void};
 
-export default function HomeMoneyWorkspace({householdId,userId,scope,shared,finance,onNavigate,onRefresh,agenda,agendaFirst=false,today,canHealth,cover}:{
- householdId:string;userId:string;scope:FinanceScope;shared:boolean;finance:HomeFinance;onNavigate:(tab:string)=>void;onRefresh:()=>void;
+export default function HomeMoneyWorkspace({householdName='',householdId,userId,scope,shared,members=[],canEdit=false,demoAccounts,finance,onNavigate,onRefresh,agenda,agendaFirst=false,today,canHealth,cover}:{
+ householdName?:string;householdId:string;userId:string;scope:FinanceScope;shared:boolean;members?:{user_id:string;full_name:string}[];canEdit?:boolean;demoAccounts?:AccountData;finance:HomeFinance;onNavigate:(tab:string)=>void;onRefresh:()=>void;
  agenda:ReactNode;agendaFirst?:boolean;today:TodayInput;canHealth:boolean;cover:string;
 }){
  const agendaSlot=<div className="home-agenda-slot">{agenda}</div>;
  const fullSource=finance.source!;
- const source=useMemo(()=>scopeSource(fullSource,scope,userId),[fullSource,scope,userId]);
+ const source=useMemo(()=>scopeSource(fullSource,scope,userId,finance.privateEntries||[]),[fullSource,scope,userId,finance.privateEntries]);
  const [period,setPeriod]=useState<FinancePeriod>(()=>halfOf(fullSource.today));
  const [accountState,setAccountState]=useState<{data:AccountData|null;loading:boolean;error:string}>({data:null,loading:true,error:''});
  const [accountAttempt,setAccountAttempt]=useState(0),[showAccounts,setShowAccounts]=useState(false),[showBudgets,setShowBudgets]=useState(false),[calculation,setCalculation]=useState(false);
  const sequence=useRef(0);
- useEffect(()=>{const request=++sequence.current;setAccountState(s=>({...s,loading:true,error:''}));(async()=>{
+ const [recap,setRecap]=useState<null|'first'|'second'>(null);
+ useEffect(()=>{const request=++sequence.current;
+  // The example preview never touches the server.
+  if(demoAccounts){setAccountState({data:demoAccounts,loading:false,error:''});return}
+  setAccountState(s=>({...s,loading:true,error:''}));(async()=>{
   try{
    const [accounts,movements,transfers,reconciliations]=await Promise.all([
-    fetchAllRows((a,b)=>supabase.from('finance_accounts').select('id,name,account_type,account_class,opening_balance,institution,active,owner_user_id,is_shared').eq('household_id',householdId).eq('active',true).order('id').range(a,b)),
+    fetchAllRows((a,b)=>supabase.from('finance_accounts').select('id,name,account_type,account_class,opening_balance,institution,active,owner_user_id,is_shared,statement_day,payment_due_day,minimum_payment,credit_limit,apr').eq('household_id',householdId).eq('active',true).order('id').range(a,b)),
     fetchAllRows((a,b)=>supabase.from('transactions').select('id,account_id,type,amount,transaction_date').eq('household_id',householdId).lte('transaction_date',fullSource.today).not('account_id','is',null).order('id').range(a,b)),
     fetchAllRows((a,b)=>supabase.from('finance_transfers').select('id,from_account_id,to_account_id,amount,transfer_date').eq('household_id',householdId).lte('transfer_date',fullSource.today).order('id').range(a,b)),
     // Reconciliation history is optional context: an error here never hides balances.
@@ -51,9 +58,20 @@ export default function HomeMoneyWorkspace({householdId,userId,scope,shared,fina
  const monthly=useMemo(()=>overviewPeriod(source,'month'),[source]);
  const margin=homeMargin(monthly.flow,accountState.loading?null:liquid);
  const timeline=useMemo(()=>balanceTimeline(source,period,accountState.data?{accounts,movements:accountState.data.movements,transfers:accountState.data.transfers}:null),[source,period,accounts,accountState.data]);
- const actions=useMemo(()=>homeActions({source,accounts:accountRows,reconciliations:accountState.data?.reconciliations||[],today:source.today}),[source,accountRows,accountState.data]);
+ const cards=useMemo(()=>accountState.data?creditCardStatus(accounts as CardAccount[],accountState.data.movements,accountState.data.transfers,source.today):[],[accounts,accountState.data,source.today]);
+ const allowance=dailyAllowance(margin.margin,timeline);
+ const dayOfMonth=Number(fullSource.today.slice(8)),monthEnd=Number(periodBounds(fullSource.month,'second').end.slice(8));
+ // Near the end of a fortnight (or right after the first one closes) the recap is offered as today's action.
+ const recapPeriod:'first'|'second'|null=dayOfMonth>=13&&dayOfMonth<=15?'first':dayOfMonth===16||dayOfMonth===17?'first':dayOfMonth>=monthEnd-2?'second':null;
+ const masked=amountsHidden();// memoized texts embed formatted amounts
+ const actions=useMemo(()=>{const base=homeActions({source,accounts:accountRows,reconciliations:accountState.data?.reconciliations||[],today:source.today});return [...cards.filter(c=>c.state==='soon'||c.state==='overdue').map(c=>({id:'card-'+c.id,kind:'card' as const,title:'Pagar '+c.name,detail:money(c.toAvoidInterest)+(c.dueDate?(c.state==='overdue'?' · venció el ':' · antes del ')+shortDate(c.dueDate):''),route:'presupuesto:accounts'})),
+  ...base.filter(a=>a.kind==='payment'),
+  // The recap goes right after money that is due, ahead of housekeeping (reconcile, review).
+  ...(recapPeriod&&scope==='household'&&source.transactions.length?[{id:'recap',kind:'recap' as const,title:'Tu resumen de quincena está listo',detail:'Mira cómo les fue y compártelo',route:'nh:recap'}]:[]),
+  ...base.filter(a=>a.kind!=='payment')]},[source,accountRows,accountState.data,cards,recapPeriod,scope,masked]);
  const goals=useMemo(()=>(finance.goals||[]).map(goal=>overviewGoal(goal,finance.goalEntries||[],source.today)),[finance.goals,finance.goalEntries,source.today]);
  const goal=goals.find(g=>g.progress<100)||goals[0];
+ const pace=goal?goalPace(goal,source.today):null;
  const reconciledCutoff=useMemo(()=>{
   const rec=accountState.data?.reconciliations||[];if(!liquidRows.length)return null;
   const latest=liquidRows.map(a=>rec.find(r=>r.account_id===a.id)?.cutoff||'');
@@ -94,6 +112,7 @@ export default function HomeMoneyWorkspace({householdId,userId,scope,shared,fina
      <p id="home-margin-label" className="home-hero-label">Margen disponible</p>
      <h2 className={margin.margin<0?'is-negative':''}>{pendingLoading?<span className="home-skeleton-text">Q —</span>:money(margin.margin)}</h2>
      <p className="home-hero-sub">Después de pagos y ahorro reservado</p>
+     {!pendingLoading&&<p className="home-hero-daily">{allowance.perDay>=1?<>Puedes gastar <b>{money(Math.floor(allowance.perDay))}</b> por día hasta el {shortDate(allowance.until)}</>:<>Sin margen para gastos variables hasta el {shortDate(allowance.until)}</>}</p>}
      {!pendingLoading&&<button type="button" className="home-hero-calc-toggle" aria-expanded={calculation} onClick={()=>setCalculation(v=>!v)}>{calculation?'Ocultar cálculo':'Ver cálculo'} <ArrowUpRight size={14} aria-hidden="true"/></button>}
     </div>
     {calculation&&!pendingLoading&&<div className="home-hero-calc">
@@ -119,7 +138,8 @@ export default function HomeMoneyWorkspace({householdId,userId,scope,shared,fina
      <div className="home-legend" aria-hidden="true"><span><i className="solid"/>Registrado</span><span><i className="dashed"/>Proyectado</span></div>
      <MoreMenu label="Opciones de la gráfica" className="home-card-more" icon={<Ellipsis/>} items={[
       {label:'Abrir quincenas',onSelect:()=>onNavigate('presupuesto:fortnight')},
-      {label:'Ver pagos recurrentes',onSelect:()=>onNavigate('presupuesto:recurring')}
+      {label:'Ver pagos recurrentes',onSelect:()=>onNavigate('presupuesto:recurring')},
+      {label:'Resumen de la quincena',onSelect:()=>setRecap(halfOf(fullSource.today) as 'first'|'second')}
      ]}/>
     </div>
     {pendingLoading?<p className="home-caption" role="status">{accountState.error?'Reintenta la consulta de Tus cuentas para verificar la gráfica y el margen.':'Verificando saldos para la gráfica…'}</p>:<><BalanceChart timeline={timeline}/><TimelineStatus timeline={timeline} onNavigate={onNavigate}/></>}
@@ -140,7 +160,7 @@ export default function HomeMoneyWorkspace({householdId,userId,scope,shared,fina
 
   <aside className="home-side" aria-label="Prioridades, metas y cuentas">
    {agendaFirst&&agendaSlot}
-   <HomeToday notifications={today.notifications} actions={actions} overdue={today.overdue} agendaError={today.agendaError} onOpenNotification={today.onOpenNotification} onNavigate={onNavigate}/>
+   <HomeToday notifications={today.notifications} actions={actions} overdue={today.overdue} agendaError={today.agendaError} onOpenNotification={today.onOpenNotification} onNavigate={route=>route==='nh:recap'?setRecap(recapPeriod||halfOf(fullSource.today) as 'first'|'second'):onNavigate(route)}/>
 
    <section className="home-card home-goal" aria-labelledby="home-goal-title">
     <div className="home-card-head"><h3 id="home-goal-title">{scope==='personal'?'Meta del hogar':shared?'Nuestra próxima meta':'Tu próxima meta'}</h3></div>
@@ -149,9 +169,14 @@ export default function HomeMoneyWorkspace({householdId,userId,scope,shared,fina
      <span className="home-goal-copy"><strong>{goal.name}</strong><span><b>{money(goal.saved)}</b> de {money(Number(goal.target_amount))}</span></span>
      <span className="home-progress" role="progressbar" aria-label={'Avance de '+goal.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(goal.progress)}><i style={{width:goal.progress+'%'}}/></span>
      <small>{Math.round(goal.progress)}% completado{goal.target_date?' · meta al '+shortDate(goal.target_date):''}</small>
+     {pace&&pace.state!=='done'&&<span className="home-goal-pace">{pace.state==='on-track'?<>Aparta <b>{money(Math.ceil(pace.perFortnight!))}</b> por quincena para llegar a tiempo</>:pace.state==='late'?<>La fecha ya pasó: faltan {money(pace.remaining)}</>:<>Ponle fecha para saber cuánto apartar por quincena</>}</span>}
     </button>:<div className="home-empty"><Mountain aria-hidden="true"/><div><strong>Tu próximo logro empieza aquí</strong><p>Define una meta y registra tus aportes.</p></div></div>}
     <button type="button" className="home-link" onClick={()=>onNavigate('presupuesto:goals')}>{goal?'Ver meta':'Crear una meta'} <ArrowRight size={15} aria-hidden="true"/></button>
    </section>
+
+   {scope==='household'&&shared&&<HomeSettlements householdId={householdId} userId={userId} month={fullSource.month} members={members} transactions={fullSource.transactions} splits={finance.splits||[]} settlements={finance.settlements||[]} canEdit={canEdit} onSaved={onRefresh}/>}
+   {scope==='personal'&&<HomePrivate entries={finance.privateEntries||[]} canEdit={canEdit} onChanged={onRefresh}/>}
+   <HomeCards cards={cards} onNavigate={onNavigate}/>
 
    {canHealth&&<section className="home-card home-health" aria-labelledby="home-health-title">
     <div className="home-health-row"><span className="home-goal-icon" aria-hidden="true"><HeartPulse/></span><div><h3 id="home-health-title">Salud del hogar</h3><p>Consulta qué está cambiando</p></div></div>
@@ -172,6 +197,7 @@ export default function HomeMoneyWorkspace({householdId,userId,scope,shared,fina
     </>}
     <button type="button" className="home-link" onClick={()=>onNavigate('presupuesto:accounts')}>Administrar y conciliar <ArrowRight size={15} aria-hidden="true"/></button>
    </section>
+   {recap&&<FortnightRecap source={source} period={recap} householdId={householdId} householdName={householdName} goal={goal?{name:goal.name,progress:goal.progress}:null} onClose={()=>setRecap(null)}/>}
    <button type="button" className="home-link home-refresh" onClick={onRefresh}><RefreshCw size={15} aria-hidden="true"/> Actualizar resumen</button>
   </aside>
  </div>;
@@ -289,7 +315,7 @@ function BalanceChart({timeline}:{timeline:BalanceTimeline}){
    {solid.length>0&&<polyline className="home-chart-line" points={line(solid)}/>}
    {projectedPath&&<polyline className="home-chart-line home-chart-line--projected" points={projectedPath}/>}
    {timeline.marks.filter(m=>m.kind==='payment').map(m=>{const point=proj.find(p=>p.date===m.date);return point?<circle key={'p'+m.date+m.label} className="home-chart-dot" cx={x(m.date)} cy={y(point.balance)} r={3.5}/>:null})}
-   {timeline.marks.filter(m=>m.kind==='income').map(m=>{const point=proj.find(p=>p.date===m.date);return point?<circle key="income" className="home-chart-dot home-chart-dot--open" cx={x(m.date)} cy={y(point.balance)} r={5}/>:null})}
+   {timeline.marks.filter(m=>m.kind==='income').filter((m,i,all)=>all.findIndex(o=>o.date===m.date)===i).map(m=>{const point=proj.find(p=>p.date===m.date);return point?<circle key={'i'+m.date} className="home-chart-dot home-chart-dot--open" cx={x(m.date)} cy={y(point.balance)} r={5}/>:null})}
    {last&&<circle className="home-chart-dot home-chart-dot--today" cx={x(last.date)} cy={y(last.balance)} r={4.5}/>}
    {placed.map(p=><g key={'l'+p.date} className="home-chart-xlabel"><text x={p.x} y={height-bottom+17} textAnchor={anchor(p.x)}>{shortDate(p.date)}</text>{p.note&&!compact&&<text className="home-chart-xnote" x={p.x} y={height-bottom+33} textAnchor={anchor(p.x)}>{p.note.length>16?p.note.slice(0,15)+'…':p.note}</text>}</g>)}
   </svg>
