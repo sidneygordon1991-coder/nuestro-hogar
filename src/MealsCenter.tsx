@@ -161,7 +161,7 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
    recipeId=data.id;
   }
   const rows=ingredientDrafts.filter(i=>i.ingredient_name.trim()&&Number(i.quantity)>0).map((i,index)=>({recipe_id:recipeId,household_id:household.id,pantry_item_id:i.pantry_item_id||null,ingredient_name:i.ingredient_name.trim(),quantity:Number(i.quantity),unit:i.unit.trim()||'unidad',optional:i.optional,sort_order:index}));
-  // New ingredients are inserted first and the previous ones removed only afterwards, so a failure never loses or duplicates them.
+  // Preserve the previous ingredients if insertion fails; deletion errors remain visible so the user can retry.
   let oldIds:string[]=[];
   if(editingRecipe){const old=await supabase.from('recipe_ingredients').select('id').eq('recipe_id',recipeId).eq('household_id',household.id);if(old.error){setBusy(false);setMessage('La receta se guardó, pero no se pudieron actualizar los ingredientes: '+old.error.message);return}oldIds=(old.data||[]).map((x:any)=>x.id)}
   if(rows.length){const {error}=await supabase.from('recipe_ingredients').insert(rows);if(error){setBusy(false);setMessage((editingRecipe?'La receta se guardó, pero los ingredientes no cambiaron: ':'La receta se creó, pero sin ingredientes. Vuelve a guardar para reintentar: ')+error.message);if(!editingRecipe)setEditingRecipe({...payload,id:recipeId,active:true} as Recipe);return}}

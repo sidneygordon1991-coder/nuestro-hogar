@@ -6,6 +6,7 @@ import type {HomeFinance as FinanceHome} from './lib/homeOverview';
 import {financeSection} from './lib/financeNavigation';
 import {useDialogFocus} from './lib/useDialogFocus';
 import {lazyWithReload} from './lib/lazyRetry';
+import {fetchAllRows,pagedResult} from './lib/paging';
 import DesktopRail from './DesktopRail';
 import BrandMark from './BrandMark';
 import {appearanceKey,readAppearance,type Appearance} from './lib/appearance';
@@ -98,15 +99,15 @@ export default function App(){
   const [listR,eventR,txR,catR,allocR,contR,recR,occR,memberFinanceR,goalR,goalContR,planR,membersR]=await Promise.all([
    supabase.from('lists').select('id,title').eq('household_id',id).order('created_at',{ascending:false}),
    supabase.from('events').select('id,title,event_date,start_time').eq('household_id',id).gte('event_date',today()).order('event_date').limit(6),
-   supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,is_shared').eq('household_id',id).gte('transaction_date',period.start).lte('transaction_date',period.end).order('transaction_date',{ascending:false}),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,is_shared').eq('household_id',id).gte('transaction_date',period.start).lte('transaction_date',period.end).order('transaction_date',{ascending:false}).order('id').range(from,to))),
    supabase.from('budget_categories').select('id,name,icon,budget_group').eq('household_id',id),
    supabase.from('budget_allocations').select('category_id,planned_amount,month,first_half_amount,second_half_amount').eq('household_id',id).eq('month',period.month),
-   supabase.from('goal_contributions').select('goal_id,amount,contribution_date,created_by').eq('household_id',id).gte('contribution_date',period.start).lte('contribution_date',period.end),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('goal_id,amount,contribution_date,created_by').eq('household_id',id).gte('contribution_date',period.start).lte('contribution_date',period.end).order('id').range(from,to))),
    supabase.from('recurring_transactions').select('id,description,amount,type,due_day,category_id,paid_by,is_shared,created_at').eq('household_id',id).eq('active',true),
    supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status,transaction_id,details_snapshot').eq('household_id',id).eq('period_month',period.month),
    supabase.from('finance_member_settings').select('user_id,monthly_income').eq('household_id',id),
    supabase.from('savings_goals').select('id,name,target_amount,target_date,icon').eq('household_id',id).eq('active',true).order('target_date',{ascending:true,nullsFirst:false}),
-   supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('goal_id,amount,contribution_date').eq('household_id',id).order('id').range(from,to))),
    supabase.from('finance_income_plans').select('user_id,month,expected_amount,first_half_amount,second_half_amount').eq('household_id',id).eq('month',period.month),
    supabase.from('household_members').select('user_id').eq('household_id',id)
   ]);

@@ -1,13 +1,13 @@
 import {describe,expect,it} from 'vitest';
 import {ensureShoppingList,oldestShoppingListId} from './shoppingList';
 type Row={id:string;household_id:string;list_type:string;title:string;created_at:string};
-function fakeClient(rows:Row[]){
+function fakeClient(rows:Row[],onInsert?:()=>void){
  let seq=0;const calls={insert:0,delete:0};
  const client={calls,rows,from(){
   const filters:[string,any][]=[];let orders:[string,boolean][]=[],lim=Infinity,mode:'select'|'insert'|'delete'='select',inserted:Row|null=null;
   const b:any={
    select(){return b},eq(k:string,v:any){filters.push([k,v]);return b},order(k:string,o?:{ascending?:boolean}){orders.push([k,o?.ascending!==false]);return b},limit(n:number){lim=n;return b},
-   insert(v:any){mode='insert';calls.insert++;inserted={...v,id:'new'+(++seq),created_at:'2099-01-01T00:00:0'+seq};rows.push(inserted!);return b},
+   insert(v:any){mode='insert';calls.insert++;inserted={...v,id:'new'+(++seq),created_at:'2099-01-01T00:00:0'+seq};rows.push(inserted!);onInsert?.();return b},
    delete(){mode='delete';calls.delete++;return b},
    single(){return Promise.resolve({data:{id:inserted!.id},error:null})},
    then(res:any,rej:any){
@@ -36,5 +36,10 @@ describe('shared shopping list selection',()=>{
   const [x,y]=await Promise.all([ensureShoppingList(c,'h'),ensureShoppingList(c,'h')]);
   expect(x).toBe(y);expect(c.calls.insert).toBe(1);expect(c.rows).toHaveLength(1);
   expect(await ensureShoppingList(c,'h')).toBe(x);expect(c.calls.insert).toBe(1);
+ });
+ it('uses the older list created by another device without deleting a list another caller may already use',async()=>{
+  const rows:Row[]=[];
+  const c=fakeClient(rows,()=>rows.push({id:'other-device',household_id:'h',list_type:'shopping',title:'Compras',created_at:'2026-10-17'}));
+  expect(await ensureShoppingList(c,'h')).toBe('other-device');expect(c.calls.delete).toBe(0);expect(c.rows).toHaveLength(2);
  });
 });

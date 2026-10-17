@@ -27,7 +27,7 @@ import {FormEvent,useEffect,useId,useMemo,useRef,useState} from 'react';
 import {AlertTriangle,ArrowDownLeft,ArrowLeft,ArrowRight,ArrowRightLeft,ArrowUpRight,BarChart3,Building2,CalendarClock,Car,Check,ChevronRight,CircleDollarSign,Copy,CreditCard,Gauge,Gem,GraduationCap,Landmark,Pencil,Plane,PiggyBank,Plus,Paperclip,ReceiptText,ShoppingCart,Sparkles,Target,Trash2,TrendingDown,TrendingUp,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {formatMoney} from './lib/money';
-import {fetchAllRows} from './lib/paging';
+import {fetchAllRows,pagedResult} from './lib/paging';
 
 type Household={id:string;name:string;invite_code:string};
 type BudgetGroup='fixed'|'variable'|'saving';
@@ -62,7 +62,6 @@ const monthBounds=(d:Date)=>{const start=new Date(d.getFullYear(),d.getMonth(),1
 const monthLabel=(d:Date)=>d.toLocaleDateString('es-GT',{month:'long',year:'numeric'});
 const pct=(a:number,b:number)=>b>0?Math.min(100,Math.round((a/b)*100)):0;
 const LOAD_ERROR='No se pudo cargar toda la información financiera.';
-const pagedResult=<T,>(run:()=>Promise<T[]>):Promise<{data:T[]|null;error:{message:string}|null}>=>run().then(data=>({data,error:null}),(err:unknown)=>({data:null,error:{message:err instanceof Error?err.message:String((err as {message?:string})?.message||'Error al cargar')}}));
 const dueDateForMonth=(d:Date,dueDay:number)=>{const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return isoDate(new Date(d.getFullYear(),d.getMonth(),Math.min(Math.max(1,dueDay),last)))};
 
 export default function Finance({household,readOnly=false}:{household:Household;readOnly?:boolean}){
@@ -77,6 +76,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
  const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));
  const [summaryError,setSummaryError]=useState(false),[ledgerEnabled,setLedgerEnabled]=useState(false),[savingsEntry,setSavingsEntry]=useState<{goal:Goal;direction:'deposit'|'withdrawal'}|null>(null);
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const [accountDataError,setAccountDataError]=useState(false),[assetDataError,setAssetDataError]=useState(false);
  const [categories,setCategories]=useState<Category[]>([]),[txs,setTxs]=useState<Tx[]>([]),[allocations,setAllocations]=useState<Allocation[]>([]);
  const [goals,setGoals]=useState<Goal[]>([]),[contributions,setContributions]=useState<Contribution[]>([]),[recurring,setRecurring]=useState<Recurring[]>([]),[occurrences,setOccurrences]=useState<RecurringOccurrence[]>([]);
  const [accounts,setAccounts]=useState<Account[]>([]),[accountTxs,setAccountTxs]=useState<{account_id:string|null;type:string;amount:number}[]>([]);
@@ -123,7 +123,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
   const userPromise=supabase.auth.getUser();
   const [catR,txR,allocR,goalR,contR,recR,accR,accTxR,transferR,assetR,netWorthR,memberR,financeSettingsR,memberFinanceR,categorySettingsR,categoryMemberR,historyTxR,historyContR,historyAllocR,incomePlanR,userR]=await Promise.all([
    supabase.from('budget_categories').select('id,name,icon,budget_group').eq('household_id',household.id).order('created_at'),
-   supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,account_id,is_shared,notes,recurring_transaction_id').eq('household_id',household.id).gte('transaction_date',bounds.start).lte('transaction_date',bounds.end).order('transaction_date',{ascending:false}).order('created_at',{ascending:false}),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('id,description,amount,type,transaction_date,category_id,paid_by,account_id,is_shared,notes,recurring_transaction_id').eq('household_id',household.id).gte('transaction_date',bounds.start).lte('transaction_date',bounds.end).order('transaction_date',{ascending:false}).order('created_at',{ascending:false}).order('id').range(from,to))),
    supabase.from('budget_allocations').select('id,category_id,planned_amount,month,first_half_amount,second_half_amount').eq('household_id',household.id).eq('month',m),
    supabase.from('savings_goals').select('id,name,target_amount,target_date,icon,active').eq('household_id',household.id).order('created_at'),
    pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('id,goal_id,amount,contribution_date,created_by').eq('household_id',household.id).order('contribution_date',{ascending:false}).order('created_at',{ascending:false}).order('id').range(from,to))),
@@ -139,8 +139,8 @@ export default function Finance({household,readOnly=false}:{household:Household;
    supabase.from('finance_category_settings').select('category_id,split_method,responsible_user_id').eq('household_id',household.id),
    supabase.from('finance_category_member_settings').select('category_id,user_id,custom_share_percent').eq('household_id',household.id),
    pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('amount,type,transaction_date,category_id').eq('household_id',household.id).gte('transaction_date',historyStart).lte('transaction_date',bounds.end).order('id').range(from,to))),
-   supabase.from('goal_contributions').select('amount,contribution_date').eq('household_id',household.id).gte('contribution_date',historyStart).lte('contribution_date',bounds.end),
-   supabase.from('budget_allocations').select('planned_amount,month,category_id').eq('household_id',household.id).gte('month',historyStartMonth).lte('month',m),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('amount,contribution_date').eq('household_id',household.id).gte('contribution_date',historyStart).lte('contribution_date',bounds.end).order('id').range(from,to))),
+   pagedResult(()=>fetchAllRows((from,to)=>supabase.from('budget_allocations').select('planned_amount,month,category_id').eq('household_id',household.id).gte('month',historyStartMonth).lte('month',m).order('id').range(from,to))),
    supabase.from('finance_income_plans').select('user_id,month,expected_amount,first_half_amount,second_half_amount').eq('household_id',household.id).eq('month',m),
    userPromise
   ]);
@@ -171,7 +171,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
   }
   const txData=(txR.data||[]) as unknown as Tx[];
   const txIds=txData.map(t=>t.id);
-  const splitR=txIds.length?await supabase.from('transaction_splits').select('transaction_id,user_id,share_amount').in('transaction_id',txIds):{data:[]};
+  const splitR=await pagedResult(async()=>{const rows:Split[]=[];for(let i=0;i<txIds.length;i+=100)rows.push(...await fetchAllRows<Split>((from,to)=>supabase.from('transaction_splits').select('transaction_id,user_id,share_amount').eq('household_id',household.id).in('transaction_id',txIds.slice(i,i+100)).order('id').range(from,to)));return rows});
   const recurringRows=(recR.data||[]) as unknown as Recurring[];
   const occurrenceR=await supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,period_month,due_date,status,paid_at,transaction_id,details_snapshot').eq('household_id',household.id).eq('period_month',m).order('due_date');
   if(sequence!==loadSequence.current)return;
@@ -193,6 +193,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
   setPeriodDataError(Boolean(occurrenceR.error||recR.error||catR.error||allocR.error||txR.error||contR.error||memberR.error||memberFinanceR.error||financeSettingsR.error||categorySettingsR.error||categoryMemberR.error||('error' in splitR&&splitR.error)));
   const errors=[catR.error,txR.error,allocR.error,goalR.error,contR.error,recR.error,accR.error,accTxR.error,transferR.error,assetR.error,netWorthR.error,memberR.error,financeSettingsR.error,memberFinanceR.error,categorySettingsR.error,categoryMemberR.error,historyTxR.error,historyContR.error,historyAllocR.error,occurrenceR.error,incomePlanR.error].filter(Boolean);
   setSummaryError(Boolean(txR.error||allocR.error||contR.error||catR.error||recR.error||occurrenceR.error||memberR.error||memberFinanceR.error||incomePlanR.error));
+  setAccountDataError(Boolean(accR.error||accTxR.error||transferR.error));setAssetDataError(Boolean(assetR.error));
   if(errors.length)setMessage(LOAD_ERROR);else setMessage(current=>current===LOAD_ERROR?'':current);
   loadedFor.current=scope;setLoading(false);
  }
@@ -750,7 +751,8 @@ export default function Finance({household,readOnly=false}:{household:Household;
    </div>
   </div>}
 
-  {tab==='networth'&&<>
+  {((tab==='accounts'&&accountDataError)||(tab==='networth'&&(accountDataError||assetDataError)))&&<div className="workspace-status error" role="alert"><AlertTriangle size={20}/><p>No pudimos verificar los saldos completos. Reintenta antes de usar estas cifras.</p><button type="button" disabled={busy} onClick={()=>load()}>Reintentar saldos</button></div>}
+  {tab==='networth'&&!accountDataError&&!assetDataError&&<>
    <div className={'net-worth-hero '+(patrimony.netWorth<0?'negative':'')}>
     <div><p className="eyebrow">PATRIMONIO NETO</p><h3>{currency(patrimony.netWorth)}</h3><p>Activos y cuentas menos deudas. Se actualiza automáticamente con movimientos y transferencias.</p></div>
     <span className="net-worth-icon"><CircleDollarSign/></span>
@@ -787,7 +789,7 @@ export default function Finance({household,readOnly=false}:{household:Household;
    </div>
   </>}
 
-  {tab==='accounts'&&<>
+  {tab==='accounts'&&!accountDataError&&<>
    <div className="account-toolbar">
     <div><p className="eyebrow">CUENTAS Y DEUDAS</p><h3>Dinero, crédito y transferencias</h3><p>Los pagos entre cuentas no se contabilizan como gasto doble.</p></div>
     {!readOnly&&<div><button className="secondary-action" onClick={()=>setShowTransferForm(true)} disabled={accounts.length<2}><ArrowRightLeft/> Transferir / pagar deuda</button><button className="finance-new" onClick={()=>{setEditingAccount(null);setShowAccountForm(true)}}><Plus/> Cuenta</button></div>}

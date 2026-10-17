@@ -13,3 +13,8 @@ export async function fetchAllRows<T=any>(page:(from:number,to:number)=>PromiseL
  }
  throw new Error('Demasiados registros para verificar. Filtra por período o abre la sección correspondiente.');
 }
+
+/** Keeps the query result shape while refusing to expose an incomplete set as a balance. */
+export function pagedResult<T>(run:()=>Promise<T[]>):Promise<{data:T[]|null;error:{message:string}|null}>{
+ return run().then(data=>({data,error:null}),(error:unknown)=>({data:null,error:{message:error instanceof Error?error.message:String((error as {message?:string})?.message||'Error al cargar')}}));
+}

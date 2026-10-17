@@ -35,5 +35,3 @@
 }
 @media(max-width:360px){.app.app-studio>header.workspace-header{padding-left:12px;padding-right:12px;column-gap:8px}.app.app-studio .workspace-header .workspace-heading>.workspace-title{flex-basis:145px}.app.app-studio .workspace-header .diagnostic-actions{width:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}}
 /* The greeting now lives above the canvas, so the agenda starts on its first row. */
-
-

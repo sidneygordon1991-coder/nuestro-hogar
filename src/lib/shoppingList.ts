@@ -6,7 +6,7 @@ export async function oldestShoppingListId(client:Client,householdId:string):Pro
  if(error)throw new Error(error.message||'No se pudo leer la lista de compras.');
  return (data&&data[0]?.id)||null;
 }
-/** Returns the shared shopping list, creating it only when none exists; concurrent calls share one request and a list created in a race with another device is discarded in favor of the oldest one. */
+/** Concurrent calls in this client share one request; another device's oldest list wins without deleting any list or its items. */
 export function ensureShoppingList(client:Client,householdId:string,title='Supermercado'):Promise<string>{
  const pending=inflight.get(householdId);if(pending)return pending;
  const run=(async()=>{
@@ -14,7 +14,7 @@ export function ensureShoppingList(client:Client,householdId:string,title='Super
   const {data,error}=await client.from('lists').insert({household_id:householdId,title,list_type:'shopping'}).select('id').single();
   if(error||!data)throw new Error(error?.message||'No se pudo crear la lista de compras.');
   const winner=await oldestShoppingListId(client,householdId).catch(()=>data.id as string);
-  if(winner&&winner!==data.id){await client.from('lists').delete().eq('id',data.id).eq('household_id',householdId);return winner}
+  if(winner&&winner!==data.id)return winner;
   return data.id as string;
  })();
  inflight.set(householdId,run);

@@ -46,3 +46,9 @@
 .app.app-studio .goal-footer>div {display:flex;flex-wrap:wrap;gap:7px;min-width:0;}
 .app.app-studio .goal-footer input {width:110px;flex:1;min-width:80px;}
 .app.app-studio .goal-footer button {min-height:40px;min-width:40px;width:auto;padding:8px 12px;}
+/* Full cent precision must fit the three financial summary cards on narrow phones. */
+.app.app-studio .studio-finance-kpis .finance-kpi>div{min-width:0;max-width:100%}
+@media(max-width:620px){
+ .app.app-studio .studio-finance-kpis .finance-kpi{padding:14px 8px}
+ .app.app-studio .studio-finance-kpis .finance-kpi strong{font-size:clamp(13px,3.75vw,20px);letter-spacing:-.4px;max-width:100%;overflow-wrap:anywhere}
+}

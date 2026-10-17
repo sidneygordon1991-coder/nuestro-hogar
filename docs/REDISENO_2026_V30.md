@@ -77,7 +77,7 @@ Saludo, selector Compartido/Personal, tarjeta de margen con "Registrado" y "Pend
 - Si una pestaña antigua pide un módulo que ya no existe tras una actualización, se recarga una vez en lugar de mostrar el error.
 
 **Limpieza de código**
-- Se eliminaron componentes que no se usaban en `App.tsx` y cerca de 34 KB de reglas CSS de diseños anteriores sin uso. Las capturas de los 14 módulos, antes y después, son idénticas.
+- Se eliminaron componentes que no se usaban en `App.tsx` y cerca de 34 KB de reglas CSS de diseños anteriores sin uso. La integración vuelve a comprobar los módulos en navegador; los resultados están documentados en el PR y en GitHub Actions.
 - `premium-home.css` y `neutral-finish.css` se reemplazaron por `shell.css` (barra lateral, cabecera, navegación) y `home.css` (Inicio).
 
 ## 4. Archivos nuevos
@@ -103,3 +103,5 @@ npm run test:e2e
 ```
 
 No se agregaron migraciones SQL. El backend actual funciona sin cambios.
+
+La procedencia del paquete, los ajustes adicionales y los límites de la verificación están en [V30_INTEGRATION_RELEASE.md](V30_INTEGRATION_RELEASE.md).

@@ -56,7 +56,7 @@
 .home-kpi .home-tile{width:46px;height:46px;border-radius:13px}
 .home-kpi-copy{display:grid;gap:3px;min-width:0}
 .home-kpi-copy small{color:var(--nh-muted);font-size:13px;line-height:1.3}
-.home-kpi-copy strong{font-size:clamp(20px,1.7vw,26px);font-weight:700;line-height:1.2;letter-spacing:-.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-kpi-copy strong{font-size:clamp(20px,1.7vw,26px);font-weight:700;line-height:1.2;letter-spacing:-.6px;white-space:normal;overflow-wrap:anywhere}
 .home-kpi-copy strong.is-long{font-size:clamp(17px,1.35vw,21px)}
 
 /* ---------- Margin hero ---------- */
@@ -256,10 +256,10 @@
  .home-hero-calc-toggle{font-size:13px}
  .home-hero-leaves{width:170px;height:124px;right:-10px;bottom:auto;top:40px}
  .home-hero-minis{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
- .home-hero-minis>button{display:flex;align-items:center;gap:10px;min-width:0;padding:12px;border:1px solid color-mix(in srgb,var(--nh-hero-text) 16%,transparent);border-radius:14px;
+ .home-hero-minis>button{display:grid;grid-template-columns:22px minmax(0,1fr);align-items:center;gap:4px 10px;min-width:0;padding:12px;border:1px solid color-mix(in srgb,var(--nh-hero-text) 16%,transparent);border-radius:14px;
   background:color-mix(in srgb,var(--nh-hero-start) 55%,transparent);color:var(--nh-hero-text);text-align:left}
  .home-hero-minis>button>svg{flex:none;width:22px;height:22px;opacity:.9}
- .home-hero-minis span{display:grid;gap:2px;min-width:0}.home-hero-minis small{font-size:12px;opacity:.85}.home-hero-minis strong{font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .home-hero-minis span{display:contents}.home-hero-minis strong{grid-column:1/-1}.home-hero-minis small{font-size:12px;opacity:.85}.home-hero-minis strong{font-size:17px;font-weight:700;white-space:normal;overflow-wrap:anywhere}
  .home-fortnight .home-card-head{flex-wrap:nowrap}
  .home-fortnight .home-card-head h3{flex:1;min-width:0}
  .home-legend{display:none}
