@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import webpush from "npm:web-push@3.6.7";
+import {notificationUrl} from "./notificationUrl.ts";
 
 type NotificationRow={id:string;user_id:string;household_id:string;title:string;body:string|null;action_tab:string|null;type:string;severity:string;created_at:string};
 type SubscriptionRow={id:string;user_id:string;household_id:string;endpoint:string;p256dh:string;auth:string;enabled:boolean};
@@ -65,7 +66,7 @@ Deno.serve(async(req:Request)=>{
     if(accessError){console.error("push access",notification.id,accessError.message);continue}
     if(allowed!==true)continue;
     let delivered=false;
-    const payload=JSON.stringify({title:notification.title,body:notification.body||"",icon:"/nuestro-hogar/icon.svg",badge:"/nuestro-hogar/icon.svg",tag:"nh-"+notification.id,data:{url:"/nuestro-hogar/?tab="+(notification.action_tab||"inicio"),notification_id:notification.id},severity:notification.severity,type:notification.type});
+    const payload=JSON.stringify({title:notification.title,body:notification.body||"",icon:"/nuestro-hogar/icon.svg",badge:"/nuestro-hogar/icon.svg",tag:"nh-"+notification.id,data:{url:notificationUrl(notification.action_tab),notification_id:notification.id},severity:notification.severity,type:notification.type});
     for(const subscription of userSubs){
       try{
         await webpush.sendNotification({endpoint:subscription.endpoint,keys:{p256dh:subscription.p256dh,auth:subscription.auth}},payload,{TTL:3600,urgency:notification.severity==="danger"?"high":"normal"});
