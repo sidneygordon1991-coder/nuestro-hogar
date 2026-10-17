@@ -1,6 +1,10 @@
 import {describe,expect,it} from 'vitest';
-import {appearanceKey,defaultAppearance,normalizeAppearance} from './appearance';
+import {appearanceAccents,appearanceKey,defaultAppearance,normalizeAppearance} from './appearance';
 describe('device appearance preferences',()=>{
+ it('retains every finish including existing saved blue, green and lavender preferences',()=>{
+  expect(appearanceAccents.map(a=>a.id)).toEqual(['ocean','forest','graphite','aurora','iris']);
+  for(const {id} of appearanceAccents)expect(normalizeAppearance({accent:id}).accent).toBe(id);
+ });
  it('accepts valid preferences and removes unknown or duplicate favorite modules',()=>{
   expect(normalizeAppearance({accent:'forest',focus:'plans',favorites:['listas','bad','listas','familia']})).toEqual({accent:'forest',focus:'plans',view:'complete',favorites:['listas','familia'],cover:''});
  });

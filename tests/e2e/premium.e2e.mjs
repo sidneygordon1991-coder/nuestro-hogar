@@ -27,7 +27,7 @@ test('home and Finance agree; future movements remain visible without becoming a
   await expect(s.page.locator('.finance-cutoff-note')).toContainText('fecha futura');await chooseFinance(s,'Movimientos');await expect(s.page.getByText('Ingreso con fecha futura',{exact:true})).toBeVisible();await expect(s.page.locator('.transaction-row').filter({hasText:'Ingreso con fecha futura'})).toContainText('excluido del balance real');
   await chooseFinance(s,'Ingresos');await expect(s.page.getByRole('heading',{name:'Lo que esperamos recibir'})).toBeVisible();
   await ready(s,'');await expect(s.page.getByRole('group',{name:'Lo siguiente para tu dinero'})).toHaveCount(0);
-  await expect(s.page.locator('.home-money-answers')).toBeVisible();
+  await s.page.locator('.premium-period-details>summary').click();await expect(s.page.locator('.home-money-answers')).toBeVisible();
  }finally{await s.context.close()}
 });
 
@@ -73,7 +73,7 @@ test('a delayed response from another household cannot overwrite the active bala
  try{
   await s.page.route('**/rest/v1/transactions?**',async route=>{const q=new URL(route.request().url()).searchParams;const selected=q.get('household_id')==='eq.'+rid;if(!selected)await oldResponse;await route.fulfill({contentType:'application/json',body:JSON.stringify([{id:selected?'b-income':'a-income',type:'income',amount:selected?2222:1111,transaction_date:day,category_id:null,paid_by:uid}])})});
   await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/');await s.page.getByLabel('Cambiar de familia',{exact:true}).selectOption(rid);
-  await expect(s.page.locator('.home-money-answers')).toBeVisible();const current=await s.page.locator('.premium-chart figcaption b').innerText();
+  await s.page.locator('.premium-period-details>summary').click();await expect(s.page.locator('.home-money-answers')).toBeVisible();const current=await s.page.locator('.premium-chart figcaption b').innerText();
   release();await s.page.waitForResponse(r=>r.url().includes('/transactions?')&&r.url().includes(encodeURIComponent('eq.'+hh)));
   await expect(s.page.getByLabel('Cambiar de familia',{exact:true})).toHaveValue(rid);await expect(s.page.locator('.premium-chart figcaption b')).toHaveText(current);await expect(s.page.locator('.studio-metrics')).toContainText('2,222');
  }finally{release();await s.context.close()}

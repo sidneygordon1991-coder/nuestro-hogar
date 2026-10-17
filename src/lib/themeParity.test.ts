@@ -4,7 +4,7 @@ import mainRaw from '../main.tsx?raw';
 import appRaw from '../App.tsx?raw';
 // @ts-ignore Vitest runs in Node; application tsconfig intentionally excludes Node types.
 import {readFileSync} from 'node:fs';
-const names=['premium-home','connected-finance','workspace-header','budget-progress','daily-flow','refinement','finance-management','experience','FinancialDiagnosis','notifications','monthly-income','guided-fortnight-close','studio','premium','styles','AutomationCenter','BackupCenter','DiagnosticCenter','HouseholdHealthCenter','MonthlyCloseCenter','PlanningCenter'];
+const names=['neutral-finish','premium-home','connected-finance','workspace-header','budget-progress','daily-flow','refinement','finance-management','experience','FinancialDiagnosis','notifications','monthly-income','guided-fortnight-close','studio','premium','styles','AutomationCenter','BackupCenter','DiagnosticCenter','HouseholdHealthCenter','MonthlyCloseCenter','PlanningCenter'];
 const sheets=names.map(name=>({name,root:parse(readFileSync(new URL('../'+name+'.css',import.meta.url),'utf8'))}));
 const palette=parse(readFileSync(new URL('../theme-light.css',import.meta.url),'utf8'));
 const palettes=palette.nodes.filter(node=>node.type==='rule'&&(node.selector==='html'||node.selector==='html[data-theme="light"]')).map(node=>{
@@ -18,6 +18,7 @@ function luminance(hex:string){
  .reduce((sum,value,index)=>sum+value*[.2126,.7152,.0722][index],0);
 }
 function contrast(a:string,b:string){const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function heroGloss(hex:string){return '#'+[1,3,5].map(i=>Math.round(parseInt(hex.slice(i,i+2),16)*.92+255*.08).toString(16).padStart(2,'0')).join('')}
 
 describe('whole-project theme contract',()=>{
  it('loads one shared palette before React and exposes the current switch state',()=>{
@@ -45,6 +46,22 @@ describe('whole-project theme contract',()=>{
    }
   }
   expect(contrast(roles['--nh-on-action'],roles['--nh-action'])).toBeGreaterThanOrEqual(4.5);
+ });
+ it.each(['ocean','forest','graphite','aurora','iris'])('%s keeps readable text in both themes and never recolors the neutral canvas',accent=>{
+  for(const theme of ['dark','light']){
+   const roles={...palettes[theme==='dark'?0:1]};
+   palette.walkRules(rule=>{
+    if(!rule.selector.endsWith('[data-accent="'+accent+'"]')||theme==='dark'&&rule.selector.startsWith('html'))return;
+    rule.walkDecls(d=>{expect(['--nh-page','--nh-surface','--nh-subtle','--nh-raised']).not.toContain(d.prop);roles[d.prop]=d.value});
+   });
+   for(const text of ['text','muted','accent','blue','purple','success','warning','danger'])for(const surface of ['page','surface','subtle','raised','accent-soft'])expect(contrast(roles['--nh-'+text],roles['--nh-'+surface]),`${accent}/${theme}: ${text} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+   for(const stop of ['action','action-end'])expect(contrast(roles['--nh-on-action'],roles['--nh-'+stop]),`${accent}/${theme}: ${stop}`).toBeGreaterThanOrEqual(4.5);
+   for(const stop of ['hero-start','hero','hero-end']){
+    expect(contrast(roles['--nh-hero-text'],roles['--nh-'+stop]),`${accent}/${theme}: ${stop}`).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(roles['--nh-hero-text'],heroGloss(roles['--nh-'+stop])),`${accent}/${theme}: ${stop} with gloss`).toBeGreaterThanOrEqual(4.5);
+   }
+   for(const stop of ['brand','brand-end'])expect(contrast(roles['--nh-brand-muted'],roles['--nh-'+stop]),`${accent}/${theme}: ${stop}`).toBeGreaterThanOrEqual(4.5);
+  }
  });
  it.each([
   ['Inicio','control-hero','control-money'],['Finanzas','finance-panel','balance-track'],
