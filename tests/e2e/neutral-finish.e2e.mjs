@@ -26,7 +26,7 @@ for(const theme of ['light','dark']){
  });
  test(`finish preview, persistence, modal actions and immediate theme change: ${theme}`,async({browser})=>{
   const s=await setup(browser,{rich:true,theme}),writes=[];
-  s.page.on('request',r=>{const path=new URL(r.url()).pathname;if(path.startsWith('/rest/')&&['POST','PATCH','DELETE'].includes(r.method())&&!/\/rpc\/(get_my_household_access|get_my_household_storage|refresh_my_notifications)$/.test(path))writes.push(path)});
+  s.page.on('request',r=>{const path=new URL(r.url()).pathname;if(path.startsWith('/rest/')&&['POST','PATCH','DELETE'].includes(r.method())&&!/\/rpc\/(get_my_household_access|get_my_household_storage|get_my_platform_access|refresh_my_notifications)$/.test(path))writes.push(path)});
   try{
    await ready(s,'');await s.page.getByRole('button',{name:'Cerrar sugerencia de instalación',exact:true}).click();
    for(const [accent,label] of finishes){
