@@ -17,8 +17,7 @@ begin
  return old;
 end $$;
 revoke all on function household_integrity.protect_savings_goal_history() from public,anon,authenticated;
-drop trigger if exists savings_goal_preserve_history on public.savings_goals;
-create trigger savings_goal_preserve_history before delete on public.savings_goals
+create or replace trigger savings_goal_preserve_history before delete on public.savings_goals
 for each row execute function household_integrity.protect_savings_goal_history();
 
 create or replace function public.manage_savings_goal(

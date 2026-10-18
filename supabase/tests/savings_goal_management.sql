@@ -19,8 +19,8 @@ do $$ declare h uuid:=current_setting('qa.goal.hh')::uuid;g uuid;empty_goal uuid
  select jsonb_build_object('name',name,'target_amount',target_amount,'target_date',target_date,'active',active) into terms from public.savings_goals where id=g;
  begin perform public.manage_savings_goal(h,g,null,terms);raise exception 'Null action accepted';exception when check_violation then null;end;
  begin perform public.manage_savings_goal(h,g,'edit',terms,'{"name":"","target_amount":0}');raise exception 'Invalid goal accepted';exception when check_violation then null;end;
- perform public.save_savings_entry(h,g,gen_random_uuid(),100,'deposit',current_date);
- perform public.save_savings_entry(h,g,gen_random_uuid(),100,'withdrawal',current_date);
+ perform public.save_savings_entry(h,g,gen_random_uuid(),100,'deposit',date '2000-01-01');
+ perform public.save_savings_entry(h,g,gen_random_uuid(),100,'withdrawal',date '2000-01-01');
  -- Even a zero NET balance retains history, so deletion cannot cascade away its entries.
  begin perform public.manage_savings_goal(h,g,'delete',terms);raise exception 'Goal with history deleted';exception when restrict_violation then null;end;
  begin delete from public.savings_goals where id=g;raise exception 'Direct delete bypassed protection';exception when restrict_violation then null;end;

@@ -36,3 +36,7 @@ Las tarjetas de metas solo permitían agregar aportes. Esta corrección añade a
 Aplicar únicamente la migración nueva después de la validación aislada. Comparar conteos y huellas de metas, aportes y movimientos antes/después, comprobar permisos y asesores de seguridad. Publicar frontend después de aprobar el CI, verificar Pages y comparar los archivos públicos con la compilación probada.
 
 La protección del servidor permanece activa si se revierte el frontend. No es necesario borrar columnas, tablas o datos para recuperar la versión anterior. Los respaldos conservan las metas archivadas y sus contribuciones.
+
+## Verificación del servidor
+
+La migración se activó con `CREATE OR REPLACE TRIGGER`, sin quitar objetos existentes. Los conteos y huellas de metas, aportes y movimientos coinciden antes/después. El trigger está activo, la RPC no permite llamadas anónimas, el helper privado no es ejecutable por usuarios autenticados y una identidad ajena al hogar no puede gestionar metas. No se añadieron hallazgos de seguridad ni rendimiento. La PWA v33→v33.1 conserva datos locales y su pantalla de acceso abre sin conexión; el formulario permite acceder a Guardar en un móvil de 390×520.
