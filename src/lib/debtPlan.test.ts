@@ -8,6 +8,8 @@ describe('debt plan inputs',()=>{
   expect(estimatedMinimum(12345.67)).toBe(370.37);
   expect(estimatedMinimum(30)).toBe(30);
   expect(estimatedMinimum(0)).toBe(0);
+  expect(estimatedMinimum(20000,42)).toBe(900);// Q 700 interest + Q 200 principal
+  expect(estimatedMinimum(20000,12)).toBe(600);// 3% already exceeds interest + 1%
  });
  it('keeps only debts with a positive balance and flags estimates and missing rates',()=>{
   const debts=prepareDebts([
@@ -18,7 +20,8 @@ describe('debt plan inputs',()=>{
    {id:'e',name:'Cero mínimo',balance:3000,apr:12,minimum_payment:0}
   ]);
   expect(debts.map(d=>d.id)).toEqual(['a','b','e']);
-  expect(debts[0]).toMatchObject({balance:2000,apr:36,aprMissing:false,minimum:60,minimumEstimated:true,monthlyInterest:60,minimumCoversInterest:false});
+  // At 36% a year, 3% of the balance only pays the interest: the estimate adds 1% of principal so the debt goes down.
+  expect(debts[0]).toMatchObject({balance:2000,apr:36,aprMissing:false,minimum:80,minimumEstimated:true,monthlyInterest:60,minimumCoversInterest:true});
   expect(debts[1]).toMatchObject({apr:0,aprMissing:true,minimum:400,minimumEstimated:false,monthlyInterest:0,minimumCoversInterest:true});
   expect(debts[2]).toMatchObject({minimum:90,minimumEstimated:true,monthlyInterest:30,minimumCoversInterest:true});
  });

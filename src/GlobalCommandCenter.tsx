@@ -104,7 +104,9 @@ export default function GlobalCommandCenter({household,access,onNavigate,onChang
   const type:MovementType=f.get('type')==='income'?'income':'expense',usd=f.get('currency')==='USD',choice=String(f.get('visibility')||'');
   const visibility:EntryVisibility=choice==='private'&&canEdit('finance')?'private':choice==='personal'?'personal':'shared';
   const entered=Number(f.get('amount')||0),rate=usdRate(rateValue),amount=usd?usdToQuetzales(entered,rate):entered;
-  const description=String(f.get('description')||'').trim(),notes=String(f.get('notes')||'').trim()||null,date=String(f.get('date')||iso()),category=String(f.get('category_id')||'')||null;
+  // The description is optional: without one, the movement takes its category's name (or "Gasto"/"Ingreso").
+  const categoryName=categories.find(c=>c.id===String(f.get('category_id')||''))?.name;
+  const description=(String(f.get('description')||'').trim()||categoryName||(type==='income'?'Ingreso':'Gasto')).slice(0,choice==='private'?140:250),notes=String(f.get('notes')||'').trim()||null,date=String(f.get('date')||iso()),category=String(f.get('category_id')||'')||null;
   if(!isValidAmount(entered)||!isValidAmount(amount)){setBusy(false);setMessage('Escribe un monto mayor que cero, con hasta dos decimales.');return false}
   if(!description){setBusy(false);setMessage('Escribe una descripción.');return false}
   // Dollars: the movement keeps quetzales as its amount and also stores what was paid and the rate used (one atomic save).
@@ -335,10 +337,10 @@ function TransactionForm({type,categories,accounts,busy,onSubmit,householdId,use
    {usd&&<p className="quick-amount-convert" aria-live="polite"><b>≈ {formatMoney(converted)}</b><small>{'Tipo de cambio '+rate.toLocaleString('es-GT',{maximumFractionDigits:4})+(referenceRate?' (referencia; ajústalo en Finanzas)':' del hogar')}</small></p>}
   </div>
   {repeats.length>0&&<RepeatChips chips={repeats} categories={categories} onPick={repeat}/>}
-  <label>Descripción<input ref={descriptionRef} name="description" placeholder={isExpense?'Ej. Supermercado':'Ej. Salario'} maxLength={visibility==='private'?140:250} defaultValue={prefill?.description} onChange={e=>suggest(e.currentTarget.value,kind)} required/></label>
+  <label>Descripción (opcional)<input ref={descriptionRef} name="description" placeholder={isExpense?'Ej. Supermercado':'Ej. Salario'} maxLength={visibility==='private'?140:250} defaultValue={prefill?.description} onChange={e=>suggest(e.currentTarget.value,kind)}/></label>
   <div className="two"><label>Categoría{suggested&&<em className="quick-suggested"> · sugerida</em>}<select ref={categoryRef} name="category_id" defaultValue={prefill?.category_id||''} onChange={()=>{if(!automatic.current){touched.current.category=true;setSuggested(false)}}}><option value="">Sin categoría</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Fecha<input name="date" type="date" defaultValue={iso()} required/></label></div>
-  <div className="quick-visibility"><span className="quick-visibility-label" id="quick-visibility-label">¿Quién lo ve?</span><div className="quick-segmented quick-audience" role="group" aria-labelledby="quick-visibility-label">{audiences.map(([value,label,icon])=><button key={value} type="button" aria-pressed={visibility===value} onClick={()=>chooseVisibility(value)}>{icon}{label}</button>)}</div><p className="quick-visibility-hint">{visibilityHint(visibility)}</p></div>
-  <div className="two">{visibility!=='private'&&<label>Cuenta<select name="account_id" defaultValue=""><option value="">Sin cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}<label>Nota<input name="notes" placeholder="Opcional" maxLength={visibility==='private'?500:2000}/></label></div>
+  {memberCount>1&&<div className="quick-visibility"><span className="quick-visibility-label" id="quick-visibility-label">¿De quién es?</span><div className="quick-segmented quick-audience" role="group" aria-labelledby="quick-visibility-label">{audiences.map(([value,label,icon])=><button key={value} type="button" aria-pressed={visibility===value} onClick={()=>chooseVisibility(value)}>{icon}{label}</button>)}</div><p className="quick-visibility-hint">{visibilityHint(visibility)}</p></div>}
+  <div className={visibility!=='private'&&accounts.length>0?'two':''}>{visibility!=='private'&&accounts.length>0&&<label>Cuenta<select name="account_id" defaultValue=""><option value="">Sin cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}<label>Nota<input name="notes" placeholder="Opcional" maxLength={visibility==='private'?500:2000}/></label></div>
   <button className="finance-primary" disabled={busy}><Check/>{busy?'Guardando...':'Guardar '+(isExpense?'gasto':'ingreso')}</button>
  </DraftForm></div>
 }

@@ -9,7 +9,7 @@ import {formatEntryAmount,usdToQuetzales} from './lib/currency';
 
 export const currency=(n:number)=>formatMoney(n||0);
 export const isoDate=(d=new Date())=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
-export const pct=(a:number,b:number)=>b>0?Math.min(100,Math.round((a/b)*100)):0;
+export const pct=(a:number,b:number)=>b>0?Math.max(0,Math.min(100,Math.floor((a/b)*100))):0;
 /** Finance building blocks: shared types, small presentational components and labels used by Finance.tsx. */
 export type Household={id:string;name:string;invite_code:string};
 export type BudgetGroup='fixed'|'variable'|'saving';
@@ -40,13 +40,23 @@ export function Kpi({label,value,icon,tone}:{label:string;value:string;icon:any;
 export function Progress({value}:{value:number}){return <div className="progress"><span style={{width:`${Math.max(0,Math.min(100,value))}%`}}/></div>}
 export function EmptyFinance({text}:{text:string}){return <div className="finance-empty">{text}</div>}
 
-export function TransactionRows({txs,categoryName,memberName,onEdit,onDelete,onDetail,receiptCounts,readOnly}:{txs:Tx[];categoryName:(x:string|null)=>string;memberName:(x:string|null)=>string;onEdit:(tx:Tx)=>void;onDelete:(tx:Tx)=>void;onDetail:(tx:Tx)=>void;receiptCounts:Record<string,number>;readOnly:boolean}){
- return <div className="transaction-list">{txs.map(t=>{const category=categoryName(t.category_id),count=receiptCounts[t.id]||0;return <div className="transaction-row polished" key={t.id}><span className={'transaction-icon '+t.type}>{transactionIcon(t.type,category)}</span><div className="transaction-main"><button type="button" className="transaction-detail-link" onClick={()=>onDetail(t)} aria-label={'Ver detalle de '+t.description}>{t.description}</button><small>{category} · {memberName(t.paid_by)}{t.is_shared?' · Compartido':''}{t.recurring_transaction_id?' · Recurrente':''}{t.transaction_date>isoDate()?' · Fecha futura: excluido del balance real':''}</small>{!!count&&<small className="transaction-receipt-count"><Paperclip/>{count} comprobante{count===1?'':'s'}</small>}</div><div className="transaction-value"><b className={t.type}>{t.type==='income'?'+':'−'}{formatEntryAmount(Number(t.amount),t)}</b><small>{new Date(t.transaction_date+'T12:00').toLocaleDateString('es-GT',{day:'2-digit',month:'short'})}</small></div><div className="transaction-actions"><button type="button" className="transaction-action receipt" title="Ver detalle y comprobantes" aria-label={'Ver detalle y comprobantes de '+t.description} onClick={()=>onDetail(t)}><Paperclip/></button>{!readOnly&&<><button className="transaction-action edit" title="Editar movimiento" aria-label="Editar movimiento" onClick={()=>onEdit(t)}><Pencil/></button><button className="transaction-action delete" title="Eliminar movimiento" aria-label="Eliminar movimiento" onClick={()=>onDelete(t)}><Trash2/></button></>}</div></div>})}</div>
+export function TransactionRows({txs,categoryName,memberName,onEdit,onDelete,onDetail,receiptCounts,readOnly,groupByDay=false}:{txs:Tx[];categoryName:(x:string|null)=>string;memberName:(x:string|null)=>string;onEdit:(tx:Tx)=>void;onDelete:(tx:Tx)=>void;onDetail:(tx:Tx)=>void;receiptCounts:Record<string,number>;readOnly:boolean;groupByDay?:boolean}){
+ const renderRow=(t:Tx)=>{const category=categoryName(t.category_id),count=receiptCounts[t.id]||0;return <div className="transaction-row polished" key={t.id}><span className={'transaction-icon '+t.type}>{transactionIcon(t.type,category)}</span><div className="transaction-main"><button type="button" className="transaction-detail-link" onClick={()=>onDetail(t)} aria-label={'Ver detalle de '+t.description}>{t.description}</button><small>{category} · {memberName(t.paid_by)}{t.is_shared?' · Compartido':''}{t.recurring_transaction_id?' · Recurrente':''}{t.transaction_date>isoDate()?' · Fecha futura: excluido del balance real':''}</small>{!!count&&<small className="transaction-receipt-count"><Paperclip/>{count} comprobante{count===1?'':'s'}</small>}</div><div className="transaction-value"><b className={t.type}>{t.type==='income'?'+':'−'}{formatEntryAmount(Number(t.amount),t)}</b><small>{new Date(t.transaction_date+'T12:00').toLocaleDateString('es-GT',{day:'2-digit',month:'short'})}</small></div><div className="transaction-actions"><button type="button" className="transaction-action receipt" title="Ver detalle y comprobantes" aria-label={'Ver detalle y comprobantes de '+t.description} onClick={()=>onDetail(t)}><Paperclip/></button>{!readOnly&&<><button className="transaction-action edit" title="Editar movimiento" aria-label="Editar movimiento" onClick={()=>onEdit(t)}><Pencil/></button><button className="transaction-action delete" title="Eliminar movimiento" aria-label="Eliminar movimiento" onClick={()=>onDelete(t)}><Trash2/></button></>}</div></div>};
+ if(!groupByDay)return <div className="transaction-list">{txs.map(renderRow)}</div>;
+ // Grouped by day, newest first, with each day's net result: the way people read a bank statement.
+ const days=new Map<string,Tx[]>();for(const t of txs)days.set(t.transaction_date,[...(days.get(t.transaction_date)||[]),t]);
+ return <div className="transaction-list transaction-list--days">{[...days.entries()].map(([date,rows])=>{const net=rows.reduce((n,t)=>n+(t.type==='income'?1:-1)*Math.round(Number(t.amount)*100),0)/100;return <section className="transaction-day" key={date} aria-label={dayLabel(date)}><h4 className="transaction-day-head"><span>{dayLabel(date)}</span><b className={net>0?'income':net<0?'expense':''}>{net>0?'+':''}{formatMoney(net)}</b></h4>{rows.map(renderRow)}</section>})}</div>;
+}
+/** "Hoy", "Ayer", "Mañana" or "mié 15 oct" for a local YYYY-MM-DD date. */
+export function dayLabel(date:string){
+ const today=isoDate(),d=new Date(date+'T12:00'),t=new Date(today+'T12:00'),diff=Math.round((d.getTime()-t.getTime())/86400000);
+ if(diff===0)return 'Hoy';if(diff===-1)return 'Ayer';if(diff===1)return 'Mañana';
+ const text=d.toLocaleDateString('es-GT',{weekday:'short',day:'numeric',month:'short'}).replace(/\./g,'');return text.charAt(0).toUpperCase()+text.slice(1);
 }
 
 export function ComparisonKpi({label,value,delta,goodWhenUp}:{label:string;value:number;delta:number;goodWhenUp:boolean}){
  const up=delta>0,neutral=Math.abs(delta)<.05,good=neutral?true:(up===goodWhenUp);
- return <div className="comparison-kpi"><div><small>{label}</small><strong>{currency(value)}</strong></div><span className={neutral?'neutral':good?'good':'bad'}>{neutral?'—':up?<TrendingUp/>:<TrendingDown/>}{neutral?'Sin cambio':Math.abs(delta).toFixed(1)+'%'}</span></div>
+ return <div className="comparison-kpi"><div><small>{label}</small><strong>{currency(value)}</strong></div><span className={neutral?'neutral':good?'good':'bad'}>{neutral?'—':up?<TrendingUp/>:<TrendingDown/>}{neutral?'Sin cambio':Math.abs(delta)>=1000?'>999%':Math.abs(delta).toFixed(1)+'%'}</span></div>
 }
 
 export function MonthlyBars({data}:{data:MonthMetric[]}){return <InteractiveTrend data={data}/>}

@@ -1,8 +1,29 @@
 import {toCents} from './financePeriods';
 import {dayDiff,overviewAccounts,type AccountMovement,type AccountTransfer,type OverviewAccount} from './homeOverview';
+import {occurrenceDetails} from './recurringDetails';
+import type {CashFlowSource} from './cashFlow';
 
 export type CardAccount=OverviewAccount&{statement_day?:number|null;payment_due_day?:number|null;minimum_payment?:number|string|null;credit_limit?:number|string|null;apr?:number|string|null};
 export type CardStatus={id:string;name:string;balance:number;statementDate:string|null;statementBalance:number|null;paidSinceStatement:number;toAvoidInterest:number;minimum:number|null;dueDate:string|null;daysToDue:number|null;available:number|null;utilization:number|null;state:'clear'|'due'|'soon'|'overdue'};
+
+/** Only the amount of a named, pending card payment is already reserved. A generic "Pago tarjeta" cannot clear every card. */
+export function unreservedCardPayments(cards:Pick<CardStatus,'id'|'name'|'toAvoidInterest'|'dueDate'>[],source:CashFlowSource,monthEnd:string){
+ const due=cards.filter(c=>c.toAvoidInterest>0&&(!c.dueDate||c.dueDate<=monthEnd));
+ const remaining=new Map(due.map(c=>[c.id,toCents(c.toAvoidInterest)]));
+ const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+ const recurring=new Map(source.recurring.map(r=>[r.id,r])),actual=new Set(source.transactions.map(t=>t.id));
+ for(const o of source.occurrences){
+  const r=recurring.get(o.recurring_transaction_id);
+  if(!r||r.active===false||o.status!=='pending'||o.due_date>monthEnd||(o.transaction_id&&actual.has(o.transaction_id)))continue;
+  const terms=occurrenceDetails(r,o.details_snapshot),text=normalize(terms.description);
+  if(terms.type!=='expense'||!/(^| )(pago|abono)( |$)/.test(text))continue;
+  const matches=due.filter(c=>terms.account_id!==c.id&&normalize(c.name).length>2&&(' '+text+' ').includes(' '+normalize(c.name)+' '));
+  // Ambiguous descriptions have no reliable account link: leave the card commitment visible.
+  if(matches.length!==1)continue;
+  const id=matches[0].id;remaining.set(id,Math.max(0,remaining.get(id)!-Math.max(0,toCents(terms.amount))));
+ }
+ return [...remaining.values()].reduce((sum,n)=>sum+n,0)/100;
+}
 
 const lastDay=(y:number,m:number)=>new Date(y,m,0).getDate();
 const dateOf=(y:number,m:number,day:number)=>{while(m<1){m+=12;y--}while(m>12){m-=12;y++}return y+'-'+String(m).padStart(2,'0')+'-'+String(Math.min(day,lastDay(y,m))).padStart(2,'0')};

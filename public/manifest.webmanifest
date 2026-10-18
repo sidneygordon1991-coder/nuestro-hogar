@@ -5,9 +5,9 @@
   "start_url": "/nuestro-hogar/",
   "scope": "/nuestro-hogar/",
   "display": "standalone",
-  "background_color": "#101214",
-  "theme_color": "#101214",
-  "orientation": "portrait-primary",
+  "background_color": "#0e1012",
+  "theme_color": "#0e1012",
+  "orientation": "any",
   "icons": [
     {
       "src": "/nuestro-hogar/icon-premium-192.png",

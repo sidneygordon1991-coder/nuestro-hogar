@@ -9,6 +9,9 @@ import type {CashFlowSource} from './lib/cashFlow';
 
 const previousMonthHalf=(month:string)=>{const d=new Date(Number(month.slice(0,4)),Number(month.slice(5,7))-2,1),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),last=new Date(y,d.getMonth()+1,0).getDate();return {start:`${y}-${m}-16`,end:`${y}-${m}-${last}`}};
 
+/** While the first fortnight is in progress, the previous one is read only for the same number of days. */
+function sameDays(start:string,end:string,today:string){const day=Number(today.slice(8));if(day>=15)return end;const d=new Date(start+'T12:00');d.setDate(d.getDate()+day-1);const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');return iso<end?iso:end}
+
 /** Shareable summary of the fortnight (text via the share sheet, or an image to save). */
 export default function FortnightRecap({source,householdId,householdName,goal,period,onClose}:{source:CashFlowSource;householdId:string;householdName:string;goal?:{name:string;progress:number}|null;period?:'first'|'second';onClose:()=>void}){
  const half=period||halfOf(source.today) as 'first'|'second';
@@ -18,11 +21,11 @@ export default function FortnightRecap({source,householdId,householdName,goal,pe
   Promise.all([
    pagedResult(()=>fetchAllRows((from,to)=>supabase.from('transactions').select('id,type,amount,transaction_date,category_id,paid_by').eq('household_id',householdId).gte('transaction_date',range.start).lte('transaction_date',range.end).order('id').range(from,to))),
    pagedResult(()=>fetchAllRows((from,to)=>supabase.from('goal_contributions').select('amount,contribution_date').eq('household_id',householdId).gte('contribution_date',range.start).lte('contribution_date',range.end).order('id').range(from,to)))
-  ]).then(([t,g])=>{if(!live)return;setPrevious(t.error||g.error?null:periodTotals((t.data||[]) as any[],(g.data||[]) as any[],range.start,range.end,source.today))});
+  ]).then(([t,g])=>{if(!live)return;setPrevious(t.error||g.error?null:periodTotals((t.data||[]) as any[],(g.data||[]) as any[],range.start,sameDays(range.start,range.end,source.today),source.today,new Set((source.categories as {id:string;budget_group?:string}[]).filter(c=>c.budget_group==='saving').map(c=>c.id))))});
   return()=>{live=false}},[half,householdId,source.month,source.today]);
  useEffect(()=>{const before=document.activeElement as HTMLElement|null;dialog.current?.querySelector<HTMLButtonElement>('button')?.focus();const key=(e:KeyboardEvent)=>{if(e.key==='Escape')closeRef.current()};window.addEventListener('keydown',key);return()=>{window.removeEventListener('keydown',key);before?.focus?.()}},[]);
  const recap=useMemo(()=>previous===undefined?null:fortnightRecap(source,previous,half),[source,previous,half]);
- const highlights=recap?[...recap.highlights,...(goal?[goal.name+' al '+Math.round(goal.progress)+'%']:[])]:[];
+ const highlights=recap?[...recap.highlights,...(goal?[goal.name+' al '+Math.floor(goal.progress)+'%']:[])]:[];
  async function share(){
   if(!recap)return;const text=recapText({...recap,highlights},householdName);
   try{if(navigator.share){await navigator.share({title:recap.title,text});setStatus('');return}await navigator.clipboard.writeText(text);setStatus('Resumen copiado. Pégalo donde quieras compartirlo.')}

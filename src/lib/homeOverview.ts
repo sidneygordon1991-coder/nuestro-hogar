@@ -57,7 +57,7 @@ export function registeredBalanceSeries(source:CashFlowSource,period:FinancePeri
 
 export function overviewGoal(goal:HomeGoal,entries:{goal_id:string;amount:number;contribution_date:string}[],cutoff:string){
  const saved=entries.filter(e=>e.goal_id===goal.id&&e.contribution_date<=cutoff).reduce((n,e)=>n+toCents(e.amount),0)/100;
- return {...goal,saved,progress:goal.target_amount>0?Math.max(0,Math.min(100,saved/Number(goal.target_amount)*100)):0};
+ return {...goal,saved,progress:goal.target_amount>0?Math.max(0,Math.min(100,Math.floor(saved/Number(goal.target_amount)*1000)/10)):0};
 }
 
 /* ---------- Home 2026: personal lens, projected fortnight and daily actions ---------- */
@@ -69,14 +69,18 @@ export type FinanceScope='household'|'personal';
  * their income plan, the movements and recurring payments they registered as Personal, and their savings entries.
  */
 export type PrivateEntry={id:string;description:string;amount:number|string;type:string;transaction_date:string;category_id:string|null;original_currency?:string|null;original_amount?:number|string|null};
-export function scopeSource(source:CashFlowSource,scope:FinanceScope,userId:string,privateEntries:PrivateEntry[]=[]):CashFlowSource{
+export function scopeSource(source:CashFlowSource,scope:FinanceScope,userId:string,privateEntries:PrivateEntry[]=[],splits:{transaction_id:string;user_id:string;share_amount:number|string}[]=[]):CashFlowSource{
  if(scope==='household'||!userId)return source;
  // Private movements ("Solo yo") only exist for their owner and only in the personal lens.
  const privateRows=privateEntries.map(p=>({id:'private-'+p.id,type:p.type,amount:p.amount,transaction_date:p.transaction_date,category_id:p.category_id,paid_by:userId,is_shared:false}));
+ // My part of each shared expense (its saved split) also comes out of my money, whoever paid it.
+ const myShare=new Map(splits.filter(r=>r.user_id===userId).map(r=>[r.transaction_id,r.share_amount]));
+ const shareRows=source.transactions.filter(t=>t.type==='expense'&&t.is_shared!==false&&myShare.has(t.id)&&toCents(myShare.get(t.id))>0)
+  .map(t=>({id:'share-'+t.id,type:'expense',amount:myShare.get(t.id)!,transaction_date:t.transaction_date,category_id:t.category_id,paid_by:userId,is_shared:false}));
  const personal=(row:{paid_by?:string|null;is_shared?:boolean|null})=>row.paid_by===userId&&row.is_shared===false;
  const references=source.references&&userId in source.references?{[userId]:source.references[userId]}:{};
  return {...source,
-  transactions:[...source.transactions.filter(t=>t.type==='income'?t.paid_by===userId:personal(t)),...privateRows],
+  transactions:[...source.transactions.filter(t=>t.type==='income'?t.paid_by===userId:personal(t)),...shareRows,...privateRows],
   savings:source.savings.filter(s=>s.created_by===userId),
   allocations:[],
   members:source.members.filter(m=>m.user_id===userId),
@@ -106,11 +110,21 @@ export function periodBounds(month:string,period:FinancePeriod){
  * With registered accounts the base is the liquid balance (cash, checking, savings); otherwise the month's registered result.
  * Variable budget that could still be spent is intentionally not subtracted.
  */
-export function homeMargin(flow:{available:number;fixedCommitments:number;savingsRemaining:number},liquid:number|null){
+export function homeMargin(flow:{available:number;fixedCommitments:number;savingsRemaining:number},liquid:number|null,extra:{goalSaved?:number;cardsDue?:number}={}){
  const basis:'accounts'|'month'=liquid===null?'month':'accounts';
  const base=liquid===null?flow.available:liquid;
- const margin=(toCents(base)-toCents(flow.fixedCommitments)-toCents(flow.savingsRemaining))/100;
- return {basis,base,pending:flow.fixedCommitments,reserved:flow.savingsRemaining,margin};
+ // Account balances still hold the money already set aside for goals and owe what was charged to cards:
+ // neither is free to spend. (The month's result already counts card purchases and goal contributions.)
+ const goals=basis==='accounts'?Math.min(Math.max(0,toCents(extra.goalSaved||0)),Math.max(0,toCents(base))):0;
+ const cards=basis==='accounts'?Math.max(0,toCents(extra.cardsDue||0)):0;
+ const margin=(toCents(base)-goals-cards-toCents(flow.fixedCommitments)-toCents(flow.savingsRemaining))/100;
+ return {basis,base,pending:flow.fixedCommitments,reserved:flow.savingsRemaining,goals:goals/100,cards:cards/100,margin};
+}
+
+/** Money already set aside in active goals up to a date (contributions minus withdrawals). */
+export function goalBalance(goals:{id:string}[],entries:{goal_id:string;amount:number|string;contribution_date:string}[],cutoff:string){
+ const ids=new Set(goals.map(g=>g.id));
+ return Math.max(0,entries.filter(e=>ids.has(e.goal_id)&&e.contribution_date<=cutoff).reduce((n,e)=>n+toCents(e.amount),0))/100;
 }
 
 export type TimelinePoint={date:string;balance:number};
@@ -144,7 +158,7 @@ export function balanceTimeline(source:CashFlowSource,period:FinancePeriod,accou
  const payments=source.occurrences.flatMap(o=>{
   const r=recurring.get(o.recurring_transaction_id);
   // Still-pending payments from earlier in the month are overdue: they are applied today.
-  const due=inPeriodRange(o.due_date,start,end)||(o.due_date<start&&o.due_date.slice(0,7)===source.month.slice(0,7));
+  const due=inPeriodRange(o.due_date,start,end)||o.due_date<start;
   if(!r||r.active===false||o.status!=='pending'||!due||(o.transaction_id&&actualIds.has(o.transaction_id)))return [];
   const terms=occurrenceDetails(r,o.details_snapshot);
   return terms.type==='expense'?[{date:o.due_date<source.today?source.today:o.due_date,label:terms.description||'Pago',amount:toCents(terms.amount)}]:[];

@@ -49,10 +49,15 @@ export const MINIMUM_FLOOR=50;
 const cents=(value:unknown)=>{const n=Number(value);return Number.isFinite(n)?Math.round(n*100):0};
 const monthlyInterestCents=(balanceCents:number,apr:number)=>Math.round(balanceCents*apr/1200);
 
-/** 3% of the balance with a Q 50 floor, never more than what is owed. */
-export function estimatedMinimum(balance:number){
+/**
+ * 3% of the balance with a Q 50 floor, never more than what is owed. With an annual rate, the estimate is at least the
+ * month's interest plus 1% of the balance: Guatemalan cards often charge 36–60% a year, where 3% would never reduce the debt.
+ */
+export function estimatedMinimum(balance:number,apr=0){
  const owed=Math.max(0,cents(balance));
- return Math.min(owed,Math.max(MINIMUM_FLOOR*100,Math.round(owed*MINIMUM_RATE)))/100;
+ const rate=Number.isFinite(apr)&&apr>0?apr:0;
+ const amortizing=rate?monthlyInterestCents(owed,rate)+Math.round(owed*0.01):0;
+ return Math.min(owed,Math.max(MINIMUM_FLOOR*100,Math.round(owed*MINIMUM_RATE),amortizing))/100;
 }
 
 /** Adds "YYYY-MM" + n months. */
@@ -71,7 +76,7 @@ export function prepareDebts(accounts:DebtAccount[]):PlannedDebt[]{
   const apr=aprMissing?0:rawApr;
   const given=cents(a.minimum_payment);
   const minimumEstimated=!(given>0);
-  const minimum=minimumEstimated?estimatedMinimum(balance):given/100;
+  const minimum=minimumEstimated?estimatedMinimum(balance,apr):given/100;
   const interest=monthlyInterestCents(cents(balance),apr);
   return {id:a.id,name:a.name,balance,apr,aprMissing,minimum,minimumEstimated,monthlyInterest:interest/100,minimumCoversInterest:cents(minimum)>interest};
  });

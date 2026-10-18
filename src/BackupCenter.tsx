@@ -1,5 +1,6 @@
 import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
+import {fetchAllRows,pagedResult} from './lib/paging';
 import ModuleLoading from './ModuleLoading';
 import FileBackupPanel from './FileBackupPanel';
 import ModuleIcon from './ModuleIcon';
@@ -105,8 +106,9 @@ export default function BackupCenter({household}:{household:Household}){
 
  async function exportFinance(){
   setBusy('finance');
+  // Every export pages through all rows: a single query stops at the server's 1,000-row limit without warning.
   const [txR,catR]=await Promise.all([
-   supabase.from('transactions').select('transaction_date,type,description,amount,category_id,notes,is_shared').eq('household_id',household.id).order('transaction_date'),
+   pagedResult(()=>fetchAllRows((a,b)=>supabase.from('transactions').select('id,transaction_date,type,description,amount,category_id,notes,is_shared').eq('household_id',household.id).order('transaction_date').order('id').range(a,b))),
    supabase.from('budget_categories').select('id,name').eq('household_id',household.id)
   ]);
   setBusy('');if(txR.error||catR.error){setMessage(txR.error?.message||catR.error?.message||'No se pudo exportar.');return}
@@ -118,7 +120,7 @@ export default function BackupCenter({household}:{household:Household}){
 
  async function exportCalendar(){
   setBusy('calendar');
-  const {data,error}=await supabase.from('events').select('event_date,start_time,end_time,title,category,location,all_day,recurrence,description').eq('household_id',household.id).order('event_date');
+  const {data,error}=await pagedResult(()=>fetchAllRows((a,b)=>supabase.from('events').select('id,event_date,start_time,end_time,title,category,location,all_day,recurrence,description').eq('household_id',household.id).order('event_date').order('id').range(a,b)));
   setBusy('');if(error){setMessage(error.message);return}
   downloadCsv(`${safeName(household.name)}-agenda.csv`,(data||[]).map((x:any)=>({Fecha:x.event_date,Inicio:x.start_time||'',Fin:x.end_time||'',Evento:x.title,Categoria:x.category,Lugar:x.location||'',Todo_el_dia:x.all_day?'Sí':'No',Repeticion:x.recurrence,Descripcion:x.description||''})));
  }
@@ -127,7 +129,7 @@ export default function BackupCenter({household}:{household:Household}){
   setBusy('lists');
   const [lR,iR]=await Promise.all([
    supabase.from('lists').select('id,title,list_type').eq('household_id',household.id),
-   supabase.from('list_items').select('list_id,text,quantity,completed,due_date,notes').eq('household_id',household.id).order('created_at')
+   pagedResult(()=>fetchAllRows((a,b)=>supabase.from('list_items').select('id,list_id,text,quantity,completed,due_date,notes').eq('household_id',household.id).order('created_at').order('id').range(a,b)))
   ]);
   setBusy('');if(lR.error||iR.error){setMessage(lR.error?.message||iR.error?.message||'No se pudo exportar.');return}
   const lists=new Map((lR.data||[]).map((x:any)=>[x.id,x]));
@@ -136,7 +138,7 @@ export default function BackupCenter({household}:{household:Household}){
 
  async function exportPantry(){
   setBusy('pantry');
-  const {data,error}=await supabase.from('pantry_items').select('name,category,quantity,unit,minimum_quantity,location,expires_on,notes,active').eq('household_id',household.id).order('name');
+  const {data,error}=await pagedResult(()=>fetchAllRows((a,b)=>supabase.from('pantry_items').select('id,name,category,quantity,unit,minimum_quantity,location,expires_on,notes,active').eq('household_id',household.id).order('name').order('id').range(a,b)));
   setBusy('');if(error){setMessage(error.message);return}
   downloadCsv(`${safeName(household.name)}-despensa.csv`,(data||[]).map((x:any)=>({Producto:x.name,Categoria:x.category,Cantidad:Number(x.quantity),Unidad:x.unit,Minimo:Number(x.minimum_quantity),Ubicacion:x.location,Vence:x.expires_on||'',Activo:x.active?'Sí':'No',Notas:x.notes||''})));
  }
@@ -207,7 +209,8 @@ function ExportCard({icon,title,text,action,busy,onClick}:{icon:React.ReactNode;
  return <button className="backup-export-card" onClick={onClick} disabled={busy}><span>{icon}</span><div><strong>{title}</strong><small>{text}</small></div><em>{busy?'Procesando...':action}<Download/></em></button>
 }
 function downloadBlob(content:string,filename:string,type:string){const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function downloadCsv(filename:string,rows:Record<string,any>[]){if(!rows.length){downloadBlob('\ufeffSin datos\r\n',filename,'text/csv;charset=utf-8');return}const keys=Object.keys(rows[0]);const cell=(v:any)=>'"'+String(v??'').replace(/"/g,'""')+'"';const csv='\ufeff'+keys.map(cell).join(',')+'\r\n'+rows.map(r=>keys.map(k=>cell(r[k])).join(',')).join('\r\n');downloadBlob(csv,filename,'text/csv;charset=utf-8')}
+function downloadCsv(filename:string,rows:Record<string,any>[]){if(!rows.length){downloadBlob('\ufeffSin datos\r\n',filename,'text/csv;charset=utf-8');return}const keys=Object.keys(rows[0]);// Text that starts like a formula (=, +, -, @) is prefixed with ' so Excel never runs it; numbers stay numbers.
+ const cell=(v:any)=>{let text=String(v??'');if(typeof v==='string'&&/^[=+\-@\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"'};const csv='\ufeff'+keys.map(cell).join(',')+'\r\n'+rows.map(r=>keys.map(k=>cell(r[k])).join(',')).join('\r\n');downloadBlob(csv,filename,'text/csv;charset=utf-8')}
 function formatBytes(value:number){if(value<1024)return value+' B';if(value<1024*1024)return(value/1024).toFixed(1)+' KB';return(value/1024/1024).toFixed(1)+' MB'}
 function relativeTime(value:string){const ms=Math.max(0,Date.now()-new Date(value).getTime()),m=Math.floor(ms/60000);if(m<1)return'ahora';if(m<60)return'hace '+m+' min';const h=Math.floor(m/60);if(h<24)return'hace '+h+' h';const d=Math.floor(h/24);return'hace '+d+' día'+(d===1?'':'s')}
 function daysRemaining(value:string){return Math.max(0,Math.ceil((new Date(value).getTime()-Date.now())/86400000))}

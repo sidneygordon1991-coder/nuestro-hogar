@@ -20,9 +20,9 @@ describe('device appearance preferences',()=>{
   }finally{(globalThis as any).localStorage=previous}
  });
  it('accepts valid preferences and removes unknown or duplicate favorite modules',()=>{
-  expect(normalizeAppearance({accent:'forest',focus:'plans',favorites:['listas','bad','listas','familia']})).toEqual({accent:'forest',focus:'plans',view:'complete',favorites:['listas','familia'],cover:''});
+  expect(normalizeAppearance({accent:'forest',focus:'plans',favorites:['listas','bad','listas','familia']})).toEqual({accent:'forest',focus:'plans',view:'essential',favorites:['listas','familia'],cover:''});
  });
- it('keeps the complete experience by default and accepts essential navigation',()=>{expect(normalizeAppearance({}).view).toBe('complete');expect(normalizeAppearance({view:'essential'}).view).toBe('essential')});
+ it('starts simple (essential) by default and keeps a saved complete view',()=>{expect(normalizeAppearance({}).view).toBe('essential');expect(normalizeAppearance({view:'complete'}).view).toBe('complete');expect(normalizeAppearance({view:'essential'}).view).toBe('essential')});
  it('rejects remote, SVG and oversized covers while retaining supported raster data',()=>{
   for(const cover of ['https://example.invalid/photo.png','data:image/svg+xml;base64,AAAA','data:image/png;base64,'+'A'.repeat(900001)])expect(normalizeAppearance({cover}).cover).toBe('');
   expect(normalizeAppearance({cover:'data:image/png;base64,AAAA'}).cover).toBe('data:image/png;base64,AAAA');

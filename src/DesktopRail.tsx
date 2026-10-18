@@ -8,16 +8,17 @@ import {useFocusTrap} from './lib/useFocusTrap';
 const primaryIcons={today:House,money:WalletCards,plan:CalendarRange,progress:ChartNoAxesCombined,home:UsersRound};
 
 /** Desktop sidebar, mobile bottom navigation with its section sheet, and the mobile "Registrar" action. */
-export default function DesktopRail({currentTab,access,isMaster,onNavigate,onAppearance,essential=false}:{currentTab:string;access:Record<string,string>;isMaster:boolean;onNavigate:(tab:string)=>void;onAppearance:()=>void;essential?:boolean;favorites?:string[]}){
+export default function DesktopRail({currentTab,access,isMaster,onNavigate,onAppearance,essential=false,favorites=[],shared=false}:{currentTab:string;access:Record<string,string>;isMaster:boolean;onNavigate:(tab:string)=>void;onAppearance:()=>void;essential?:boolean;favorites?:string[];shared?:boolean}){
  const [section,setSection]=useState(()=>new URLSearchParams(location.search).get('finance'));
  const [menu,setMenu]=useState<WorkspaceGroup|null>(null),[expanded,setExpanded]=useState(false);
  const panel=useRef<HTMLElement>(null);useFocusTrap(panel,menu!==null,()=>setMenu(null));
  useEffect(()=>{const update=()=>setSection(new URLSearchParams(location.search).get('finance'));window.addEventListener('popstate',update);window.addEventListener('nh:finance-section',update);return()=>{window.removeEventListener('popstate',update);window.removeEventListener('nh:finance-section',update)}},[]);
  useEffect(()=>{if(!menu)return;document.body.classList.add('workspace-navigation-open');return()=>document.body.classList.remove('workspace-navigation-open')},[menu]);
- const groups=permittedWorkspaceGroups(access),active=workspaceGroup(currentTab,section),selected=groups.find(g=>g.id===menu);
+ const groups=permittedWorkspaceGroups(access,{essential:essential&&!expanded,favorites:[...favorites,currentTab],shared}),active=workspaceGroup(currentTab,section),selected=groups.find(g=>g.id===menu);
  const tools=[{route:'automatizaciones',label:'Automatizaciones',module:'automations'},{route:'respaldos',label:'Respaldos',module:'backups'},{route:'diagnostico',label:'Diagnóstico',module:'diagnostics'}].filter(t=>access[t.module]!=='none');
  const canRegister=Object.values(access).includes('edit');
  function navigate(route:string){setMenu(null);onNavigate(route)}
+ const dockButton=(g:typeof groups[number])=><button type="button" key={g.id} className={g.id===active?'active':''} aria-label={g.label} aria-current={g.id===active?'page':undefined} aria-haspopup={g.id==='today'?undefined:'dialog'} onClick={()=>g.id==='today'?navigate('inicio'):setMenu(g.id)}><PrimaryIcon group={g.id}/><span>{g.short}</span></button>;
  const isCurrent=(route:string)=>route===(currentTab==='presupuesto'?'presupuesto:'+(section||'summary'):currentTab);
  return <>
   <aside className="desktop-rail app-rail" aria-label="Navegación de escritorio">
@@ -37,9 +38,11 @@ export default function DesktopRail({currentTab,access,isMaster,onNavigate,onApp
     <ProfileAvatar variant="chip" onClick={()=>navigate('familia')}/>
    </div>
   </aside>
-  <nav className="mobile-nav" aria-label="Navegación principal">{groups.map(g=><button type="button" key={g.id} className={g.id===active?'active':''} aria-label={g.label} aria-current={g.id===active?'page':undefined} aria-haspopup={g.id==='today'?undefined:'dialog'} onClick={()=>g.id==='today'?navigate('inicio'):setMenu(g.id)}><PrimaryIcon group={g.id}/><span>{g.short}</span></button>)}</nav>
-  {canRegister&&<button type="button" className="mobile-register" aria-label="Registrar un movimiento o actividad" onClick={()=>window.dispatchEvent(new CustomEvent('nh:quick-add'))}><Plus size={20} aria-hidden="true"/><span>Registrar</span></button>}
-  {selected&&<div className="workspace-navigation-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setMenu(null)}}><section ref={panel} className="workspace-navigation-sheet" role="dialog" aria-modal="true" aria-labelledby="workspace-navigation-title"><div><h2 id="workspace-navigation-title">{selected.label}</h2><button type="button" aria-label="Cerrar navegación" onClick={()=>setMenu(null)}><X size={20}/></button></div>{selected.items.map(i=><button type="button" key={i.route} aria-current={isCurrent(i.route)?'page':undefined} onClick={()=>navigate(i.route)}>{i.label}<ChevronRight size={16} aria-hidden="true"/></button>)}<p>Todos tus controles, en su lugar.</p></section></div>}
+  {/* Mobile dock: the register action sits in the middle of the bar, always within thumb reach, never over content. */}
+  <nav className="mobile-nav" aria-label="Navegación principal" style={{'--nh-dock-columns':groups.length+(canRegister?1:0)} as React.CSSProperties}>{[...groups.slice(0,Math.floor(groups.length/2)).map(dockButton),
+   ...(canRegister?[<button type="button" key="register" className="mobile-nav-register" aria-label="Registrar un movimiento o actividad" onClick={()=>window.dispatchEvent(new CustomEvent('nh:quick-add'))}><span className="mobile-nav-register-icon"><Plus size={24} strokeWidth={2.4} aria-hidden="true"/></span><span>Registrar</span></button>]:[]),
+   ...groups.slice(Math.floor(groups.length/2)).map(dockButton)]}</nav>
+  {selected&&<div className="workspace-navigation-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setMenu(null)}}><section ref={panel} className="workspace-navigation-sheet" role="dialog" aria-modal="true" aria-labelledby="workspace-navigation-title"><div><h2 id="workspace-navigation-title">{selected.label}</h2><button type="button" aria-label="Cerrar navegación" onClick={()=>setMenu(null)}><X size={20}/></button></div>{selected.items.map(i=><button type="button" key={i.route} aria-current={isCurrent(i.route)?'page':undefined} onClick={()=>navigate(i.route)}>{i.label}<ChevronRight size={16} aria-hidden="true"/></button>)}{essential?<button type="button" className="workspace-navigation-more" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?'Volver a lo esencial':'Ver todas las secciones'}</button>:<p>Todos tus controles, en su lugar.</p>}</section></div>}
  </>;
 }
 

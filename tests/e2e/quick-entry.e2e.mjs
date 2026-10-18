@@ -15,7 +15,7 @@ test('quick entry: amount first, dollars, suggestion, repeat and private',async(
   const amount=dialog.getByLabel('Monto',{exact:true});await expect(amount).toBeFocused();expect(await amount.getAttribute('inputmode')).toBe('decimal');
   await expect(dialog.getByRole('button',{name:'Compartido'})).toHaveAttribute('aria-pressed','true');
   await amount.fill('50');await dialog.getByRole('button',{name:'Dólares'}).click();await expect(dialog.locator('.quick-amount-convert')).toContainText('≈ Q 390');
-  await dialog.getByLabel('Descripción',{exact:true}).fill('Supermercado semanal');
+  await dialog.getByLabel('Descripción (opcional)',{exact:true}).fill('Supermercado semanal');
   await expect(dialog.locator('select[name=category_id]')).toHaveValue('66666666-1111-4111-8111-111111111111');
   await dialog.getByRole('button',{name:'Guardar gasto'}).click();
   await expect(dialog.locator('.quick-entry-success')).toContainText('Registrado');await expect(dialog.locator('.quick-entry-success')).toContainText('US$ 50 · Q 390');
@@ -42,7 +42,7 @@ test('private duplicate responses are verified before confirming a saved movemen
  const s=await setup(browser,{rich:true});let saved=null,match=false;
  await s.page.route('**/rest/v1/private_transactions**',r=>{if(r.request().method()==='POST'){saved=r.request().postDataJSON();return r.fulfill({status:409,json:{code:'23505',message:'Duplicate id'}})}return r.fulfill({json:{...saved,amount:match?saved.amount:999}})});
  try{
-  await ready(s,'');await s.page.evaluate(()=>window.dispatchEvent(new CustomEvent('nh:quick-add')));const dialog=s.page.getByRole('dialog');await dialog.getByRole('button',{name:/^Gasto/}).first().click();await dialog.getByLabel('Monto',{exact:true}).fill('25');await dialog.getByLabel('Descripción',{exact:true}).fill('Privado QA');await dialog.getByRole('button',{name:'Solo yo'}).click();await dialog.getByRole('button',{name:'Guardar gasto'}).click();await expect(dialog.getByRole('alert')).toContainText('ya se guardó con otros datos');await expect(dialog.locator('.quick-entry-success')).toHaveCount(0);
+  await ready(s,'');await s.page.evaluate(()=>window.dispatchEvent(new CustomEvent('nh:quick-add')));const dialog=s.page.getByRole('dialog');await dialog.getByRole('button',{name:/^Gasto/}).first().click();await dialog.getByLabel('Monto',{exact:true}).fill('25');await dialog.getByLabel('Descripción (opcional)',{exact:true}).fill('Privado QA');await dialog.getByRole('button',{name:'Solo yo'}).click();await dialog.getByRole('button',{name:'Guardar gasto'}).click();await expect(dialog.getByRole('alert')).toContainText('ya se guardó con otros datos');await expect(dialog.locator('.quick-entry-success')).toHaveCount(0);
   match=true;await dialog.getByRole('button',{name:'Guardar gasto'}).click();await expect(dialog.locator('.quick-entry-success')).toContainText('Q 25');await healthy(s);
  }finally{await s.context.close()}
 });

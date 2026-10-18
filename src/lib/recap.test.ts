@@ -21,7 +21,10 @@ describe('fortnight recap',()=>{
   expect(r.expenseChange).toBe(-40);expect(r.savingChange).toBe(100);
   expect([r.within,r.budgeted]).toEqual([1,2]);
   expect(r.topCategory).toEqual({name:'Supermercado',amount:800,change:-20});
-  expect(r.highlights).toEqual(['Ahorraste Q 600 (100% más que la quincena anterior)','Gastaste 40% menos que la quincena anterior','1 de 2 rubros dentro del presupuesto','Supermercado: -20% frente a la quincena anterior']);
+  expect(r.highlights).toEqual(['Ahorraste Q 600 (100% más que en los mismos días de la quincena anterior)','Gastaste 40% menos que en los mismos días de la quincena anterior','1 de 2 rubros dentro del presupuesto','Supermercado: -20% frente a los mismos días de la quincena anterior']);
+  expect(fortnightRecap({...source,today:'2026-10-31'}).highlights[1]).toBe('Gastaste 27% más que la quincena anterior');// finished fortnight: full comparison
+  // Day 17 of the second half compares two days with the first two days of the first half (nothing spent then).
+  expect(fortnightRecap({...source,today:'2026-10-17'}).expenseChange).toBeNull();
   expect(recapText(r,'Hogar QA')).toContain('Tu quincena del 16 al 31 de octubre · Hogar QA');
  });
  it('uses the previous month totals for the first fortnight',()=>{

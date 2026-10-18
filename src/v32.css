@@ -1,0 +1,81 @@
+/* v32 · Refinements loaded last. Colors come only from the shared roles in theme-light.css. */
+
+/* ---------- Mobile dock with the register action in the middle ---------- */
+@media(max-width:1099px){
+ .app.app-studio,.app.app-studio[data-module=inicio]{--nh-nav-clearance:calc(104px + env(safe-area-inset-bottom,0px))}
+ .app.app-studio>nav.mobile-nav{grid-template-columns:repeat(var(--nh-dock-columns,5),minmax(0,1fr));
+  padding-left:calc(8px + env(safe-area-inset-left,0px));padding-right:calc(8px + env(safe-area-inset-right,0px))}
+ .app.app-studio>nav.mobile-nav>button.mobile-nav-register{justify-content:flex-end;gap:4px;padding-top:0;color:var(--nh-text);font-weight:600;overflow:visible}
+ .mobile-nav-register-icon{display:grid;place-items:center;width:52px;height:52px;margin-top:-26px;border-radius:18px;
+  background:linear-gradient(135deg,var(--nh-action),var(--nh-action-end));color:var(--nh-on-action);
+  box-shadow:0 0 0 5px var(--nh-surface),0 10px 22px var(--nh-shadow);transition:transform .12s ease}
+ .mobile-nav-register-icon>svg{width:24px;height:24px}
+ .mobile-nav-register:active .mobile-nav-register-icon{transform:scale(.94)}
+ .app.app-studio>nav.mobile-nav>button.mobile-nav-register:focus-visible{outline:none}
+ .app.app-studio>nav.mobile-nav>button.mobile-nav-register:focus-visible .mobile-nav-register-icon{outline:2px solid var(--nh-accent);outline-offset:3px}
+ .workspace-navigation-sheet>button.workspace-navigation-more{justify-content:center;margin-top:6px;border-bottom:0;color:var(--nh-accent);font-weight:600}
+}
+@media(prefers-reduced-motion:reduce){.mobile-nav-register-icon{transition:none}}
+
+/* ---------- Installed app on notched phones: nothing under the status bar or the rounded corners ---------- */
+@media(max-width:760px){
+ .app.app-studio>header.workspace-header{padding-top:max(14px,calc(env(safe-area-inset-top,0px) + 8px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+ .app.app-studio>.content{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+}
+
+/* ---------- iOS zooms into any field under 16px: every form control is 16px on phones and tablets ---------- */
+@media(max-width:1099px){
+ html body .app :is(input,select,textarea):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not(.quick-amount-input):not(.home-select){font-size:16px}
+}
+
+/* ---------- Touch targets of at least 40–44px ---------- */
+@media(max-width:650px){
+ .app-studio .transaction-actions button{width:40px;min-width:40px;height:40px;border-radius:12px}
+ .app-studio .transaction-actions button svg{width:16px;height:16px}
+}
+@media(max-width:650px){.app-studio .transaction-actions .transaction-action.receipt{display:none}}
+.app-menu-trigger:focus-visible{outline:2px solid var(--nh-accent);outline-offset:3px}
+
+/* ---------- Money reads like money ---------- */
+.app :is(.transaction-value b,.home-hero h2,.home-kpi strong,.finance-kpis strong,.couple-card strong,.transaction-day-head b){font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Spending is normal: expenses use the text color; red stays reserved for overspending and negative balances. */
+.app .transaction-value b.expense{color:var(--nh-text)}
+.app .transaction-value b.income{color:var(--nh-success)}
+
+/* ---------- Movements grouped by day ---------- */
+.transaction-list--days{display:grid;gap:4px}
+.transaction-day+.transaction-day{margin-top:8px}
+.transaction-day-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0;padding:10px 2px 6px;
+ border-bottom:1px solid var(--nh-border);color:var(--nh-muted);font-size:13px;font-weight:600;letter-spacing:.01em}
+.transaction-day-head b{font-size:13px;font-weight:600;color:var(--nh-muted)}
+.transaction-day-head b.income{color:var(--nh-success)}
+.transaction-list--days .transaction-value small{display:none}
+.transaction-list--days .transaction-row:last-child{border-bottom:0}
+
+/* ---------- First run: who is it for ---------- */
+.onboarding-kinds{display:grid;gap:10px;margin:18px 0 8px}
+.onboarding-kinds>button{display:grid;gap:4px;text-align:left;padding:16px 18px;border:1px solid var(--nh-border);border-radius:16px;background:var(--nh-subtle);color:var(--nh-text);cursor:pointer;
+ transition:border-color .15s ease,background-color .15s ease}
+.onboarding-kinds>button:hover{border-color:var(--nh-accent-border);background:var(--nh-accent-soft)}
+.onboarding-kinds strong{font-size:17px}
+.onboarding-kinds small{color:var(--nh-muted);font-size:14px;font-weight:400;line-height:1.45}
+.onboarding-card form label{display:grid;gap:6px;color:var(--nh-muted);font-size:14px}
+.auth-card form label{display:grid;gap:6px;font-size:14px;color:var(--nh-muted)}
+.sharing-invite-optional{margin-top:14px}
+.sharing-invite-optional>summary{cursor:pointer;color:var(--nh-accent);font-weight:600;padding:6px 0}
+
+
+/* ---------- Import: transfers flagged like duplicates ---------- */
+.import-row.transfer{border-color:var(--nh-warning);background:var(--nh-warning-soft)}
+
+/* ---------- Loaders announce themselves; layout stays centered ---------- */
+.center[role=status]{display:grid;place-items:center}
+
+/* "Octubre de 2026": the label is capitalized in code; CSS capitalize turned it into "Octubre De 2026". */
+.app .month-switch strong{text-transform:none}
+/* Spanish sentence case for dates and counters: "Octubre de 2026", "4 elementos en agenda" (not "De", "En"). */
+.app :is(.calendar-month-head strong,.calendar-month-head small,.agenda-head h3,.monthly-close-period strong,.workspace-household time,.comparison-table-row strong:first-child){text-transform:none}
+.app :is(.calendar-month-head strong,.agenda-head h3,.monthly-close-period strong,.workspace-household time,.comparison-table-row strong:first-child)::first-letter{text-transform:uppercase}
+.app .studio-trend-values>small{text-transform:none}
+.app .studio-trend-values>small::first-letter{text-transform:uppercase}

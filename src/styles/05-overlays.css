@@ -65,7 +65,7 @@ body:has(.app :is(.modal-backdrop,.global-command-panel,.notification-panel,.app
 .transaction-detail-summary>b.income{color:var(--nh-success);}
 .transaction-detail-summary>b.expense{color:var(--nh-text);}
 .transaction-detail-summary dl{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 0;}
-.transaction-detail-summary dt{color:var(--nh-muted);font-size:11px;}
+.transaction-detail-summary dt{color:var(--nh-muted);font-size:12px;}
 .transaction-detail-summary dd{margin:2px 0 0;font-size:13px;overflow-wrap:anywhere;}
 .transaction-detail-summary>p{white-space:pre-wrap;font-size:13px;color:var(--nh-muted);}
 .receipt-section{display:grid;gap:12px;margin-top:18px;min-width:0;}
@@ -81,7 +81,7 @@ body:has(.app :is(.modal-backdrop,.global-command-panel,.notification-panel,.app
 .receipt-card-head>span{width:36px;height:36px;border-radius:10px;background:var(--nh-accent-soft);color:var(--nh-accent);display:grid;place-items:center;}
 .receipt-card-head>span svg{width:19px;}
 .receipt-card-head strong,.receipt-pending strong{display:block;font-size:13px;overflow-wrap:anywhere;}
-.receipt-card-head small,.receipt-pending small{display:block;color:var(--nh-muted);font-size:11px;margin-top:3px;}
+.receipt-card-head small,.receipt-pending small{display:block;color:var(--nh-muted);font-size:12px;margin-top:3px;}
 .receipt-card-head>button,.receipt-upload-actions>button,.receipt-detail-form>div>button:not(.finance-primary){border:1px solid var(--nh-border);background:var(--nh-subtle);color:var(--nh-accent);border-radius:10px;padding:9px 12px;font-size:12px;min-height:40px;}
 .receipt-detail-trigger{display:flex;align-items:center;gap:5px;border:0;background:transparent;color:var(--nh-accent);font-size:12px;padding:10px 0 0;}
 .receipt-detail-trigger svg{width:14px;}

@@ -1,5 +1,6 @@
 import {maskAmountsIn} from './lib/money';
 import ModuleIcon from './ModuleIcon';
+import {notificationUrl} from '../supabase/functions/send-web-push/notificationUrl';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {AlertTriangle,ArrowLeft,Bell,BellRing,Check,CheckCheck,Clock3,Package,Settings,Target,Trash2,X} from 'lucide-react';
@@ -16,6 +17,8 @@ const notificationColumns='id,type,severity,title,body,action_tab,entity_type,en
 
 export default function NotificationCenter({household,onNavigate}:{household:Household;onNavigate:(tab:string)=>void}){
  const [items,setItems]=useState<NotificationRow[]>([]),[prefs,setPrefs]=useState<Preferences>(defaults),[userId,setUserId]=useState(''),[open,setOpen]=useState(false),[settings,setSettings]=useState(false),[message,setMessage]=useState('');
+ // The realtime handler reads the latest preference without re-subscribing when it changes.
+ const prefsRef=useRef(prefs);prefsRef.current=prefs;
  const [total,setTotal]=useState(0),[unreadTotal,setUnreadTotal]=useState(0),[loadingMore,setLoadingMore]=useState(false),[loading,setLoading]=useState(true);
  const [historyError,setHistoryError]=useState('');
  const root=useRef<HTMLDivElement>(null),panel=useRef<HTMLElement>(null),bell=useRef<HTMLButtonElement>(null),scope=useRef(household.id);scope.current=household.id;
@@ -42,11 +45,11 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
   await supabase.rpc('refresh_my_notifications',{p_household_id:household.id});
   await load(user.id);
   if(cancelled)return;
-  channel=supabase.channel('notifications-'+user.id+'-'+household.id)
+  channel=supabase.channel('notifications-'+user.id+'-'+household.id+'-'+Math.random().toString(36).slice(2))
    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+user.id},payload=>{
     const row=payload.new as NotificationRow;if((row as any).household_id!==household.id)return;
     setItems(current=>[row,...current.filter(x=>x.id!==row.id)]);setTotal(current=>current+1);if(!row.read_at)setUnreadTotal(current=>current+1);
-    if(prefs.browser_notifications&&typeof Notification!=='undefined'&&Notification.permission==='granted'&&document.visibilityState!=='visible')showBrowserNotification(row);
+    if(prefsRef.current.browser_notifications&&typeof Notification!=='undefined'&&Notification.permission==='granted'&&document.visibilityState!=='visible')showBrowserNotification(row);
    })
    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'notifications',filter:'user_id=eq.'+user.id},payload=>{
     const row=payload.new as NotificationRow;if((row as any).household_id&&(row as any).household_id!==household.id)return;
@@ -55,7 +58,7 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
    .on('postgres_changes',{event:'DELETE',schema:'public',table:'notifications',filter:'user_id=eq.'+user.id},payload=>{
     const id=(payload.old as any)?.id;if(id)setItems(current=>current.filter(x=>x.id!==id));void refreshCounts(user.id);
    }).subscribe();
- })();return()=>{cancelled=true;if(channel)supabase.removeChannel(channel)}},[household.id,prefs.browser_notifications]);
+ })();return()=>{cancelled=true;if(channel)supabase.removeChannel(channel)}},[household.id]);
 
  /** Re-reads the unread and total counts (the bell badge) after a notification is read or deleted elsewhere. */
  async function refreshCounts(uid=userRef.current){
@@ -96,7 +99,7 @@ export default function NotificationCenter({household,onNavigate}:{household:Hou
  async function showBrowserNotification(row:NotificationRow){
   if(!('serviceWorker' in navigator))return;
   const reg=await navigator.serviceWorker.ready;
-  await reg.showNotification(row.title,{body:row.body||undefined,icon:import.meta.env.BASE_URL+'icon.svg',badge:import.meta.env.BASE_URL+'icon.svg',tag:'nh-'+row.id,data:{url:import.meta.env.BASE_URL+'?tab='+(row.action_tab||'inicio')}});
+  await reg.showNotification(row.title,{body:row.body||undefined,icon:import.meta.env.BASE_URL+'icon-premium-192.png',badge:import.meta.env.BASE_URL+'icon-premium-192.png',tag:'nh-'+row.id,data:{url:notificationUrl(row.action_tab)}});
  }
 
  async function ensurePushSubscription(){

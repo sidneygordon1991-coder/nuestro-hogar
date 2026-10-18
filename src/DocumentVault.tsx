@@ -177,7 +177,7 @@ export default function DocumentVault({household,readOnly=false}:{household:Hous
   {!filtered.length&&<div className="document-empty"><ModuleIcon name="documents"/><strong>{documents.length?'No encontramos documentos':'Tu bóveda está vacía'}</strong><span>{documents.length?'Prueba con otra búsqueda o categoría.':'Guarda aquí DPI, pasaportes, contratos, seguros, facturas y garantías.'}</span>{!documents.length&&!readOnly&&<button onClick={startNew}><Plus/> Agregar primer documento</button>}</div>}
 
   {showForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeForm()}}><div className="finance-modal document-modal">
-   <div className="modal-head"><div><p className="eyebrow">BÓVEDA SEGURA</p><h3>{editing?'Editar documento':'Nuevo documento'}</h3></div><button onClick={closeForm}><X/></button></div>
+   <div className="modal-head"><div><p className="eyebrow">BÓVEDA SEGURA</p><h3>{editing?'Editar documento':'Nuevo documento'}</h3></div><button type="button" aria-label="Cerrar" onClick={closeForm}><X/></button></div>
    <form className="finance-form" onSubmit={saveDocument}>
     <label>Nombre del documento<input name="title" defaultValue={editing?.title||''} placeholder="Ej. Pasaporte Sidney" required/></label>
     <div className="two"><label>Categoría<select name="category" defaultValue={editing?.category||'personal'}>{categories.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label><label>Entidad / emisor<input name="issuer" defaultValue={editing?.issuer||''} placeholder="Ej. SAT, aseguradora, banco"/></label></div>

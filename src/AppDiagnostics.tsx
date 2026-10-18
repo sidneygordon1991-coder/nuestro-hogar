@@ -2,7 +2,7 @@ import {Component,ErrorInfo,ReactNode,useEffect} from 'react';
 import {AlertTriangle,RefreshCw} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
-const APP_VERSION='0.1.0';
+const APP_VERSION='v32';
 
 function report(householdId:string,source:string,message:string,stack?:string|null,context:Record<string,unknown>={}){
  void supabase.rpc('log_client_error',{

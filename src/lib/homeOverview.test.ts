@@ -15,6 +15,7 @@ describe('connected home financial integrity',()=>{
 });
 describe('five primary spaces preserve authorized controls',()=>{
  it('routes financial sections and household modules to the correct space',()=>{expect(workspaceGroup('presupuesto','accounts')).toBe('money');expect(workspaceGroup('presupuesto','goals')).toBe('plan');expect(workspaceGroup('presupuesto','comparison')).toBe('progress');expect(workspaceGroup('calendario',null)).toBe('home');expect(workspaceGroup('inicio',null)).toBe('today')});
+ it('essential view keeps day-to-day money, agenda, lists and family, plus favorites',()=>{const groups=permittedWorkspaceGroups({},{essential:true,favorites:['comidas']});const routes=groups.flatMap(g=>g.items.map(i=>i.route));expect(routes).toContain('presupuesto:transactions');expect(routes).toContain('comidas');expect(routes).not.toContain('salud');expect(routes).not.toContain('presupuesto:contributions');expect(permittedWorkspaceGroups({},{essential:true,shared:true}).flatMap(g=>g.items.map(i=>i.route))).toContain('presupuesto:contributions')});
  it('removes forbidden sections while preserving family and other allowed modules',()=>{const groups=permittedWorkspaceGroups({finance:'none',health:'none',calendar:'none',planning:'none',monthly_close:'none'});expect(groups.map(g=>g.id)).toEqual(['today','home']);expect(groups.flatMap(g=>g.items).some(i=>i.route==='familia')).toBe(true);expect(groups.flatMap(g=>g.items).some(i=>i.route.startsWith('presupuesto'))).toBe(false)});
 });
 

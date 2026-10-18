@@ -43,7 +43,9 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
   await load();
   if(!active)return;
   const {data:{user}}=await supabase.auth.getUser();
-  channel=supabase.channel('home-control-'+household.id)
+  // The screen may have closed during that request: a channel created now would never be removed.
+  if(!active)return;
+  channel=supabase.channel('home-control-'+household.id+'-'+Date.now().toString(36))
    .on('postgres_changes',{event:'*',schema:'public',table:'notifications',filter:user?('user_id=eq.'+user.id):undefined},schedule)
    .on('postgres_changes',{event:'*',schema:'public',table:'list_items',filter:'household_id=eq.'+household.id},schedule)
    .on('postgres_changes',{event:'*',schema:'public',table:'meal_plan_entries',filter:'household_id=eq.'+household.id},schedule)
@@ -65,7 +67,7 @@ export default function HomeDashboard({household,finance,listCount,access,onNavi
   const [notificationR,taskR,eventR,occR,recR,memberR,profileR,accountR,backupR,mealR,recipeR,maintenanceR]=await Promise.all([
    supabase.from('notifications').select('id,type,severity,title,body,action_tab,created_at').eq('household_id',household.id).eq('user_id',user.id).is('read_at',null).neq('type','system').order('created_at',{ascending:false}).limit(20),
    can('lists')?supabase.from('list_items').select('id,text,due_date,assigned_to,completed').eq('household_id',household.id).eq('completed',false).lte('due_date',weekEnd):Promise.resolve({data:[] as any[],error:null}),
-   can('calendar')?supabase.from('events').select('id,title,event_date,start_time,location,event_type,recurrence,recurrence_until,assigned_to,all_day').eq('household_id',household.id).lte('event_date',weekEnd):Promise.resolve({data:[] as any[],error:null}),
+   can('calendar')?supabase.from('events').select('id,title,event_date,start_time,location,event_type,recurrence,recurrence_until,assigned_to,all_day').eq('household_id',household.id).lte('event_date',weekEnd).or(`recurrence.eq.none,recurrence_until.is.null,recurrence_until.gte.${today}`).or(`recurrence.neq.none,event_date.gte.${today}`).order('event_date'):Promise.resolve({data:[] as any[],error:null}),
    can('finance')?supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status').eq('household_id',household.id).eq('status','pending').lte('due_date',weekEnd):Promise.resolve({data:[] as any[],error:null}),
    can('finance')?supabase.from('recurring_transactions').select('id,description,amount,type,paid_by').eq('household_id',household.id).eq('active',true):Promise.resolve({data:[] as any[],error:null}),
    supabase.from('household_members').select('user_id').eq('household_id',household.id),

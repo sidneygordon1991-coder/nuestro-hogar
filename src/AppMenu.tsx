@@ -18,17 +18,17 @@ const groups:{label:string;items:Item[]}[]=[
   {tab:'comidas',module:'meals',label:'Comidas',description:'Menú, recetas y despensa',icon:<ModuleIcon name="meals"/>},
   {tab:'documentos',module:'documents',label:'Documentos',description:'Bóveda y vencimientos',icon:<ModuleIcon name="documents"/>},
   {tab:'mantenimiento',module:'maintenance',label:'Mantenimiento',description:'Casa, vehículos y garantías',icon:<ModuleIcon name="maintenance"/>},
-  {tab:'planeacion',module:'planning',label:'Planeación',description:'Objetivos y roadmap',icon:<ModuleIcon name="planning"/>}
+  {tab:'planeacion',module:'planning',label:'Planeación',description:'Planes grandes, paso a paso',icon:<ModuleIcon name="planning"/>}
  ]},
  {label:'Análisis',items:[
-  {tab:'salud',module:'health',label:'Salud del hogar',description:'Indicadores integrados',icon:<ModuleIcon name="health"/>},
-  {tab:'cierre',module:'monthly_close',label:'Cierre mensual',description:'Fotografía y reflexión',icon:<ModuleIcon name="monthly_close"/>},
+  {tab:'salud',module:'health',label:'Salud del hogar',description:'Cómo va tu hogar en general',icon:<ModuleIcon name="health"/>},
+  {tab:'cierre',module:'monthly_close',label:'Cierre mensual',description:'Revisa cómo terminó el mes',icon:<ModuleIcon name="monthly_close"/>},
   {tab:'automatizaciones',module:'automations',label:'Automatizaciones',description:'Reglas y acciones',icon:<ModuleIcon name="automations"/>}
  ]},
  {label:'Administración',items:[
   {tab:'familia',label:'Familia',description:'Perfiles y permisos',icon:<ModuleIcon name="family"/>},
   {tab:'respaldos',module:'backups',label:'Respaldos',description:'Copias y recuperación',icon:<ModuleIcon name="backups"/>},
-  {tab:'diagnostico',module:'diagnostics',label:'Diagnóstico',description:'Calidad y confiabilidad',icon:<ModuleIcon name="diagnostics"/>}
+  {tab:'diagnostico',module:'diagnostics',label:'Estado de la app',description:'Revisa que todo funcione',icon:<ModuleIcon name="diagnostics"/>}
  ]}
 ];
 
@@ -70,12 +70,13 @@ export default function AppMenu({currentTab,access,onNavigate,onPersonalize,isMa
 }
 
 export function readThemePreference():Theme {
- const saved=localStorage.getItem('nh-theme');
+ // Blocked storage (Safari "Block all cookies", some in-app browsers) must never stop the app from starting.
+ let saved:string|null=null;try{saved=localStorage.getItem('nh-theme')}catch{/* storage unavailable */}
  return saved==='light'||saved==='dark'?saved:'system';
 }
 
 export function setThemePreference(theme:Theme) {
- localStorage.setItem('nh-theme',theme);
+ try{localStorage.setItem('nh-theme',theme)}catch{/* storage unavailable: the choice lasts this session */}
  applyTheme(theme);
  window.dispatchEvent(new CustomEvent('nh:theme-change',{detail:theme}));
 }
@@ -114,5 +115,5 @@ function applyTheme(theme:Theme){
  document.documentElement.dataset.theme=effective;
  document.documentElement.dataset.themePreference=theme;
  const meta=document.querySelector('meta[name="theme-color"]');
- if(meta)meta.setAttribute('content',effective==='light'?'#f1f3f5':'#101214');
+ if(meta)meta.setAttribute('content',effective==='light'?'#f1f3f5':'#0e1012');
 }

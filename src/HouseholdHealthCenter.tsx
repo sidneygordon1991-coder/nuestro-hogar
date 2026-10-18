@@ -26,7 +26,7 @@ export default function HouseholdHealthCenter({household,canEditFinance,onNaviga
  const sequence=useRef(0),currentHousehold=useRef(household.id);currentHousehold.current=household.id;const [revision,setRevision]=useState(0);
 
  useEffect(()=>{let channel:any;let active=true;(async()=>{await load();if(!active)return;
-  channel=supabase.channel('household-health-'+household.id)
+  channel=supabase.channel('household-health-'+household.id+'-'+Math.random().toString(36).slice(2))
    .on('postgres_changes',{event:'*',schema:'public',table:'transactions',filter:'household_id=eq.'+household.id},()=>load(false))
    .on('postgres_changes',{event:'*',schema:'public',table:'goal_contributions',filter:'household_id=eq.'+household.id},()=>load(false))
    .on('postgres_changes',{event:'*',schema:'public',table:'budget_allocations',filter:'household_id=eq.'+household.id},()=>load(false))

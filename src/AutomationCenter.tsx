@@ -31,7 +31,7 @@ export default function AutomationCenter({household,onNavigate,readOnly=false}:{
  useEffect(()=>{let channel:any,active=true;(async()=>{
   await load();
   if(!active)return;
-  channel=supabase.channel('automation-center-'+household.id)
+  channel=supabase.channel('automation-center-'+household.id+'-'+Math.random().toString(36).slice(2))
    .on('postgres_changes',{event:'*',schema:'public',table:'household_automation_rules',filter:'household_id=eq.'+household.id},()=>load(false))
    .on('postgres_changes',{event:'INSERT',schema:'public',table:'automation_rule_runs',filter:'household_id=eq.'+household.id},()=>load(false))
    .subscribe();
