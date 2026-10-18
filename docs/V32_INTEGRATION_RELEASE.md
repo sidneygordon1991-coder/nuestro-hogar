@@ -27,7 +27,7 @@ La única migración nueva es `20261018120000_security_null_safe_guards.sql`. Ta
 
 La función `send-web-push` conserva `verify_jwt=true` y el secreto del despachador. Se actualiza con `index.ts` y su dependencia relativa `notificationUrl.ts`, sin regenerar VAPID ni otros secretos. Las pruebas del despachador simulan el servidor push y no equivalen a una entrega física en Android/iOS.
 
-Antes y después de aplicar la migración se comparan conteos y huellas agregadas de movimientos, cuentas, aportes y recurrentes, sin exportar sus registros. Los escenarios con identidades ficticias se ejecutan solamente en PostgreSQL aislado, reconstruido desde los metadatos del esquema vigente y las migraciones v31. No se crean cuentas de prueba en producción.
+La migración está aplicada en el servidor y `send-web-push` está activo en versión 5, con JWT conservado. Antes y después de aplicar la migración se compararon conteos y huellas agregadas de movimientos, cuentas, aportes y recurrentes: coincidieron sin cambios, sin exportar sus registros. Los escenarios con identidades ficticias se ejecutan solamente en PostgreSQL aislado, reconstruido desde los metadatos del esquema vigente y las migraciones v31. No se crean cuentas de prueba en producción.
 
 ## Validación
 
@@ -35,7 +35,7 @@ Antes y después de aplicar la migración se comparan conteos y huellas agregada
 - `npm run build`: TypeScript estricto y compilación de producción aprobados.
 - Los 16 archivos `supabase/tests/*.sql` aprobaron en PostgreSQL aislado, con RLS, grants, funciones y triggers de la base de referencia.
 - Prueba nativa de PWA v31 → v32: nueva caché activa, caché anterior retirada, marcador local conservado, carcasa disponible sin red y recuperación de una navegación lenta en 3,592 ms, sin errores JavaScript.
-- Las comprobaciones completas de navegador y de publicación quedan registradas en el PR y GitHub Actions. Las pruebas usan registros simulados e interceptan el backend.
+- GitHub Actions `39137078155`: 385 unitarias, compilación y los 86 escenarios de navegador aprobados conjuntamente. Incluyen tres escenarios nuevos de onboarding, hogar recordado y descripción opcional. Un caso local de personalización se estabilizó esperando a que su control recibiera el foco; aprobó tres repeticiones. Las pruebas usan registros simulados e interceptan el backend.
 
 ## Recuperación y límites
 
