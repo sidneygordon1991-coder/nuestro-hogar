@@ -219,7 +219,7 @@ test('master activity tolerates an incomplete response without breaking the cont
   try {
     await ready(s, 'master');
     await expect(s.page.getByRole('alert').filter({hasText: 'No se pudo consultar la actividad.'})).toBeVisible();
-    await expect(s.page.locator('.master-family-health')).toBeVisible();
+    await expect(s.page.locator('.master-family').getByRole('heading', {name: 'Familia QA'})).toBeVisible();
     await healthy(s);
   } finally {
     await s.context.close();

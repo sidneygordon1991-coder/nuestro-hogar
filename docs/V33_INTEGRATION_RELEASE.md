@@ -37,6 +37,8 @@
 - SQL cubre sueldo privado, adolescente sin finanzas, pagos atómicos, duplicados, límite de retiro, historial protegido, cuotas inválidas, respaldos nuevos y antiguos, master con MFA y exclusión de actividad privada.
 - Prueba nativa de PWA: actualización v32→v33, marcador local conservado, pantalla de acceso offline, recuperación de red lenta en 3.6 segundos y cero errores JavaScript.
 - Función `send-web-push`: código equivalente al despliegue activo v5 después de normalizar formato; no requiere redespliegue ni rotación de claves.
+- Navegador: 92 de 93 escenarios pasaron en la primera batería completa; se corrigió la respuesta incompleta de métricas master y se añadió una prueba. Los 14 escenarios afectados pasaron después del ajuste. El CI vuelve a verificar los 94 escenarios finales.
+- Servidor: ambas migraciones nuevas aplicadas. Conteos y huellas de movimientos, cuentas (sin columnas nuevas), aportes y recurrentes idénticos antes/después. RLS activo en las cuatro tablas nuevas; acceso anónimo denegado, nonmember sin visibilidad, RPC de pago denegada y actividad master protegida. Sin nuevas advertencias de seguridad; avisos informativos de índices nuevos sin uso esperado.
 - Batería de navegador y publicación: consultar los checks de la pull request y el despliegue de GitHub Pages correspondiente a este commit.
 
 ## Límites y pendientes explícitos
