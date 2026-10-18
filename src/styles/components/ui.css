@@ -1,0 +1,49 @@
+/* Design system components (src/ui). Only tokens: --ds-* scales and --nh-* color roles. */
+
+/* Amount */
+.ds-amount{font-variant-numeric:tabular-nums lining-nums;white-space:nowrap}
+.ds-amount--income{color:var(--nh-success)}
+.ds-amount--expense{color:var(--nh-text)}
+.ds-amount--negative{color:var(--nh-danger)}
+.ds-amount--muted{color:var(--nh-muted)}
+
+/* Illustrations and empty states */
+.ds-illustration{display:block;flex-shrink:0;overflow:visible}
+.ds-empty{display:grid;justify-items:center;gap:var(--ds-space-3);padding:var(--ds-space-6) var(--ds-space-4);text-align:center}
+.ds-empty-copy{display:grid;gap:var(--ds-space-1);max-width:34ch}
+.ds-empty-copy strong{font-size:var(--ds-fs-lg);font-weight:var(--ds-fw-semibold);color:var(--nh-text)}
+.ds-empty-copy p{margin:0;font-size:var(--ds-fs-sm);line-height:var(--ds-lh-body);color:var(--nh-muted)}
+.ds-empty--compact{grid-template-columns:auto minmax(0,1fr);justify-items:start;text-align:left;align-items:center;padding:var(--ds-space-3) 0}
+.ds-empty--compact .ds-empty-action{grid-column:1/-1}
+
+/* Buttons */
+.ds-button{display:inline-flex;align-items:center;justify-content:center;gap:var(--ds-space-2);min-height:var(--ds-tap);padding:0 var(--ds-space-4);
+ border-radius:var(--ds-radius-md);border:1px solid var(--nh-border);background:var(--nh-surface);color:var(--nh-text);
+ font:inherit;font-size:var(--ds-fs-md);font-weight:var(--ds-fw-semibold);cursor:pointer;
+ transition:transform var(--ds-dur-fast) var(--ds-ease-out),background-color var(--ds-dur-base) var(--ds-ease-out)}
+.ds-button:active{transform:scale(.98)}
+.ds-button:disabled{opacity:.55;cursor:default;transform:none}
+.ds-button--primary{border-color:transparent;background:linear-gradient(135deg,var(--nh-action),var(--nh-action-end));color:var(--nh-on-action)}
+.ds-button--quiet{border-color:transparent;background:none;color:var(--nh-accent);padding:0 var(--ds-space-2)}
+.ds-button--danger{border-color:transparent;background:var(--nh-danger-soft);color:var(--nh-danger)}
+.ds-button svg{width:18px;height:18px}
+.ds-icon-button{display:inline-grid;place-items:center;width:var(--ds-tap);height:var(--ds-tap);border-radius:var(--ds-radius-md);
+ border:1px solid var(--nh-border);background:var(--nh-surface);color:var(--nh-text);cursor:pointer}
+.ds-icon-button svg{width:18px;height:18px}
+
+/* Progress */
+.ds-progress{position:relative;display:block;height:8px;border-radius:var(--ds-radius-pill);background:var(--nh-track);overflow:hidden}
+.ds-progress>i{display:block;height:100%;border-radius:inherit;background:var(--nh-chart-accent);transform-origin:left;animation:ds-grow var(--ds-dur-count) var(--ds-ease-out) both}
+.ds-progress--success>i{background:var(--nh-chart-success)}
+.ds-progress--warning>i{background:var(--nh-chart-warning)}
+.ds-progress--danger>i{background:var(--nh-chart-danger)}
+@keyframes ds-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* Motion: dialogs and sheets answer the tap that opened them. Backdrop fades; the panel rises (phone) or settles (desktop). */
+@keyframes ds-fade{from{opacity:0}to{opacity:1}}
+@keyframes ds-rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@keyframes ds-settle{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+.app :is(.modal-backdrop,.workspace-navigation-backdrop){animation:ds-fade var(--ds-dur-base) var(--ds-ease-out) both}
+.app :is(.finance-modal,.workspace-navigation-sheet){animation:ds-settle var(--ds-dur-slow) var(--ds-ease-out) both}
+@media(max-width:760px){.app :is(.finance-modal,.workspace-navigation-sheet){animation-name:ds-rise}}
+@media(prefers-reduced-motion:reduce){.app :is(.modal-backdrop,.workspace-navigation-backdrop,.finance-modal,.workspace-navigation-sheet),.ds-progress>i{animation:none}}

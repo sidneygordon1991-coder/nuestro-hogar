@@ -1,0 +1,75 @@
+/* v33 optional features (Configuración → Funciones opcionales). Tokens only. */
+.optional-panel{display:grid;gap:var(--ds-space-3)}
+.optional-head{display:flex;align-items:center;gap:var(--ds-space-2)}
+.optional-head svg{width:20px;height:20px;color:var(--nh-accent)}
+.optional-head h3{margin:0;font-size:var(--ds-fs-md)}
+.optional-panel .muted{margin:0;font-size:var(--ds-fs-sm);line-height:var(--ds-lh-body)}
+
+/* Quick questions */
+.questions-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--ds-space-2)}
+.questions-form input{min-height:var(--ds-tap);padding:0 var(--ds-space-3);font-size:var(--ds-fs-md)}
+.questions-form .finance-primary{width:auto;margin:0;padding:0 var(--ds-space-4);min-height:var(--ds-tap)}
+.questions-answer{padding:var(--ds-space-3) var(--ds-space-4);border-radius:var(--ds-radius-md);background:var(--nh-accent-soft);color:var(--nh-text)}
+.questions-answer p{margin:0;font-size:var(--ds-fs-sm);line-height:var(--ds-lh-body)}
+.questions-answer p+p{margin-top:var(--ds-space-1)}
+.questions-examples{display:flex;flex-wrap:wrap;gap:var(--ds-space-2)}
+.questions-examples button{min-height:36px;padding:0 var(--ds-space-3);border:1px solid var(--nh-border);border-radius:var(--ds-radius-pill);background:var(--nh-surface);color:var(--nh-muted);font:inherit;font-size:var(--ds-fs-xs);cursor:pointer}
+
+/* 90-day forecast */
+.forecast-figures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--ds-space-3)}
+.forecast-figures small{display:block;font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.forecast-figures strong{display:block;margin-top:2px;font-size:var(--ds-fs-lg)}
+.forecast-chart{display:block;width:100%;height:140px}
+.forecast-line{fill:none;stroke:var(--nh-chart-accent);stroke-width:2.5}
+.forecast-area{fill:var(--nh-accent-soft);opacity:.7}
+.forecast-zero{stroke:var(--nh-chart-danger);stroke-width:1;stroke-dasharray:4 4}
+.forecast-low{fill:var(--nh-surface);stroke:var(--nh-chart-warning);stroke-width:3}
+.forecast-note{margin:0;font-size:var(--ds-fs-xs);line-height:var(--ds-lh-body);color:var(--nh-muted)}
+.forecast-events{display:grid;gap:var(--ds-space-1);margin:0;padding:0;list-style:none;font-size:var(--ds-fs-xs);color:var(--nh-text)}
+.forecast-events li{display:flex;gap:var(--ds-space-2);align-items:baseline}
+.forecast-events span{min-width:48px;color:var(--nh-muted)}
+.forecast-events b{margin-left:auto;font-variant-numeric:tabular-nums}
+.forecast-events b.positive{color:var(--nh-success)}
+
+/* Subscriptions */
+.subscriptions-list{display:grid;margin:0;padding:0;list-style:none}
+.subscriptions-list li{display:flex;justify-content:space-between;align-items:center;gap:var(--ds-space-3);padding:var(--ds-space-2) 0;border-top:1px solid var(--nh-border)}
+.subscriptions-list strong,.subscriptions-list small{display:block}
+.subscriptions-list strong{font-size:var(--ds-fs-sm)}
+.subscriptions-list small{margin-top:2px;font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.subscriptions-list button{display:inline-flex;align-items:center;gap:var(--ds-space-1);flex:0 0 auto;min-height:36px;padding:0 var(--ds-space-2);border:0;background:none;color:var(--nh-accent);font:inherit;font-size:var(--ds-fs-xs);font-weight:var(--ds-fw-semibold);cursor:pointer}
+.subscriptions-list button svg{width:15px;height:15px}
+
+/* Zero-based budget */
+.zero-panel{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+.zero-main small,.zero-carry small{display:block;font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.zero-main strong{display:block;margin:2px 0 var(--ds-space-1);font-family:var(--ds-font-display);font-weight:600;font-size:var(--ds-fs-3xl)}
+.zero-main .ds-amount{font-variant-numeric:lining-nums proportional-nums}
+.zero-main p{margin:0;font-size:var(--ds-fs-sm);line-height:var(--ds-lh-body);color:var(--nh-muted)}
+.zero-panel.is-balanced .zero-main strong{color:var(--nh-success)}
+.zero-carry ul{display:grid;gap:var(--ds-space-1);margin:var(--ds-space-2) 0 0;padding:0;list-style:none;font-size:var(--ds-fs-sm)}
+.zero-carry li{display:flex;justify-content:space-between;gap:var(--ds-space-2)}
+.zero-carry b{color:var(--nh-success);font-variant-numeric:tabular-nums}
+
+/* Weekly summary on Inicio */
+.weekly-card{display:grid;gap:var(--ds-space-3)}
+.weekly-head{display:flex;align-items:center;gap:var(--ds-space-2)}
+.weekly-head svg{width:20px;height:20px;color:var(--nh-accent)}
+.weekly-head h3{margin:0;font-size:var(--ds-fs-md)}
+.weekly-head span{margin-left:auto;font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.weekly-figure{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--ds-space-1) var(--ds-space-3)}
+.weekly-figure strong{font-family:var(--ds-font-display);font-weight:600;font-size:var(--ds-fs-2xl)}
+.weekly-figure .ds-amount{font-variant-numeric:lining-nums proportional-nums}
+.weekly-figure span{font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.weekly-figure span.up{color:var(--nh-warning)}
+.weekly-figure span.down{color:var(--nh-success)}
+.weekly-body p{margin:var(--ds-space-1) 0 0;font-size:var(--ds-fs-sm);line-height:var(--ds-lh-body);color:var(--nh-text)}
+.weekly-body .weekly-detail{color:var(--nh-muted);font-size:var(--ds-fs-xs)}
+.weekly-upcoming small{font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.weekly-upcoming ul{display:grid;gap:var(--ds-space-1);margin:var(--ds-space-1) 0 0;padding:0;list-style:none;font-size:var(--ds-fs-sm)}
+.weekly-upcoming li{display:flex;gap:var(--ds-space-2);align-items:baseline}
+.weekly-upcoming li span{min-width:52px;color:var(--nh-muted);font-size:var(--ds-fs-xs)}
+.weekly-upcoming li b{margin-left:auto;font-variant-numeric:tabular-nums}
+.weekly-link{justify-self:start;display:inline-flex;align-items:center;gap:var(--ds-space-1);min-height:36px;padding:0;border:0;background:none;color:var(--nh-accent);font:inherit;font-size:var(--ds-fs-sm);font-weight:var(--ds-fw-semibold);cursor:pointer}
+.weekly-link svg{width:16px;height:16px}
+@media(max-width:640px){.zero-panel{grid-template-columns:1fr}.forecast-figures strong{font-size:var(--ds-fs-md)}.questions-form{grid-template-columns:1fr}}

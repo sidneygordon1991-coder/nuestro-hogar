@@ -1,16 +1,304 @@
-import {useEffect,useRef,useState,type FormEvent} from 'react';
-import {Check,ImagePlus,Monitor,Moon,Palette,Sun,Trash2,X} from 'lucide-react';
-import {readThemePreference,setThemePreference,type Theme} from './AppMenu';
-import ModuleIcon,{type ModuleIconName} from './ModuleIcon';
-import {appearanceAccents,makeCover,moduleCatalog,normalizeAppearance,type Appearance} from './lib/appearance';
-export default function AppearancePanel({value,onSave,onClose,access}:{value:Appearance;onSave:(value:Appearance)=>void;onClose:()=>void;access:Record<string,string>}){
- const [draft,setDraft]=useState(value),[error,setError]=useState(''),[busy,setBusy]=useState(false);const ref=useRef<HTMLDivElement>(null),previous=useRef<HTMLElement|null>(null);
- // The parent re-renders often; keeping onClose in a ref stops focus from jumping on every render.
- const closeRef=useRef(onClose);closeRef.current=onClose;
- const [theme,setTheme]=useState<Theme>(()=>readThemePreference());
- function chooseTheme(next:Theme){setTheme(next);setThemePreference(next)}
- useEffect(()=>{previous.current=document.activeElement as HTMLElement;ref.current?.querySelector<HTMLButtonElement>('button')?.focus();const listener=(e:KeyboardEvent)=>{if(e.key==='Escape')closeRef.current();if(e.key==='Tab'){const all=Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select,[tabindex="0"]')||[]).filter(x=>x.getClientRects().length);const first=all[0],last=all[all.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}};window.addEventListener('keydown',listener);return()=>{window.removeEventListener('keydown',listener);previous.current?.focus()}},[]);
- async function selectPhoto(file?:File){if(!file)return;setBusy(true);setError('');try{const cover=await makeCover(file);setDraft(d=>({...d,cover}))}catch(e){setError(e instanceof Error?e.message:'No se pudo abrir la imagen.')}finally{setBusy(false)}}
- function submit(e:FormEvent){e.preventDefault();setError('');try{onSave(normalizeAppearance(draft));onClose()}catch{setError('No hay espacio en este navegador para guardar la portada. Quita la foto e inténtalo de nuevo.')}}
- return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div ref={ref} className="finance-modal appearance-modal" role="dialog" aria-modal="true" aria-labelledby="appearance-title"><div className="modal-head"><div><p className="eyebrow">A TU MANERA</p><h3 id="appearance-title">Personaliza tu espacio</h3></div><button type="button" aria-label="Cerrar personalización" onClick={onClose}><X/></button></div><form onSubmit={submit} className="appearance-form"><p className="muted">Se guarda para tu cuenta y este hogar en este dispositivo. La portada permanece en el navegador.</p><fieldset><legend><Palette size={17}/> Color de la app</legend><p className="appearance-color-note">Elige el color de la barra lateral, los botones y las gráficas. El tema de día o de noche se cambia junto al nombre del hogar.</p><div className="appearance-swatches">{appearanceAccents.map(({id,label})=><button key={id} data-accent={id} type="button" className="appearance-swatch palette-sample" aria-pressed={draft.accent===id} onClick={()=>setDraft({...draft,accent:id})}><i/>{label}{draft.accent===id&&<Check size={16}/>}</button>)}</div><div className="appearance-palette-preview palette-sample" data-accent={draft.accent} role="img" aria-label={"Vista previa del acabado "+(appearanceAccents.find(a=>a.id===draft.accent)?.label||"")}><div className="appearance-preview-rail"><i/><i/><i/><i/></div><div className="appearance-preview-body"><div className="appearance-preview-hero"><small>Margen disponible</small><strong>Q 4,650</strong></div><div className="appearance-preview-actions"><span>{appearanceAccents.find(a=>a.id===draft.accent)?.label}</span><b>Registrar</b></div></div></div></fieldset><fieldset><legend>Tema</legend><div className="appearance-theme" role="group" aria-label="Tema de la app">{([['system','Automático',Monitor],['light','Día',Sun],['dark','Noche',Moon]] as const).map(([id,label,Icon])=><button key={id} type="button" aria-pressed={theme===id} onClick={()=>chooseTheme(id)}><Icon size={17} aria-hidden="true"/>{label}</button>)}</div><p className="muted">Se aplica al instante en este dispositivo. Automático sigue la configuración del sistema.</p></fieldset><fieldset><legend>Tu prioridad al abrir</legend><div className="appearance-focus">{(['balance','plans'] as const).map(focus=><button key={focus} type="button" aria-pressed={draft.focus===focus} onClick={()=>setDraft({...draft,focus})}><ModuleIcon name={focus==='balance'?'finance':'calendar'}/><strong>{focus==='balance'?'Mi balance':'Mis planes'}</strong><small>{focus==='balance'?'Finanzas primero':'Agenda primero'}</small></button>)}</div></fieldset><fieldset><legend>Tu forma de navegar</legend><div className="appearance-focus">{(['essential','complete'] as const).map(view=><button key={view} type="button" aria-pressed={draft.view===view} onClick={()=>setDraft({...draft,view})}><ModuleIcon name={view==='essential'?'home':'lists'}/><strong>{view==='essential'?'Esencial':'Completa'}</strong><small>{view==='essential'?'Inicio, familia y tus favoritos':'Todos tus módulos disponibles'}</small></button>)}</div><p className="muted">Puedes abrir todas las secciones cuando las necesites. Tus permisos se conservan.</p></fieldset><fieldset><legend>Módulos favoritos · hasta 6</legend><div className="appearance-favorites">{moduleCatalog.filter(m=>!('module'in m)||access[m.module]!=='none').map(m=><label key={m.tab}><input type="checkbox" checked={draft.favorites.includes(m.tab)} disabled={!draft.favorites.includes(m.tab)&&draft.favorites.length>=6} onChange={e=>setDraft({...draft,favorites:e.target.checked?[...draft.favorites,m.tab]:draft.favorites.filter(x=>x!==m.tab)})}/><ModuleIcon name={m.icon as ModuleIconName}/>{m.label}</label>)}</div></fieldset><fieldset><legend>Portada del hogar</legend>{draft.cover?<div className="appearance-photo"><img src={draft.cover} alt="Portada seleccionada"/><button type="button" onClick={()=>setDraft({...draft,cover:''})}><Trash2 size={16}/> Quitar foto</button></div>:<div className="appearance-upload"><ImagePlus/><span>Un recuerdo, un paisaje o tu familia</span><small>JPG, PNG o WEBP · hasta 20 MB</small></div>}<label className="appearance-file">{busy?'Preparando imagen…':'Elegir una foto'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e=>selectPhoto(e.target.files?.[0])}/></label></fieldset>{error&&<p className="sharing-error" role="alert">{error}</p>}<button className="finance-primary" disabled={busy}><Check size={17}/> Guardar apariencia</button></form></div></div>
+import {useEffect, useRef, useState, type FormEvent} from 'react';
+import {Check, ImagePlus, Monitor, Moon, Palette, Sun, Trash2, X} from 'lucide-react';
+import {readThemePreference, setThemePreference, type Theme} from './AppMenu';
+import ModuleIcon, {type ModuleIconName} from './ModuleIcon';
+import {appearanceAccents, makeCover, moduleCatalog, normalizeAppearance, type Appearance} from './lib/appearance';
+import {optionalFeatures, readFeatures, setFeature, type FeatureId} from './lib/features';
+export default function AppearancePanel({
+  value,
+  onSave,
+  onClose,
+  access
+}: {
+  value: Appearance;
+  onSave: (value: Appearance) => void;
+  onClose: () => void;
+  access: Record<string, string>;
+}) {
+  const [draft, setDraft] = useState(value),
+    [error, setError] = useState(''),
+    [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLDivElement>(null),
+    previous = useRef<HTMLElement | null>(null);
+  // The parent re-renders often; keeping onClose in a ref stops focus from jumping on every render.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const [theme, setTheme] = useState<Theme>(() => readThemePreference());
+  const [features, setFeatures] = useState(() => readFeatures());
+  function chooseTheme(next: Theme) {
+    setTheme(next);
+    setThemePreference(next);
+  }
+  useEffect(() => {
+    previous.current = document.activeElement as HTMLElement;
+    ref.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeRef.current();
+      if (e.key === 'Tab') {
+        const all = Array.from(
+          ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select,[tabindex="0"]') || []
+        ).filter(x => x.getClientRects().length);
+        const first = all[0],
+          last = all[all.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', listener);
+    return () => {
+      window.removeEventListener('keydown', listener);
+      previous.current?.focus();
+    };
+  }, []);
+  async function selectPhoto(file?: File) {
+    if (!file) return;
+    setBusy(true);
+    setError('');
+    try {
+      const cover = await makeCover(file);
+      setDraft(d => ({...d, cover}));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo abrir la imagen.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    try {
+      onSave(normalizeAppearance(draft));
+      for (const f of optionalFeatures) setFeature(f.id, features[f.id]);
+      onClose();
+    } catch {
+      setError('No hay espacio en este navegador para guardar la portada. Quita la foto e inténtalo de nuevo.');
+    }
+  }
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={ref}
+        className="finance-modal appearance-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="appearance-title"
+      >
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">A tu manera</p>
+            <h3 id="appearance-title">Personaliza tu espacio</h3>
+          </div>
+          <button type="button" aria-label="Cerrar personalización" onClick={onClose}>
+            <X />
+          </button>
+        </div>
+        <form onSubmit={submit} className="appearance-form">
+          <p className="muted">
+            Se guarda para tu cuenta y este hogar en este dispositivo. La portada permanece en el navegador.
+          </p>
+          <fieldset>
+            <legend>
+              <Palette size={17} /> Color de la app
+            </legend>
+            <p className="appearance-color-note">
+              Elige el color de la barra lateral, los botones y las gráficas. El tema de día o de noche se cambia junto
+              al nombre del hogar.
+            </p>
+            <div className="appearance-swatches">
+              {appearanceAccents.map(({id, label}) => (
+                <button
+                  key={id}
+                  data-accent={id}
+                  type="button"
+                  className="appearance-swatch palette-sample"
+                  aria-pressed={draft.accent === id}
+                  onClick={() => setDraft({...draft, accent: id})}
+                >
+                  <i />
+                  {label}
+                  {draft.accent === id && <Check size={16} />}
+                </button>
+              ))}
+            </div>
+            <div
+              className="appearance-palette-preview palette-sample"
+              data-accent={draft.accent}
+              role="img"
+              aria-label={
+                'Vista previa del acabado ' + (appearanceAccents.find(a => a.id === draft.accent)?.label || '')
+              }
+            >
+              <div className="appearance-preview-rail">
+                <i />
+                <i />
+                <i />
+                <i />
+              </div>
+              <div className="appearance-preview-body">
+                <div className="appearance-preview-hero">
+                  <small>Margen disponible</small>
+                  <strong>Q 4,650</strong>
+                </div>
+                <div className="appearance-preview-actions">
+                  <span>{appearanceAccents.find(a => a.id === draft.accent)?.label}</span>
+                  <b>Registrar</b>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Tema</legend>
+            <div className="appearance-theme" role="group" aria-label="Tema de la app">
+              {(
+                [
+                  ['system', 'Automático', Monitor],
+                  ['light', 'Día', Sun],
+                  ['dark', 'Noche', Moon]
+                ] as const
+              ).map(([id, label, Icon]) => (
+                <button key={id} type="button" aria-pressed={theme === id} onClick={() => chooseTheme(id)}>
+                  <Icon size={17} aria-hidden="true" />
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="muted">
+              Se aplica al instante en este dispositivo. Automático sigue la configuración del sistema.
+            </p>
+          </fieldset>
+          <fieldset>
+            <legend>Tu prioridad al abrir</legend>
+            <div className="appearance-focus">
+              {(['balance', 'plans'] as const).map(focus => (
+                <button
+                  key={focus}
+                  type="button"
+                  aria-pressed={draft.focus === focus}
+                  onClick={() => setDraft({...draft, focus})}
+                >
+                  <ModuleIcon name={focus === 'balance' ? 'finance' : 'calendar'} />
+                  <strong>{focus === 'balance' ? 'Mi balance' : 'Mis planes'}</strong>
+                  <small>{focus === 'balance' ? 'Finanzas primero' : 'Agenda primero'}</small>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Tu forma de navegar</legend>
+            <div className="appearance-focus">
+              {(['essential', 'complete'] as const).map(view => (
+                <button
+                  key={view}
+                  type="button"
+                  aria-pressed={draft.view === view}
+                  onClick={() => setDraft({...draft, view})}
+                >
+                  <ModuleIcon name={view === 'essential' ? 'home' : 'lists'} />
+                  <strong>{view === 'essential' ? 'Esencial' : 'Completa'}</strong>
+                  <small>
+                    {view === 'essential' ? 'Inicio, familia y tus favoritos' : 'Todos tus módulos disponibles'}
+                  </small>
+                </button>
+              ))}
+            </div>
+            <p className="muted">Puedes abrir todas las secciones cuando las necesites. Tus permisos se conservan.</p>
+          </fieldset>
+          <fieldset>
+            <legend>Módulos favoritos · hasta 6</legend>
+            <div className="appearance-favorites">
+              {moduleCatalog
+                .filter(m => !('module' in m) || access[m.module] !== 'none')
+                .map(m => (
+                  <label key={m.tab}>
+                    <input
+                      type="checkbox"
+                      checked={draft.favorites.includes(m.tab)}
+                      disabled={!draft.favorites.includes(m.tab) && draft.favorites.length >= 6}
+                      onChange={e =>
+                        setDraft({
+                          ...draft,
+                          favorites: e.target.checked
+                            ? [...draft.favorites, m.tab]
+                            : draft.favorites.filter(x => x !== m.tab)
+                        })
+                      }
+                    />
+                    <ModuleIcon name={m.icon as ModuleIconName} />
+                    {m.label}
+                  </label>
+                ))}
+            </div>
+          </fieldset>
+          {access.finance !== 'none' && (
+            <fieldset>
+              <legend>Funciones opcionales</legend>
+              <p className="muted">
+                Solo cambian tu app; cada persona del hogar elige las suyas. Funcionan con tus datos, sin IA.
+              </p>
+              <div className="appearance-features">
+                {optionalFeatures.map(f => (
+                  <label key={f.id}>
+                    <span>
+                      <strong>{f.label}</strong>
+                      <small>{f.detail}</small>
+                    </span>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={features[f.id as FeatureId]}
+                      onChange={e => setFeatures({...features, [f.id]: e.target.checked})}
+                    />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+          <fieldset>
+            <legend>Portada del hogar</legend>
+            {draft.cover ? (
+              <div className="appearance-photo">
+                <img src={draft.cover} alt="Portada seleccionada" />
+                <button type="button" onClick={() => setDraft({...draft, cover: ''})}>
+                  <Trash2 size={16} /> Quitar foto
+                </button>
+              </div>
+            ) : (
+              <div className="appearance-upload">
+                <ImagePlus />
+                <span>Un recuerdo, un paisaje o tu familia</span>
+                <small>JPG, PNG o WEBP · hasta 20 MB</small>
+              </div>
+            )}
+            <label className="appearance-file">
+              {busy ? 'Preparando imagen…' : 'Elegir una foto'}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={busy}
+                onChange={e => selectPhoto(e.target.files?.[0])}
+              />
+            </label>
+          </fieldset>
+          {error && (
+            <p className="sharing-error" role="alert">
+              {error}
+            </p>
+          )}
+          <button className="finance-primary" disabled={busy}>
+            <Check size={17} /> Guardar cambios
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }

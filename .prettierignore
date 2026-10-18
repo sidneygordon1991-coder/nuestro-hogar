@@ -1,0 +1,11 @@
+dist
+node_modules
+package-lock.json
+supabase/migrations
+supabase/tests
+supabase/rollback
+INVENTARIO_SHA256.csv
+*.md
+index.html
+src/lib/*.ttf
+src/**/*.css

@@ -1,14 +1,19 @@
 {
   "name": "nuestro-hogar",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.33.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "typecheck": "tsc -b",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:types": "bash scripts/db-types.sh",
+    "db:baseline": "bash scripts/db-baseline.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",
@@ -27,6 +32,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "postcss": "8.5.30",
+    "prettier": "3.8.1",
     "typescript": "^5.6.3",
     "vite": "^6.0.1",
     "vitest": "^2.1.8"

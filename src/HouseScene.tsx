@@ -1,3 +1,44 @@
 import {useId} from 'react';
 /** Original vector artwork, rendered in the current household palette. */
-export default function HouseScene(){const id=useId().replace(/:/g,'');return <svg className="house-scene" viewBox="0 0 360 250" fill="none" aria-hidden="true"><defs><linearGradient id={id} x1="40" y1="40" x2="300" y2="230" gradientUnits="userSpaceOnUse"><stop stopColor="var(--nh-accent-soft)"/><stop offset="1" stopColor="var(--nh-purple-soft)"/></linearGradient></defs><ellipse cx="190" cy="214" rx="133" ry="24" fill="var(--nh-accent)" opacity=".08"/><circle cx="195" cy="121" r="100" fill={'url(#'+id+')'}/><circle cx="195" cy="121" r="118" stroke="var(--nh-accent-border)" strokeDasharray="3 8" opacity=".45"/><path d="m95 127 82-63 89 47v94l-85 29-86-46z" fill="var(--nh-surface)" stroke="var(--nh-accent-border)" strokeWidth="1.5"/><path d="m181 125 85-14v94l-85 29z" fill="var(--nh-accent-soft)"/><path d="m82 124 92-76 110 58-18 14-89-44-82 62z" fill="var(--nh-accent)"/><path d="m177 76 4 49 85-14z" fill="var(--nh-accent-border)"/><path d="M181 125v109M177 76l-82 62" stroke="var(--nh-accent-border)" strokeWidth="1.5"/><path d="m210 149 23-7v30l-23 7zM111 145l23 11v28l-23-11z" fill="var(--nh-blue)" opacity=".6"/><path d="m144 174 20 10v42l-20-9z" fill="var(--nh-accent-border)"/><path d="m242 157 13-4v41l-13 4z" fill="var(--nh-surface)"/><path d="m215 149 13-4v23l-13 4zM116 151l13 6v20l-13-6z" stroke="var(--nh-surface)"/><path d="M71 199v-52M296 210v-59" stroke="var(--nh-success-border)" strokeWidth="4"/><path d="M70 115c-34 12-30 59 1 63 34-9 33-47-1-63ZM296 121c-31 12-28 53 0 59 31-8 30-42 0-59Z" fill="var(--nh-success)" opacity=".6"/><path d="m144 217-31 15 26 13 25-19" fill="var(--nh-accent)" opacity=".15"/><g stroke="var(--nh-accent)" strokeWidth="2" strokeLinecap="round"><path d="M59 70v10m-5-5h10M286 57v10m-5-5h10M319 116v6m-3-3h6"/></g><circle cx="95" cy="49" r="3" fill="var(--nh-purple)"/><circle cx="309" cy="84" r="3" fill="var(--nh-accent)"/></svg>}
+export default function HouseScene() {
+  const id = useId().replace(/:/g, '');
+  return (
+    <svg className="house-scene" viewBox="0 0 360 250" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="40" y1="40" x2="300" y2="230" gradientUnits="userSpaceOnUse">
+          <stop stopColor="var(--nh-accent-soft)" />
+          <stop offset="1" stopColor="var(--nh-purple-soft)" />
+        </linearGradient>
+      </defs>
+      <ellipse cx="190" cy="214" rx="133" ry="24" fill="var(--nh-accent)" opacity=".08" />
+      <circle cx="195" cy="121" r="100" fill={'url(#' + id + ')'} />
+      <circle cx="195" cy="121" r="118" stroke="var(--nh-accent-border)" strokeDasharray="3 8" opacity=".45" />
+      <path
+        d="m95 127 82-63 89 47v94l-85 29-86-46z"
+        fill="var(--nh-surface)"
+        stroke="var(--nh-accent-border)"
+        strokeWidth="1.5"
+      />
+      <path d="m181 125 85-14v94l-85 29z" fill="var(--nh-accent-soft)" />
+      <path d="m82 124 92-76 110 58-18 14-89-44-82 62z" fill="var(--nh-accent)" />
+      <path d="m177 76 4 49 85-14z" fill="var(--nh-accent-border)" />
+      <path d="M181 125v109M177 76l-82 62" stroke="var(--nh-accent-border)" strokeWidth="1.5" />
+      <path d="m210 149 23-7v30l-23 7zM111 145l23 11v28l-23-11z" fill="var(--nh-blue)" opacity=".6" />
+      <path d="m144 174 20 10v42l-20-9z" fill="var(--nh-accent-border)" />
+      <path d="m242 157 13-4v41l-13 4z" fill="var(--nh-surface)" />
+      <path d="m215 149 13-4v23l-13 4zM116 151l13 6v20l-13-6z" stroke="var(--nh-surface)" />
+      <path d="M71 199v-52M296 210v-59" stroke="var(--nh-success-border)" strokeWidth="4" />
+      <path
+        d="M70 115c-34 12-30 59 1 63 34-9 33-47-1-63ZM296 121c-31 12-28 53 0 59 31-8 30-42 0-59Z"
+        fill="var(--nh-success)"
+        opacity=".6"
+      />
+      <path d="m144 217-31 15 26 13 25-19" fill="var(--nh-accent)" opacity=".15" />
+      <g stroke="var(--nh-accent)" strokeWidth="2" strokeLinecap="round">
+        <path d="M59 70v10m-5-5h10M286 57v10m-5-5h10M319 116v6m-3-3h6" />
+      </g>
+      <circle cx="95" cy="49" r="3" fill="var(--nh-purple)" />
+      <circle cx="309" cy="84" r="3" fill="var(--nh-accent)" />
+    </svg>
+  );
+}

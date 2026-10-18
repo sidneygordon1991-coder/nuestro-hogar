@@ -1,0 +1,147 @@
+/* Finance tools: settlements, debt plan, statement import, dollar entries and pay days. Theme roles only. */
+
+.tools-note{margin:8px 0 0;color:var(--nh-muted);font-size:var(--ds-fs-xs);line-height:1.55}
+.tools-alert{margin:10px 0 0;padding:11px 13px;border-radius:var(--ds-radius-md);color:var(--nh-warning);background:var(--nh-warning-soft);font-size:var(--ds-fs-xs);line-height:1.55;overflow-wrap:anywhere}
+.tools-error{margin:10px 0 0;padding:11px 13px;border-radius:var(--ds-radius-md);color:var(--nh-danger);background:var(--nh-danger-soft);font-size:var(--ds-fs-xs);line-height:1.55;overflow-wrap:anywhere}
+.tools-success{margin:10px 0 0;padding:11px 13px;border-radius:var(--ds-radius-md);color:var(--nh-success);background:var(--nh-success-soft);font-size:var(--ds-fs-xs);line-height:1.55;overflow-wrap:anywhere}
+.tools-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--ds-radius-pill);font-size:var(--ds-fs-xs);font-weight:700;color:var(--nh-muted);background:var(--nh-neutral-soft)}
+.tools-tag.warn{color:var(--nh-warning);background:var(--nh-warning-soft)}
+.tools-tag.good{color:var(--nh-success);background:var(--nh-success-soft)}
+.tools-tag.info{color:var(--nh-blue);background:var(--nh-blue-soft)}
+.tools-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tools-actions .finance-primary{width:auto;margin-top:0;padding:11px 16px}
+.tools-link{border:0;background:none;color:var(--nh-accent);font-weight:700;font-size:var(--ds-fs-xs);padding:6px 0;cursor:pointer}
+.tools-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px}
+.tools-grid label,.tools-field{display:grid;gap:6px;color:var(--nh-muted);font-size:var(--ds-fs-xs)}
+.tools-grid input,.tools-grid select,.tools-field input,.tools-field select{min-width:0;padding:10px 11px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-md);background:var(--nh-raised);color:var(--nh-text);font:inherit;font-size:var(--ds-fs-md)}
+
+/* Dollar entries */
+.currency-amount{display:grid;gap:8px;padding:11px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-md);background:var(--nh-subtle)}
+.currency-amount-hint{margin:0;color:var(--nh-muted);font-size:var(--ds-fs-xs);line-height:1.5}
+.currency-amount-hint b{color:var(--nh-text)}
+
+
+/* Pay days and dollar rate (Ingresos) */
+.income-settings{margin-top:14px}
+.income-settings-people{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:12px 0}
+.income-settings-person{display:grid;gap:9px;padding:14px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-lg);background:var(--nh-subtle)}
+.income-settings-person>strong{font-size:var(--ds-fs-md);color:var(--nh-text)}
+.income-settings-rate{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:12px;align-items:end;padding:14px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-lg);background:var(--nh-subtle)}
+.income-settings-rate p{margin:0;color:var(--nh-muted);font-size:var(--ds-fs-xs);line-height:1.5}
+
+/* Settlements */
+.settlement-balances{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px;margin-bottom:12px}
+.settlement-balance{padding:13px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-lg);background:var(--nh-subtle)}
+.settlement-balance span,.settlement-balance strong,.settlement-balance small{display:block}
+.settlement-balance span{color:var(--nh-muted);font-size:var(--ds-fs-xs)}
+.settlement-balance strong{margin:4px 0;font-size:var(--ds-fs-lg);color:var(--nh-text)}
+.settlement-balance .positive{color:var(--nh-success)}
+.settlement-balance .negative{color:var(--nh-danger)}
+.settlement-balance small{color:var(--nh-muted);font-size:var(--ds-fs-xs)}
+.settlement-suggestion{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:13px;margin-bottom:8px;border:1px solid var(--nh-accent-border);border-radius:var(--ds-radius-lg);background:var(--nh-accent-soft);color:var(--nh-text)}
+.settlement-suggestion p{margin:0;font-size:var(--ds-fs-md);line-height:1.45}
+.settlement-suggestion button{border:0;border-radius:var(--ds-radius-md);padding:9px 13px;background:var(--nh-action);color:var(--nh-on-action);font-weight:800;font-size:var(--ds-fs-xs);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.settlement-suggestion button:disabled,.settlement-form button:disabled{opacity:.55}
+.settlement-settled{display:flex;align-items:center;gap:8px;padding:12px;border-radius:var(--ds-radius-md);color:var(--nh-success);background:var(--nh-success-soft);font-size:var(--ds-fs-sm)}
+.settlement-form{display:grid;gap:10px;margin-top:12px;padding:13px;border:1px dashed var(--nh-border);border-radius:var(--ds-radius-lg);background:var(--nh-page)}
+.settlement-form h4,.settlement-history h4,.debt-planner h4,.import-statement h4{margin:0;font-size:var(--ds-fs-md);color:var(--nh-text)}
+.settlement-history{margin-top:14px;display:grid;gap:7px}
+.settlement-history-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-md);background:var(--nh-surface)}
+.settlement-history-row div{min-width:0}
+.settlement-history-row strong,.settlement-history-row small{display:block;overflow-wrap:anywhere}
+.settlement-history-row strong{font-size:var(--ds-fs-sm);color:var(--nh-text)}
+.settlement-history-row small{font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.settlement-history-row b{font-size:var(--ds-fs-sm);color:var(--nh-text)}
+.settlement-history-row button{border:0;background:none;color:var(--nh-danger);padding:6px;border-radius:var(--ds-radius-sm);cursor:pointer;display:grid;place-items:center}
+
+/* Credit card status on account cards */
+.account-card-status{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 10px;padding:9px 11px;border-radius:var(--ds-radius-md);background:var(--nh-blue-soft);color:var(--nh-blue);font-size:var(--ds-fs-xs);line-height:1.45}
+.account-card-status b{color:inherit}
+.account-card-status.soon{background:var(--nh-warning-soft);color:var(--nh-warning)}
+.account-card-status.overdue{background:var(--nh-danger-soft);color:var(--nh-danger)}
+.account-card-status.clear{background:var(--nh-success-soft);color:var(--nh-success)}
+
+/* Debt plan */
+.debt-planner{display:grid;gap:12px}
+.debt-planner-debts{display:grid;gap:7px}
+.debt-planner-debt{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:11px 12px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-md);background:var(--nh-subtle)}
+.debt-planner-debt strong{font-size:var(--ds-fs-sm);color:var(--nh-text);overflow-wrap:anywhere}
+.debt-planner-debt b{font-size:var(--ds-fs-sm);color:var(--nh-text)}
+.debt-planner-debt small{grid-column:1/-1;color:var(--nh-muted);font-size:var(--ds-fs-xs);line-height:1.5}
+.debt-planner-debt .tools-alert{grid-column:1/-1;margin:4px 0 0;padding:8px 10px}
+.debt-planner-extra{display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:12px;align-items:end}
+.debt-plan-compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.debt-plan-card{display:grid;gap:9px;align-content:start;padding:14px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-lg);background:var(--nh-surface)}
+.debt-plan-card.best{border-color:var(--nh-success-border);background:var(--nh-success-soft)}
+.debt-plan-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.debt-plan-head strong{display:flex;align-items:center;gap:7px;font-size:var(--ds-fs-md);color:var(--nh-text)}
+.debt-plan-card>p{margin:0;color:var(--nh-muted);font-size:var(--ds-fs-xs);line-height:1.5}
+.debt-plan-card dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0}
+.debt-plan-card dl div{padding:8px;border-radius:var(--ds-radius-md);background:var(--nh-page)}
+.debt-plan-card dt{font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.debt-plan-card dd{margin:2px 0 0;font-size:var(--ds-fs-sm);font-weight:800;color:var(--nh-text);overflow-wrap:anywhere}
+.debt-plan-card ol{margin:0;padding-left:20px;display:grid;gap:4px;font-size:var(--ds-fs-xs);color:var(--nh-text)}
+.debt-plan-card ol small{color:var(--nh-muted);font-size:var(--ds-fs-xs)}
+
+/* Statement import */
+.import-statement{display:grid;gap:12px;min-width:0}
+.import-file{display:grid;gap:7px;padding:14px;border:1px dashed var(--nh-border);border-radius:var(--ds-radius-lg);background:var(--nh-subtle);color:var(--nh-muted);font-size:var(--ds-fs-xs)}
+.import-file input{font-size:var(--ds-fs-sm);color:var(--nh-text)}
+.import-section{display:grid;gap:9px;padding:13px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-lg);background:var(--nh-surface)}
+.import-check{display:flex;align-items:center;gap:8px;color:var(--nh-text);font-size:var(--ds-fs-xs)}
+.import-check input{width:16px;height:16px;flex:none}
+.import-counts{display:flex;flex-wrap:wrap;gap:6px}
+.import-rows{display:grid;gap:6px;max-height:340px;overflow:auto;padding-right:2px}
+.import-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-md);background:var(--nh-subtle)}
+.import-row.duplicate,.import-row.transfer{border-color:var(--nh-warning);background:var(--nh-warning-soft)}
+.import-row input{width:17px;height:17px}
+.import-row div{min-width:0}
+.import-row strong,.import-row small{display:block;overflow-wrap:anywhere}
+.import-row strong{font-size:var(--ds-fs-sm);color:var(--nh-text)}
+.import-row small{font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.import-row b{font-size:var(--ds-fs-sm);white-space:nowrap}
+.import-row b.income{color:var(--nh-success)}
+.import-row b.expense{color:var(--nh-text)}
+.import-skipped{margin:0;padding-left:18px;display:grid;gap:3px;color:var(--nh-muted);font-size:var(--ds-fs-xs)}
+.import-progress{display:grid;gap:6px;color:var(--nh-text);font-size:var(--ds-fs-sm)}
+.import-progress progress{width:100%;height:10px;accent-color:var(--nh-accent)}
+
+@media(max-width:620px){
+ .debt-plan-compare,.debt-planner-extra,.income-settings-rate{grid-template-columns:1fr}
+ .debt-plan-card dl{grid-template-columns:1fr 1fr}
+}
+
+/* v33: dollar accounts and card installments (visacuotas, extrafinanciamiento) */
+.account-usd-q{display:block;margin-top:2px;font-size:var(--ds-fs-xs);font-weight:var(--ds-fw-medium);color:var(--nh-muted)}
+.account-installments{grid-column:1/-1;display:grid;gap:var(--ds-space-1)}
+.account-installments>div{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:var(--ds-space-2);align-items:center;padding:var(--ds-space-2) 0;border-top:1px solid var(--nh-border)}
+.account-installments>div.done{opacity:.6}
+.account-installments strong,.account-installments small{display:block}
+.account-installments strong{font-size:var(--ds-fs-sm)}
+.account-installments small{margin-top:2px;font-size:var(--ds-fs-xs);line-height:var(--ds-lh-snug);color:var(--nh-muted)}
+.account-installments b{font-size:var(--ds-fs-sm);font-variant-numeric:tabular-nums;white-space:nowrap}
+.account-installments>div>button{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:var(--ds-radius-md);background:none;color:var(--nh-muted);cursor:pointer}
+.account-installments>div>button svg{width:16px;height:16px}
+.account-installments-add{justify-self:start;display:inline-flex;align-items:center;gap:var(--ds-space-1);min-height:36px;padding:0 var(--ds-space-2);border:0;background:none;color:var(--nh-accent);font:inherit;font-size:var(--ds-fs-xs);font-weight:var(--ds-fw-semibold);cursor:pointer}
+.account-installments-add svg{width:15px;height:15px}
+.installment-kinds{display:grid;grid-template-columns:1fr 1fr;gap:var(--ds-space-2)}
+.installment-kinds>label{position:relative;display:grid;gap:2px;padding:var(--ds-space-3);border:1px solid var(--nh-border);border-radius:var(--ds-radius-md);background:var(--nh-surface);cursor:pointer}
+.installment-kinds>label.active{border-color:var(--nh-accent-border);background:var(--nh-accent-soft)}
+.installment-kinds>label:focus-within{outline:2px solid var(--nh-accent);outline-offset:2px}
+.installment-kinds input{position:absolute;opacity:0;pointer-events:none}
+.installment-kinds strong{font-size:var(--ds-fs-sm);color:var(--nh-text)}
+.installment-kinds small{font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.installment-preview{margin:0;padding:var(--ds-space-3);border-radius:var(--ds-radius-md);background:var(--nh-subtle);font-size:var(--ds-fs-sm);line-height:var(--ds-lh-body);color:var(--nh-muted)}
+.installment-preview b{color:var(--nh-text)}
+@media(max-width:430px){.installment-kinds{grid-template-columns:1fr}}
+.remittance-panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,240px);gap:var(--ds-space-6);align-items:end}
+.remittance-copy h3{margin:0;font-size:var(--ds-fs-md)}
+.remittance-copy>strong{display:block;margin:var(--ds-space-1) 0 var(--ds-space-2);font-size:var(--ds-fs-2xl)}
+.remittance-copy>strong small{font-size:var(--ds-fs-sm);font-weight:var(--ds-fw-medium);color:var(--nh-muted)}
+.remittance-copy p{margin:0;max-width:60ch;font-size:var(--ds-fs-sm);line-height:var(--ds-lh-body);color:var(--nh-muted)}
+.remittance-trend{display:grid;grid-template-columns:repeat(6,1fr);gap:var(--ds-space-2);height:96px}
+.remittance-trend>span{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:var(--ds-space-1);align-items:end;justify-items:center;height:100%}
+.remittance-trend i{display:block;width:100%;max-width:22px;border-radius:4px 4px 2px 2px;background:var(--nh-chart-previous)}
+.remittance-trend>span.current i{background:var(--nh-chart-success)}
+.remittance-trend small{font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+@media(max-width:620px){.remittance-panel{grid-template-columns:1fr;gap:var(--ds-space-4)}}
