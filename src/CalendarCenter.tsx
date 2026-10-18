@@ -23,7 +23,7 @@ export default function CalendarCenter({household,onChanged,onNavigate,readOnly=
  const [selectedDay,setSelectedDay]=useState<string|null>(null),[editing,setEditing]=useState<EventRow|null>(null),[showForm,setShowForm]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const request=useRef(0);
 
- useEffect(()=>{load();const channel=supabase.channel('calendar-'+household.id).on('postgres_changes',{event:'*',schema:'public',table:'events',filter:'household_id=eq.'+household.id},()=>load(false)).subscribe();return()=>{supabase.removeChannel(channel)}},[household.id,month.getFullYear(),month.getMonth()]);
+ useEffect(()=>{load();const channel=supabase.channel('calendar-'+household.id+'-'+Math.random().toString(36).slice(2)).on('postgres_changes',{event:'*',schema:'public',table:'events',filter:'household_id=eq.'+household.id},()=>load(false)).subscribe();return()=>{supabase.removeChannel(channel)}},[household.id,month.getFullYear(),month.getMonth()]);
 
  async function load(showLoader=true){
   const req=++request.current;if(showLoader)setBusy(true);

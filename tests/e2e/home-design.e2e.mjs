@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import {setup,ready,healthy,uid,hh} from './support.mjs';
 const finishes=[['forest','Verde'],['ocean','Azul'],['graphite','Negro'],['iris','Morado']];
-const canvas={light:'rgb(241, 243, 245)',dark:'rgb(16, 18, 20)'};
+const canvas={light:'rgb(241, 243, 245)',dark:'rgb(14, 16, 18)'};
 const amount=text=>{const n=Number(text.replace(/[^\d.,−-]/g,'').replace(/,/g,'').replace('−','-'));return Math.round(n*100)};
 async function accessible(page){const r=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(r.violations.filter(v=>['critical','serious'].includes(v.impact)).map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))}))).toEqual([])}
 async function withAppearance(s,accent,extra={}){await s.context.addInitScript(({uid,hh,value})=>localStorage.setItem('nh:appearance:'+uid+':'+hh,JSON.stringify(value)),{uid,hh,value:{accent,focus:'balance',view:'complete',favorites:['presupuesto','calendario','listas'],cover:'',...extra}})}
@@ -20,7 +20,7 @@ for(const theme of ['light','dark']){
    const kpis=await s.page.locator('.home-kpi strong').allInnerTexts();expect(kpis).toHaveLength(3);
    const hero=await s.page.locator('.home-hero h2').innerText();expect(amount(hero)).toBe(amount(kpis[0])-amount(kpis[1])-amount(kpis[2]));
    await s.page.locator('.home-hero-calc-toggle').click();await expect(s.page.locator('.home-hero-calc-total')).toContainText(hero);
-   await expect(s.page.getByRole('region',{name:'Tu próxima quincena'})).toBeVisible();await expect(s.page.locator('.home-legend')).toContainText('Proyectado');
+   await expect(s.page.getByRole('region',{name:'Tu quincena'})).toBeVisible();await expect(s.page.locator('.home-legend')).toContainText('Proyectado');
    await expect(s.page.getByRole('region',{name:'Así va tu presupuesto'})).toBeVisible();await expect(s.page.getByRole('region',{name:'Lo importante hoy'})).toBeVisible();
    for(const width of [320,390,768,1440]){
     await s.page.setViewportSize({width,height:844});await healthy(s);
@@ -29,7 +29,7 @@ for(const theme of ['light','dark']){
      const header=await s.page.locator('.workspace-header').boundingBox(),heroBox=await s.page.locator('.home-hero').boundingBox();expect(header.height).toBeLessThan(200);expect(heroBox.y).toBeLessThan(260);
      await expect(s.page.locator('.home-hero-minis')).toBeVisible();await expect(s.page.locator('.home-kpis')).toBeHidden();await expect(s.page.locator('.workspace-header .home-title-mobile')).toBeVisible();
     }
-    if(width<1100){const a=await add.boundingBox(),d=await dock.boundingBox();expect(a.y+a.height).toBeLessThan(d.y);expect(a.width).toBeGreaterThan(width-40);await expect(s.page.locator('.desktop-rail')).toBeHidden()}
+    if(width<1100){const a=await add.boundingBox(),d=await dock.boundingBox();expect(a.y+a.height).toBeGreaterThan(d.y);expect(a.x).toBeGreaterThan(d.x+d.width*.3);expect(a.x+a.width).toBeLessThan(d.x+d.width*.7);expect(a.width).toBeGreaterThanOrEqual(44);await expect(s.page.locator('.desktop-rail')).toBeHidden()}
     else await expect(dock).toBeHidden();
    }
    await accessible(s.page);await s.page.setViewportSize({width:1440,height:900});await info.attach('desktop-'+accent+'-'+theme,{body:await s.page.screenshot({fullPage:true}),contentType:'image/png'});

@@ -3,6 +3,7 @@ import {Check,FileSpreadsheet,Upload} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {formatMoney} from './lib/money';
 import {fetchAllRows} from './lib/paging';
+import {suggestCategory} from './lib/quickEntry';
 import {autoMap,buildPreview,chunk,columnNames,dateRange,emptyMapping,FIELD_LABELS,mappingProblem,markDuplicates,readStatement,type CheckedRow,type ColumnField,type ColumnMapping,type ExistingMovement} from './lib/csvImport';
 import './finance-tools.css';
 
@@ -28,7 +29,7 @@ export default function ImportStatement({householdId,currentUser,accounts,catego
  const requests=useRef(new Map<string,string>());
  const [statement,setStatement]=useState<Statement|null>(null),[fileError,setFileError]=useState('');
  const [headerIndex,setHeaderIndex]=useState(-1),[mapping,setMapping]=useState<ColumnMapping>(emptyMapping());
- const [accountId,setAccountId]=useState(''),[categoryId,setCategoryId]=useState(''),[shareMode,setShareMode]=useState<'shared'|'personal'>('shared'),[positiveIsExpense,setPositiveIsExpense]=useState(false);
+ const [accountId,setAccountId]=useState(''),[categoryId,setCategoryId]=useState('auto'),[shareMode,setShareMode]=useState<'shared'|'personal'>('shared'),[positiveIsExpense,setPositiveIsExpense]=useState(false);
  const [existing,setExisting]=useState<{status:'idle'|'loading'|'ready'|'error';rows:ExistingMovement[];error:string}>({status:'idle',rows:[],error:''});
  const [overrides,setOverrides]=useState<Record<number,boolean>>({}),[refresh,setRefresh]=useState(0);
  const [importing,setImporting]=useState(false),[progress,setProgress]=useState<{done:number;total:number}|null>(null),[result,setResult]=useState<Result|null>(null);
@@ -63,10 +64,16 @@ export default function ImportStatement({householdId,currentUser,accounts,catego
    .then(rows=>{if(live)setExisting({status:'ready',rows,error:''})},err=>{if(live)setExisting({status:'error',rows:[],error:message(err,'No se pudieron revisar duplicados.')})});
   return()=>{live=false};
  },[householdId,range?.from,range?.to,refresh]);
+ // Recent categorized movements teach the per-row suggestion ("Sugerida por la descripción").
+ const [history,setHistory]=useState<{description:string|null;type:string;category_id:string|null;amount:number}[]>([]);
+ useEffect(()=>{let live=true;supabase.from('transactions').select('description,type,category_id,amount').eq('household_id',householdId).not('category_id','is',null).order('transaction_date',{ascending:false}).limit(400).then(({data})=>{if(live)setHistory((data||[]) as any[])});return()=>{live=false}},[householdId]);
+ const rowCategory=(row:CheckedRow)=>row.type!=='expense'?null:categoryId==='auto'?suggestCategory(row.description,history,categories,'expense'):categoryId||null;
+ const categoryName=(id:string|null)=>categories.find(c=>c.id===id)?.name||'Sin categoría';
 
  const checked:CheckedRow[]=useMemo(()=>markDuplicates(preview,existing.status==='ready'?existing.rows:[]),[preview,existing]);
  const valid=checked.filter(r=>r.valid),skipped=checked.filter(r=>!r.valid),duplicates=valid.filter(r=>r.duplicate);
- const isSelected=(row:CheckedRow)=>overrides[row.line]??!row.duplicate;
+ const isSelected=(row:CheckedRow)=>overrides[row.line]??(!row.duplicate&&!row.transfer);
+ const transfers=valid.filter(r=>r.transfer&&!r.duplicate);
  const selected=valid.filter(isSelected);
  const selectedExpense=selected.filter(r=>r.type==='expense').reduce((n,r)=>n+Math.round(r.amount*100),0)/100,selectedIncome=selected.filter(r=>r.type==='income').reduce((n,r)=>n+Math.round(r.amount*100),0)/100;
 
@@ -77,8 +84,9 @@ export default function ImportStatement({householdId,currentUser,accounts,catego
   const outcome:Result={imported:0,total:rows.length,expenses:0,incomes:0,failure:''};
   for(const [index,block] of blocks.entries()){
    const payload=block.map(r=>{
-    const values={description:r.description,amount:r.amount,type:r.type,date:r.date,account_id:accountId||null,category_id:r.type==='expense'&&categoryId?categoryId:null,paid_by:currentUser||null,is_shared:shareMode==='shared',recurring:false};
-    const key=JSON.stringify([r.line,values]);let requestId=requests.current.get(key);if(!requestId){requestId=crypto.randomUUID();requests.current.set(key,requestId)}
+    const values={description:r.description,amount:r.amount,type:r.type,date:r.date,account_id:accountId||null,category_id:rowCategory(r),paid_by:currentUser||null,is_shared:shareMode==='shared',recurring:false};
+    const key=JSON.stringify([r.line,r.date,r.amount,r.type,r.description,accountId,shareMode]);// stable while category suggestions load
+    let requestId=requests.current.get(key);if(!requestId){requestId=crypto.randomUUID();requests.current.set(key,requestId)}
     return {request_id:requestId,values};
    });
    try{
@@ -113,21 +121,22 @@ export default function ImportStatement({householdId,currentUser,accounts,catego
     <h4>Cómo se registran</h4>
     <div className="tools-grid">
      <label>Cuenta<select value={accountId} disabled={importing} onChange={e=>setAccountId(e.target.value)}><option value="">Sin cuenta</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-     <label>Categoría de los gastos<select value={categoryId} disabled={importing} onChange={e=>setCategoryId(e.target.value)}><option value="">Sin categoría</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+     <label>Categoría de los gastos<select value={categoryId} disabled={importing} onChange={e=>setCategoryId(e.target.value)}><option value="auto">Sugerida por la descripción</option><option value="">Sin categoría</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
      <label>¿De quién son?<select value={shareMode} disabled={importing} onChange={e=>setShareMode(e.target.value as 'shared'|'personal')}><option value="shared">Compartido</option><option value="personal">Personal</option></select></label>
     </div>
     <p className="tools-note">Se registran como pagados por ti. Los ingresos quedan sin categoría. Puedes editar cada movimiento después.</p>
    </section>
    {!problem&&<section className="import-section" aria-label="Vista previa">
     <h4>Vista previa</h4>
-    <div className="import-counts"><span className="tools-tag info">{valid.length} válidas</span><span className="tools-tag good">{selected.length} seleccionadas</span>{duplicates.length>0&&<span className="tools-tag warn">{duplicates.length} posibles duplicados</span>}{skipped.length>0&&<span className="tools-tag">{skipped.length} omitidas</span>}</div>
+    <div className="import-counts"><span className="tools-tag info">{valid.length} válidas</span><span className="tools-tag good">{selected.length} seleccionadas</span>{duplicates.length>0&&<span className="tools-tag warn">{duplicates.length} posibles duplicados</span>}{transfers.length>0&&<span className="tools-tag warn">{transfers.length} posibles transferencias</span>}{skipped.length>0&&<span className="tools-tag">{skipped.length} omitidas</span>}</div>
     {existing.status==='loading'&&<p className="tools-note" role="status">Buscando movimientos ya registrados en esas fechas…</p>}
     {existing.status==='error'&&<p className="tools-alert" role="alert">No se pudieron revisar duplicados: {existing.error} Vuelve a cargar el archivo para verificar duplicados antes de importar.</p>}
     {duplicates.length>0&&<p className="tools-note">Los posibles duplicados (misma fecha, mismo monto y descripción parecida a un movimiento existente) quedan sin seleccionar. Márcalos si de verdad son nuevos.</p>}
+    {transfers.length>0&&<p className="tools-note">Los pagos de tarjeta, transferencias entre tus cuentas y retiros de efectivo no son ingresos ni gastos: si los importas se contarían dos veces. Quedan sin seleccionar; regístralos como transferencia en Cuentas si quieres moverlos entre cuentas.</p>}
     {valid.length>0&&<div className="tools-actions"><button type="button" className="tools-link" disabled={importing} onClick={()=>setOverrides(Object.fromEntries(valid.map(r=>[r.line,true])))}>Seleccionar todas</button><button type="button" className="tools-link" disabled={importing} onClick={()=>setOverrides(Object.fromEntries(valid.map(r=>[r.line,false])))}>Quitar todas</button></div>}
-    <div className="import-rows">{valid.map(row=><label className={'import-row'+(row.duplicate?' duplicate':'')} key={row.line}>
+    <div className="import-rows">{valid.map(row=><label className={'import-row'+(row.duplicate?' duplicate':row.transfer?' transfer':'')} key={row.line}>
      <input type="checkbox" checked={isSelected(row)} disabled={importing} aria-label={`Importar línea ${row.line}: ${row.description}`} onChange={e=>setOverrides({...overrides,[row.line]:e.target.checked})}/>
-     <div><strong>{row.description}</strong><small>{shortDate(row.date!)} · {row.type==='expense'?'Gasto':'Ingreso'} · línea {row.line}{row.duplicate?` · Posible duplicado de “${row.duplicateOf}”`:''}</small></div>
+     <div><strong>{row.description}</strong><small>{shortDate(row.date!)} · {row.type==='expense'?'Gasto · '+categoryName(rowCategory(row)):'Ingreso'} · línea {row.line}{row.duplicate?` · Posible duplicado de “${row.duplicateOf}”`:''}{row.transfer&&!row.duplicate?' · Posible transferencia o pago de tarjeta':''}</small></div>
      <b className={row.type||''}>{row.type==='expense'?'−':'+'}{formatMoney(row.amount)}</b>
     </label>)}</div>
     {!valid.length&&<p className="tools-alert">No hay filas válidas con estas columnas. Revisa la fila de encabezados y las columnas elegidas.</p>}

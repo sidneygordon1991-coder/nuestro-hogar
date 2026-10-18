@@ -162,7 +162,7 @@ describe('duplicates',()=>{
   const checked=markDuplicates(rows,existing);
   expect(checked.map(r=>r.duplicate)).toEqual([true,false,false,false,false]);
   expect(checked[0].duplicateOf).toBe('Super La Torre');
-  expect(markDuplicates(rows,[])).toEqual(rows.map(r=>({...r,duplicate:false,duplicateOf:null})));
+  expect(markDuplicates(rows,[])).toEqual(rows.map(r=>({...r,duplicate:false,duplicateOf:null,transfer:false})));
  });
  it('computes the date range of valid rows to query existing movements',()=>{
   const rows=buildPreview([['Fecha','Concepto','Monto'],['15/10/2026','b','1'],['02/10/2026','a','1'],['bad','c','1']],0,{date:0,description:1,debit:null,credit:null,amount:2});
@@ -178,5 +178,28 @@ describe('chunks',()=>{
   expect(chunk(items,100).flat()).toEqual(items);
   expect(chunk([],100)).toEqual([]);
   expect(()=>chunk(items,0)).toThrow();
+ });
+});
+
+import {detectDateOrder,looksLikeTransfer,parseAmount as amountOf} from './csvImport';
+describe('v32 · bank formats and transfers',()=>{
+ it('reads US month/day files only when the data proves it',()=>{
+  expect(detectDateOrder(['10/05/2026','10/25/2026'])).toBe('mdy');
+  expect(detectDateOrder(['10/05/2026','25/10/2026'])).toBe('dmy');
+  expect(detectDateOrder(['01/02/2026'])).toBe('dmy');
+  const rows=buildPreview([['Date','Desc','Amount'],['10/25/2026','Store','-10'],['10/05/2026','Gas','-5']],0,{date:0,description:1,debit:null,credit:null,amount:2});
+  expect(rows.map(r=>r.date)).toEqual(['2026-10-25','2026-10-05']);
+ });
+ it('accepts CR / DB markers',()=>{
+  expect(amountOf('250.00 CR')).toBe(250);expect(amountOf('DB 250')).toBe(-250);expect(amountOf('1,250.50DB')).toBe(-1250.5);
+ });
+ it('one existing movement explains one row, and income never duplicates an expense',()=>{
+  const rows=buildPreview([['Fecha','Concepto','Monto'],['01/10/2026','Cafe','-20'],['01/10/2026','Cafe','-20'],['01/10/2026','Cafe','20']],0,{date:0,description:1,debit:null,credit:null,amount:2});
+  expect(markDuplicates(rows,[{transaction_date:'2026-10-01',amount:20,description:'Cafe',type:'expense'}]).map(r=>r.duplicate)).toEqual([true,false,false]);
+ });
+ it('flags card payments and own-account moves as transfers',()=>{
+  expect(looksLikeTransfer('PAGO RECIBIDO GRACIAS')).toBe(true);expect(looksLikeTransfer('Transferencia a ahorro')).toBe(true);
+  expect(looksLikeTransfer('Pago de tarjeta Visa')).toBe(true);expect(looksLikeTransfer('Super La Torre')).toBe(false);
+  expect(looksLikeTransfer('TRANSFERENCIA RECIBIDA NOMINA OCTUBRE')).toBe(false);
  });
 });

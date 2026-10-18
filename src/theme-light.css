@@ -2,8 +2,8 @@
    Component styles consume these roles; only this file defines theme colors. */
 html {
  color-scheme:dark;
- --nh-page:#101214; --nh-surface:#181b1f; --nh-subtle:#14171a; --nh-raised:#20242a; --nh-text:#eef1f4; --nh-muted:#aab3bf;
- --nh-border:#2c3138; --nh-track:#2f353d; --nh-blue:#9bbcff; --nh-purple:#c9abff; --nh-success:#7fdcb3; --nh-warning:#f2c27c;
+ --nh-page:#0e1012; --nh-surface:#1a1e23; --nh-subtle:#15181c; --nh-raised:#23282f; --nh-text:#eef1f4; --nh-muted:#aab3bf;
+ --nh-border:#343a42; --nh-track:#3a414a; --nh-blue:#9bbcff; --nh-purple:#c9abff; --nh-success:#7fdcb3; --nh-warning:#f2c27c;
  --nh-danger:#ffa5b1; --nh-blue-soft:#1a2a42; --nh-purple-soft:#2b2340; --nh-success-soft:#15322a; --nh-warning-soft:#362b1b; --nh-danger-soft:#3a232c;
  --nh-neutral-soft:#22262c; --nh-success-border:#467a65; --nh-chart-blue:#8baeff; --nh-chart-purple:#b896ef; --nh-chart-previous:#758c9e; --nh-chart-success:#67cda2;
  --nh-chart-warning:#edb365; --nh-chart-danger:#ed8b98; --nh-on-brand:#ffffff; --nh-shadow:#00000038; --nh-highlight:#ffffff14; --nh-scrim:#05080bb8;
@@ -14,7 +14,7 @@ html {
 html[data-theme="light"] {
  color-scheme:light;
  --nh-page:#f1f3f5; --nh-surface:#ffffff; --nh-subtle:#f6f7f9; --nh-raised:#e9edf1; --nh-text:#1b222c; --nh-muted:#525e6d;
- --nh-border:#dde2e8; --nh-track:#e3e7ec; --nh-blue:#2f5aa8; --nh-purple:#6c3f9e; --nh-success:#166947; --nh-warning:#875309;
+ --nh-border:#d3d9e0; --nh-track:#dbe0e6; --nh-blue:#2f5aa8; --nh-purple:#6c3f9e; --nh-success:#166947; --nh-warning:#875309;
  --nh-danger:#a8303f; --nh-blue-soft:#e9f0fb; --nh-purple-soft:#f2ecfa; --nh-success-soft:#e6f3ec; --nh-warning-soft:#fdf1dc; --nh-danger-soft:#fbe9ec;
  --nh-neutral-soft:#eef1f4; --nh-success-border:#a2cfb9; --nh-chart-blue:#3f6fc6; --nh-chart-purple:#8a5bc9; --nh-chart-previous:#758c9e; --nh-chart-success:#24855f;
  --nh-chart-warning:#b97a1c; --nh-chart-danger:#c65b6b; --nh-on-brand:#ffffff; --nh-shadow:#1f2d3a14; --nh-highlight:#ffffff26; --nh-scrim:#0e1a2680;
@@ -61,10 +61,10 @@ button:disabled {cursor:default;}
 .app :is(.control-money,.finance-kpi,.comparison-kpi,.planning-kpis>div) {min-width:0;}
 .app :is(.health-domain-copy em,.health-metric em) {white-space:normal;overflow:visible;}
 .app-menu-groups strong {font-size:13px;}
-.app-menu-groups em {font-size:11px;}
+.app-menu-groups em {font-size:12px;}
 .app-menu-groups section button {padding:10px 8px;gap:10px;}
 .app .control-module-grid strong {font-size:13px;}
-.app .control-module-grid small {font-size:11px;}
+.app .control-module-grid small {font-size:12px;}
 /* Day/night switch: both icons sit in one pill and the active theme is highlighted. */
 .header-theme-toggle .theme-sun,.header-theme-toggle .theme-moon {display:grid;}
 html:not([data-theme="light"]) .header-theme-toggle .theme-moon {background:var(--nh-accent-soft);color:var(--nh-accent);}

@@ -4,14 +4,14 @@ import {AlertTriangle,ArrowRight,ArrowUpRight,CalendarDays,CheckCircle2,Coins,Cr
 import {supabase} from './lib/supabase';
 import {fetchAllRows} from './lib/paging';
 import {halfOf,toCents,type FinancePeriod} from './lib/financePeriods';
-import {balanceTimeline,dailyAllowance,dayDiff,goalPace,homeActions,homeMargin,overviewAccounts,overviewGoal,overviewPeriod,periodBounds,scopeAccounts,scopeSource,
+import {balanceTimeline,dailyAllowance,dayDiff,goalBalance,goalPace,homeActions,homeMargin,overviewAccounts,overviewGoal,overviewPeriod,periodBounds,scopeAccounts,scopeSource,
  type AccountMovement,type AccountTransfer,type BalanceTimeline,type FinanceScope,type HomeFinance,type OverviewAccount} from './lib/homeOverview';
 import {budgetPercent} from './lib/budgetProgress';
 import {categoryIcon} from './BudgetCategoryProgress';
 import HomeToday,{type Attention} from './HomeToday';
 import FortnightRecap from './FortnightRecap';
 import {HomeCards,HomePrivate,HomeSettlements} from './HomeExtras';
-import {creditCardStatus,type CardAccount} from './lib/creditCards';
+import {creditCardStatus,unreservedCardPayments,type CardAccount} from './lib/creditCards';
 import type {DailyAgendaItem} from './lib/dailyAgenda';
 
 const shortDate=(date:string)=>new Date(date+'T12:00').toLocaleDateString('es-GT',{day:'numeric',month:'short'}).replace('.','');
@@ -29,7 +29,7 @@ export default function HomeMoneyWorkspace({householdName='',householdId,userId,
 }){
  const agendaSlot=<div className="home-agenda-slot">{agenda}</div>;
  const fullSource=finance.source!;
- const source=useMemo(()=>scopeSource(fullSource,scope,userId,finance.privateEntries||[]),[fullSource,scope,userId,finance.privateEntries]);
+ const source=useMemo(()=>scopeSource(fullSource,scope,userId,finance.privateEntries||[],finance.splits||[]),[fullSource,scope,userId,finance.privateEntries,finance.splits]);
  const [period,setPeriod]=useState<FinancePeriod>(()=>halfOf(fullSource.today));
  const [accountState,setAccountState]=useState<{data:AccountData|null;loading:boolean;error:string}>({data:null,loading:true,error:''});
  const [accountAttempt,setAccountAttempt]=useState(0),[showAccounts,setShowAccounts]=useState(false),[showBudgets,setShowBudgets]=useState(false),[calculation,setCalculation]=useState(false);
@@ -56,9 +56,17 @@ export default function HomeMoneyWorkspace({householdName='',householdId,userId,
  const liquidRows=accountRows.filter(a=>a.liquid);
  const liquid=liquidRows.length?liquidRows.reduce((n,a)=>n+toCents(a.balance),0)/100:null;
  const monthly=useMemo(()=>overviewPeriod(source,'month'),[source]);
- const margin=homeMargin(monthly.flow,accountState.loading?null:liquid);
  const timeline=useMemo(()=>balanceTimeline(source,period,accountState.data?{accounts,movements:accountState.data.movements,transfers:accountState.data.transfers}:null),[source,period,accounts,accountState.data]);
  const cards=useMemo(()=>accountState.data?creditCardStatus(accounts as CardAccount[],accountState.data.movements,accountState.data.transfers,source.today):[],[accounts,accountState.data,source.today]);
+ // Cards due this month (or with no due day configured) are paid from the same liquid money.
+ const monthEndDate=periodBounds(fullSource.month,'month').end;
+ // A card already planned as a pending recurring payment ("Pago Visa", "Tarjeta …") is counted there, not twice.
+ const cardsDue=unreservedCardPayments(cards,source,monthEndDate);
+ // Goals belong to the household: the personal lens does not reserve them from personal accounts.
+ const goalSaved=scope==='household'?goalBalance(finance.goals||[],finance.goalEntries||[],source.today):0;
+ const margin=homeMargin(monthly.flow,accountState.loading?null:liquid,{goalSaved,cardsDue});
+ // The three figures always add up: registered − pending (payments and cards) − reserved (goals and plan) = margin.
+ const dueTotal=(toCents(margin.pending)+toCents(margin.cards))/100,reservedTotal=(toCents(margin.reserved)+toCents(margin.goals))/100;
  const allowance=dailyAllowance(margin.margin,timeline);
  const dayOfMonth=Number(fullSource.today.slice(8)),monthEnd=Number(periodBounds(fullSource.month,'second').end.slice(8));
  // Near the end of a fortnight (or right after the first one closes) the recap is offered as today's action.
@@ -88,12 +96,12 @@ export default function HomeMoneyWorkspace({householdName='',householdId,userId,
 
  return <div className="home-grid" data-scope={scope}>
   <div className="home-main">
-   {scope==='personal'&&<p className="home-scope-note">Personal organiza tus registros. Los integrantes con acceso a Finanzas aún pueden consultarlos. Las metas y los avisos siguen siendo del hogar.</p>}
+   {scope==='personal'&&<p className="home-scope-note">Personal muestra tus ingresos, tus gastos personales y tu parte de los gastos compartidos. Los integrantes con acceso a Finanzas aún pueden consultarlos. Las metas y los avisos siguen siendo del hogar.</p>}
    {personalEmpty&&<p className="home-scope-note" role="status"><Info size={16} aria-hidden="true"/> Aún no tienes movimientos ni cuentas marcados como personales. Al registrar, elige <b>Personal</b> para verlos aquí.</p>}
    <section className="home-kpis" aria-label="Resumen de tu dinero">
     <Kpi tone="accent" icon={<Wallet/>} label={baseLabel} value={pendingLoading?null:margin.base} hint={margin.basis==='accounts'?'Efectivo y cuentas líquidas':'Ingresos menos gastos y ahorro del mes'} onClick={()=>onNavigate(margin.basis==='accounts'?'presupuesto:accounts':'presupuesto:transactions')}/>
-    <Kpi tone="warning" icon={<FileText/>} label="Pagos pendientes" value={margin.pending} hint="Pagos y fijos por cubrir este mes" onClick={()=>onNavigate('presupuesto:recurring')}/>
-    <Kpi tone="success" icon={<PiggyBank/>} label="Ahorro reservado" value={margin.reserved} hint="Ahorro del plan aún por apartar" onClick={()=>onNavigate('presupuesto:goals')}/>
+    <Kpi tone="warning" icon={<FileText/>} label="Pagos pendientes" value={dueTotal} hint={margin.cards>0?'Pagos, fijos y tarjetas por cubrir este mes':'Pagos y fijos por cubrir este mes'} onClick={()=>onNavigate('presupuesto:recurring')}/>
+    <Kpi tone="success" icon={<PiggyBank/>} label="Ahorro reservado" value={reservedTotal} hint={margin.goals>0?'Lo apartado en metas y el ahorro del plan':'Ahorro del plan aún por apartar'} onClick={()=>onNavigate('presupuesto:goals')}/>
    </section>
 
    <section className="home-hero" aria-labelledby="home-margin-label">
@@ -111,26 +119,28 @@ export default function HomeMoneyWorkspace({householdName='',householdId,userId,
     <div className="home-hero-body">
      <p id="home-margin-label" className="home-hero-label">Margen disponible</p>
      <h2 className={margin.margin<0?'is-negative':''}>{pendingLoading?<span className="home-skeleton-text">Q —</span>:money(margin.margin)}</h2>
-     <p className="home-hero-sub">Después de pagos y ahorro reservado</p>
+     <p className="home-hero-sub">{margin.basis==='accounts'?'Después de pagos, tarjetas y lo apartado para metas':'Después de pagos y ahorro reservado'}</p>
      {!pendingLoading&&<p className="home-hero-daily">{allowance.perDay>=1?<>Puedes gastar <b>{money(Math.floor(allowance.perDay))}</b> por día hasta el {shortDate(allowance.until)}</>:<>Sin margen para gastos variables hasta el {shortDate(allowance.until)}</>}</p>}
      {!pendingLoading&&<button type="button" className="home-hero-calc-toggle" aria-expanded={calculation} onClick={()=>setCalculation(v=>!v)}>{calculation?'Ocultar cálculo':'Ver cálculo'} <ArrowUpRight size={14} aria-hidden="true"/></button>}
     </div>
     {calculation&&!pendingLoading&&<div className="home-hero-calc">
      <div><span>{margin.basis==='accounts'?'Dinero registrado en efectivo y cuentas':'Ingresos − gastos − ahorro del mes'}</span><b>{money(margin.base)}</b></div>
+     {margin.goals>0&&<div><span>Apartado en tus metas de ahorro</span><b>− {money(margin.goals)}</b></div>}
+     {margin.cards>0&&<div><span>Tarjetas por pagar este mes</span><b>− {money(margin.cards)}</b></div>}
      <div><span>Pagos y fijos pendientes del mes</span><b>− {money(margin.pending)}</b></div>
      <div><span>Ahorro del plan aún por apartar</span><b>− {money(margin.reserved)}</b></div>
      <div className="home-hero-calc-total"><span>Margen disponible</span><b>{money(margin.margin)}</b></div>
-     <p>{margin.basis==='accounts'?'Usa los saldos registrados de tus cuentas líquidas (no incluye tarjetas ni inversiones).':'Aún no hay cuentas registradas: se usa el resultado registrado del mes.'} No descuenta el presupuesto variable que todavía podrías usar ni suma ingresos esperados.</p>
+     <p>{margin.basis==='accounts'?'Usa los saldos registrados de tus cuentas líquidas (efectivo, bancos y ahorro), descuenta lo que ya apartaste para metas y lo que debes pagar de tus tarjetas este mes. No incluye inversiones.':'Aún no hay cuentas registradas: se usa el resultado registrado del mes.'} No descuenta el presupuesto variable que todavía podrías usar ni suma ingresos esperados.</p>
     </div>}
     <div className="home-hero-minis" aria-label="Detalle del margen">
      <button type="button" onClick={()=>onNavigate('presupuesto:accounts')}><Wallet aria-hidden="true"/><span><small>Registrado</small><strong>{pendingLoading?'Q —':money(margin.base)}</strong></span></button>
-     <button type="button" onClick={()=>onNavigate('presupuesto:recurring')}><FileText aria-hidden="true"/><span><small>Pendiente</small><strong>{money(margin.pending)}</strong></span></button>
+     <button type="button" onClick={()=>onNavigate('presupuesto:recurring')}><FileText aria-hidden="true"/><span><small>Pendiente</small><strong>{money(dueTotal)}</strong></span></button>
     </div>
    </section>
 
    <section className="home-card home-fortnight" aria-labelledby="home-fortnight-title">
     <div className="home-card-head">
-     <h3 id="home-fortnight-title">{period==='month'?'Tu mes, día a día':half==='first'?'Tu quincena actual':'Tu próxima quincena'}</h3>
+     <h3 id="home-fortnight-title">{period==='month'?'Tu mes, día a día':'Tu quincena'}</h3>
      <div className="home-segmented home-segmented--small" role="group" aria-label="Período de la gráfica">
       <button type="button" aria-pressed={period!=='month'} onClick={()=>setPeriod(half)}>{fortnightLabel}</button>
       <button type="button" aria-pressed={period==='month'} onClick={()=>setPeriod('month')}>Mes</button>
@@ -167,8 +177,8 @@ export default function HomeMoneyWorkspace({householdName='',householdId,userId,
     {goal?<button type="button" className="home-goal-body" onClick={()=>onNavigate('presupuesto:goals')}>
      <span className="home-goal-icon" aria-hidden="true"><Mountain/></span>
      <span className="home-goal-copy"><strong>{goal.name}</strong><span><b>{money(goal.saved)}</b> de {money(Number(goal.target_amount))}</span></span>
-     <span className="home-progress" role="progressbar" aria-label={'Avance de '+goal.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(goal.progress)}><i style={{width:goal.progress+'%'}}/></span>
-     <small>{Math.round(goal.progress)}% completado{goal.target_date?' · meta al '+shortDate(goal.target_date):''}</small>
+     <span className="home-progress" role="progressbar" aria-label={'Avance de '+goal.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(goal.progress)}><i style={{width:goal.progress+'%'}}/></span>
+     <small>{Math.floor(goal.progress)}% completado{goal.target_date?' · meta al '+shortDate(goal.target_date):''}</small>
      {pace&&pace.state!=='done'&&<span className="home-goal-pace">{pace.state==='on-track'?<>Aparta <b>{money(Math.ceil(pace.perFortnight!))}</b> por quincena para llegar a tiempo</>:pace.state==='late'?<>La fecha ya pasó: faltan {money(pace.remaining)}</>:<>Ponle fecha para saber cuánto apartar por quincena</>}</span>}
     </button>:<div className="home-empty"><Mountain aria-hidden="true"/><div><strong>Tu próximo logro empieza aquí</strong><p>Define una meta y registra tus aportes.</p></div></div>}
     <button type="button" className="home-link" onClick={()=>onNavigate('presupuesto:goals')}>{goal?'Ver meta':'Crear una meta'} <ArrowRight size={15} aria-hidden="true"/></button>

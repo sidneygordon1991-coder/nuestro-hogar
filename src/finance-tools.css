@@ -4,7 +4,7 @@
 .tools-alert{margin:10px 0 0;padding:11px 13px;border-radius:12px;color:var(--nh-warning);background:var(--nh-warning-soft);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
 .tools-error{margin:10px 0 0;padding:11px 13px;border-radius:12px;color:var(--nh-danger);background:var(--nh-danger-soft);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
 .tools-success{margin:10px 0 0;padding:11px 13px;border-radius:12px;color:var(--nh-success);background:var(--nh-success-soft);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
-.tools-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;color:var(--nh-muted);background:var(--nh-neutral-soft)}
+.tools-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;color:var(--nh-muted);background:var(--nh-neutral-soft)}
 .tools-tag.warn{color:var(--nh-warning);background:var(--nh-warning-soft)}
 .tools-tag.good{color:var(--nh-success);background:var(--nh-success-soft)}
 .tools-tag.info{color:var(--nh-blue);background:var(--nh-blue-soft)}
@@ -19,7 +19,7 @@
 .currency-amount{display:grid;gap:8px;padding:11px;border:1px solid var(--nh-border);border-radius:13px;background:var(--nh-subtle)}
 .currency-amount-hint{margin:0;color:var(--nh-muted);font-size:12px;line-height:1.5}
 .currency-amount-hint b{color:var(--nh-text)}
-.transaction-value .currency-original{display:block;color:var(--nh-muted);font-size:11px;font-weight:600}
+.transaction-value .currency-original{display:block;color:var(--nh-muted);font-size:12px;font-weight:600}
 
 /* Pay days and dollar rate (Ingresos) */
 .income-settings{margin-top:14px}
@@ -37,7 +37,7 @@
 .settlement-balance strong{margin:4px 0;font-size:18px;color:var(--nh-text)}
 .settlement-balance .positive{color:var(--nh-success)}
 .settlement-balance .negative{color:var(--nh-danger)}
-.settlement-balance small{color:var(--nh-muted);font-size:11px}
+.settlement-balance small{color:var(--nh-muted);font-size:12px}
 .settlement-suggestion{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:13px;margin-bottom:8px;border:1px solid var(--nh-accent-border);border-radius:14px;background:var(--nh-accent-soft);color:var(--nh-text)}
 .settlement-suggestion p{margin:0;font-size:14px;line-height:1.45}
 .settlement-suggestion button{border:0;border-radius:11px;padding:9px 13px;background:var(--nh-action);color:var(--nh-on-action);font-weight:800;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
@@ -50,7 +50,7 @@
 .settlement-history-row div{min-width:0}
 .settlement-history-row strong,.settlement-history-row small{display:block;overflow-wrap:anywhere}
 .settlement-history-row strong{font-size:13px;color:var(--nh-text)}
-.settlement-history-row small{font-size:11px;color:var(--nh-muted)}
+.settlement-history-row small{font-size:12px;color:var(--nh-muted)}
 .settlement-history-row b{font-size:13px;color:var(--nh-text)}
 .settlement-history-row button{border:0;background:none;color:var(--nh-danger);padding:6px;border-radius:9px;cursor:pointer;display:grid;place-items:center}
 
@@ -67,7 +67,7 @@
 .debt-planner-debt{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:11px 12px;border:1px solid var(--nh-border);border-radius:13px;background:var(--nh-subtle)}
 .debt-planner-debt strong{font-size:13px;color:var(--nh-text);overflow-wrap:anywhere}
 .debt-planner-debt b{font-size:13px;color:var(--nh-text)}
-.debt-planner-debt small{grid-column:1/-1;color:var(--nh-muted);font-size:11px;line-height:1.5}
+.debt-planner-debt small{grid-column:1/-1;color:var(--nh-muted);font-size:12px;line-height:1.5}
 .debt-planner-debt .tools-alert{grid-column:1/-1;margin:4px 0 0;padding:8px 10px}
 .debt-planner-extra{display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:12px;align-items:end}
 .debt-plan-compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -78,10 +78,10 @@
 .debt-plan-card>p{margin:0;color:var(--nh-muted);font-size:12px;line-height:1.5}
 .debt-plan-card dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0}
 .debt-plan-card dl div{padding:8px;border-radius:10px;background:var(--nh-page)}
-.debt-plan-card dt{font-size:11px;color:var(--nh-muted)}
+.debt-plan-card dt{font-size:12px;color:var(--nh-muted)}
 .debt-plan-card dd{margin:2px 0 0;font-size:13px;font-weight:800;color:var(--nh-text);overflow-wrap:anywhere}
 .debt-plan-card ol{margin:0;padding-left:20px;display:grid;gap:4px;font-size:12px;color:var(--nh-text)}
-.debt-plan-card ol small{color:var(--nh-muted);font-size:11px}
+.debt-plan-card ol small{color:var(--nh-muted);font-size:12px}
 
 /* Statement import */
 .import-statement{display:grid;gap:12px;min-width:0}
@@ -93,12 +93,12 @@
 .import-counts{display:flex;flex-wrap:wrap;gap:6px}
 .import-rows{display:grid;gap:6px;max-height:340px;overflow:auto;padding-right:2px}
 .import-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--nh-border);border-radius:12px;background:var(--nh-subtle)}
-.import-row.duplicate{border-color:var(--nh-warning);background:var(--nh-warning-soft)}
+.import-row.duplicate,.import-row.transfer{border-color:var(--nh-warning);background:var(--nh-warning-soft)}
 .import-row input{width:17px;height:17px}
 .import-row div{min-width:0}
 .import-row strong,.import-row small{display:block;overflow-wrap:anywhere}
 .import-row strong{font-size:13px;color:var(--nh-text)}
-.import-row small{font-size:11px;color:var(--nh-muted)}
+.import-row small{font-size:12px;color:var(--nh-muted)}
 .import-row b{font-size:13px;white-space:nowrap}
 .import-row b.income{color:var(--nh-success)}
 .import-row b.expense{color:var(--nh-text)}

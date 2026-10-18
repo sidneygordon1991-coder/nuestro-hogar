@@ -1,4 +1,6 @@
-import React from 'react';import ReactDOM from 'react-dom/client';import App from './App';import {initializeTheme} from './AppMenu';import './styles.css';import './theme-light.css';initializeTheme();import './premium.css';import './studio.css';import './experience.css';import './refinement.css';import './daily-flow.css';import './workspace-header.css';import './connected-finance.css';import './shell.css';import './home.css';
+import React from 'react';import ReactDOM from 'react-dom/client';import {initializeTheme} from './AppMenu';import './styles.css';import './theme-light.css';initializeTheme();import './premium.css';import './studio.css';import './experience.css';import './refinement.css';import './daily-flow.css';import './workspace-header.css';import './connected-finance.css';import './shell.css';import './home.css';
+// Global styles load first; App (and the stylesheets its modules import) comes after, and v32 refinements last.
+import App from './App';import './v32.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);
 if('serviceWorker' in navigator){
  // A background tab that is still on the previous version reloads when another tab activates the update.

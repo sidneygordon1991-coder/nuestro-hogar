@@ -4,7 +4,7 @@ import mainRaw from '../main.tsx?raw';
 import appRaw from '../App.tsx?raw';
 // @ts-ignore Vitest runs in Node; application tsconfig intentionally excludes Node types.
 import {readFileSync} from 'node:fs';
-const names=['shell','home','connected-finance','workspace-header','budget-progress','daily-flow','refinement','finance-management','experience','FinancialDiagnosis','notifications','monthly-income','guided-fortnight-close','studio','premium','styles','AutomationCenter','BackupCenter','DiagnosticCenter','HouseholdHealthCenter','MonthlyCloseCenter','PlanningCenter','quick-entry','finance-tools'];
+const names=['shell','home','connected-finance','workspace-header','budget-progress','daily-flow','refinement','finance-management','experience','FinancialDiagnosis','notifications','monthly-income','guided-fortnight-close','studio','premium','styles','AutomationCenter','BackupCenter','DiagnosticCenter','HouseholdHealthCenter','MonthlyCloseCenter','PlanningCenter','quick-entry','finance-tools','v32'];
 const readCss=(url:URL):string=>readFileSync(url,'utf8').replace(/@import '([^']+)';/g,(_:string,file:string)=>readCss(new URL(file,url)));// styles.css is an index of partials
 const sheets=names.map(name=>({name,root:parse(readCss(new URL('../'+name+'.css',import.meta.url)))}));
 const palette=parse(readFileSync(new URL('../theme-light.css',import.meta.url),'utf8'));
@@ -92,7 +92,7 @@ describe('whole-project theme contract',()=>{
  });
  it('does not ship tiny labels or a competing light-mode patch in lazy styles',()=>{
   for(const {root} of sheets){
-   root.walkDecls('font-size',d=>{if(/^\d+px$/.test(d.value))expect(parseInt(d.value)).toBeGreaterThanOrEqual(11)});
+   root.walkDecls('font-size',d=>{if(/^\d+px$/.test(d.value))expect(parseInt(d.value)).toBeGreaterThanOrEqual(12)});
    root.walkRules(rule=>expect(rule.selector).not.toContain('data-theme="light"'));
   }
  });

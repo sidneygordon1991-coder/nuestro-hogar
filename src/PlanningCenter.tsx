@@ -39,7 +39,7 @@ export default function PlanningCenter({household,onNavigate,readOnly=false}:{ho
  const [horizon,setHorizon]=useState<1|3|6|12|0>(0),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [showGoal,setShowGoal]=useState(false),[editingGoal,setEditingGoal]=useState<Goal|null>(null),[openGoal,setOpenGoal]=useState<string|null>(null),[showMilestone,setShowMilestone]=useState<string|null>(null);
 
- useEffect(()=>{load();const channel=supabase.channel('planning-'+household.id)
+ useEffect(()=>{load();const channel=supabase.channel('planning-'+household.id+'-'+Math.random().toString(36).slice(2))
   .on('postgres_changes',{event:'*',schema:'public',table:'household_planning_goals',filter:'household_id=eq.'+household.id},()=>load(false))
   .on('postgres_changes',{event:'*',schema:'public',table:'planning_milestones',filter:'household_id=eq.'+household.id},()=>load(false))
   .subscribe();return()=>{supabase.removeChannel(channel)}
@@ -91,7 +91,7 @@ export default function PlanningCenter({household,onNavigate,readOnly=false}:{ho
     p_description:String(f.get('description')||'').trim()||null,p_linked_savings_goal_id:linkedSavings,p_linked_account_id:linkedAccount,
     p_linked_maintenance_id:linkedMaintenance,p_linked_event_id:linkedEvent,p_notes:String(f.get('notes')||'').trim()||null
    });
-   setBusy(false);if(error){setMessage(error.message);return}setMessage('Objetivo creado con un roadmap inicial de 3 pasos.');
+   setBusy(false);if(error){setMessage(error.message);return}setMessage('Objetivo creado con un plan inicial de 3 pasos.');
   }
   closeGoal();await supabase.rpc('refresh_my_notifications',{p_household_id:household.id});await load(false);
  }
@@ -120,7 +120,7 @@ export default function PlanningCenter({household,onNavigate,readOnly=false}:{ho
   if(readOnly){setMessage('Modo solo lectura.');return}
   e.preventDefault();if(!showMilestone)return;setBusy(true);const f=new FormData(e.currentTarget);
   const {error}=await supabase.from('planning_milestones').insert({household_id:household.id,planning_goal_id:showMilestone,title:String(f.get('title')||'').trim(),due_date:String(f.get('due_date')||'')||null,estimated_amount:String(f.get('estimated_amount')||'')?Number(f.get('estimated_amount')):null,linked_tab:String(f.get('linked_tab')||'')||null,sort_order:milestones.filter(m=>m.planning_goal_id===showMilestone).length*10+40});
-  setBusy(false);setMessage(error?error.message:'Paso agregado al roadmap.');if(!error){setShowMilestone(null);await load(false)}
+  setBusy(false);setMessage(error?error.message:'Paso agregado al plan.');if(!error){setShowMilestone(null);await load(false)}
  }
 
  async function deleteMilestone(m:Milestone){
@@ -155,7 +155,7 @@ export default function PlanningCenter({household,onNavigate,readOnly=false}:{ho
    <section className="planning-goals-panel">
     <div className="planning-panel-head"><div><p className="eyebrow">OBJETIVOS</p><h3>{horizon?'Horizonte '+horizon+' '+(horizon===1?'mes':'meses'):'Todos los objetivos'}</h3></div><span>{filtered.length}</span></div>
     <div className="planning-goal-list">{filtered.map(goal=><GoalCard key={goal.id} goal={goal} milestones={milestones.filter(m=>m.planning_goal_id===goal.id)} expanded={openGoal===goal.id} onExpand={()=>setOpenGoal(openGoal===goal.id?null:goal.id)} onEdit={()=>startGoal(goal)} onStatus={status=>setGoalStatus(goal,status)} onDelete={()=>deleteGoal(goal)} onToggleMilestone={toggleMilestone} onDeleteMilestone={deleteMilestone} onAddMilestone={()=>setShowMilestone(goal.id)} onNavigate={onNavigate} readOnly={readOnly}/>)}</div>
-    {!filtered.length&&<div className="document-empty"><ModuleIcon name="planning"/><strong>No hay objetivos en este horizonte</strong><span>{readOnly?'No hay objetivos disponibles para consultar.':'Agrega una meta y Nuestro Hogar construirá el primer roadmap automáticamente.'}</span>{!readOnly&&<button onClick={()=>startGoal()}><Plus/> Crear objetivo</button>}</div>}
+    {!filtered.length&&<div className="document-empty"><ModuleIcon name="planning"/><strong>No hay objetivos en este horizonte</strong><span>{readOnly?'No hay objetivos disponibles para consultar.':'Agrega una meta y Nuestro Hogar preparará los primeros pasos automáticamente.'}</span>{!readOnly&&<button onClick={()=>startGoal()}><Plus/> Crear objetivo</button>}</div>}
    </section>
 
    <aside className="planning-side">
@@ -184,7 +184,7 @@ function GoalCard({goal,milestones,expanded,onExpand,onEdit,onStatus,onDelete,on
  return <article className={'planning-goal-card '+tone+' '+goal.status}><button className="planning-goal-summary" onClick={onExpand}><span className="planning-goal-icon">{goalIcon(goal.goal_type)}</span><div className="planning-goal-main"><div><small>{goalTypeLabel(goal.goal_type)} · {goal.horizon_months} {goal.horizon_months===1?'mes':'meses'}</small><strong>{goal.title}</strong></div><p>{goal.description||'Objetivo para '+fmtDate(goal.target_date)}</p><div className="planning-goal-progress"><span style={{width:Math.min(100,Math.max(3,goal.progress_pct))+'%'}}/></div><div className="planning-goal-progress-label"><span>{Math.round(goal.progress_pct)}% completado</span><b>{paceLabel(goal.pace_status)}</b></div></div><div className="planning-goal-date"><small>Objetivo</small><strong>{fmtDate(goal.target_date)}</strong><ChevronRight className={expanded?'open':''}/></div></button>
   {expanded&&<div className="planning-goal-details">
    <div className="planning-goal-numbers">{financial&&<><div><small>Avance</small><strong>{money(goal.current_amount)}</strong></div><div><small>Meta</small><strong>{money(Number(goal.target_amount))}</strong></div><div><small>Falta</small><strong>{money(goal.remaining)}</strong></div><div><small>Necesario / mes</small><strong>{money(Number(goal.required_monthly||0))}</strong></div></>}<div><small>Pasos</small><strong>{goal.milestone_done}/{goal.milestone_count}</strong></div><div><small>Prioridad</small><strong>{priorityLabel(goal.priority)}</strong></div></div>
-   <div className="planning-milestones-head"><div><strong>Roadmap</strong><small>{goal.milestone_overdue?goal.milestone_overdue+' paso'+(goal.milestone_overdue===1?'':'s')+' vencido'+(goal.milestone_overdue===1?'':'s'):'Pasos hacia el objetivo'}</small></div>{!readOnly&&<button onClick={e=>{e.stopPropagation();onAddMilestone()}}><Plus/> Paso</button>}</div>
+   <div className="planning-milestones-head"><div><strong>Plan de pasos</strong><small>{goal.milestone_overdue?goal.milestone_overdue+' paso'+(goal.milestone_overdue===1?'':'s')+' vencido'+(goal.milestone_overdue===1?'':'s'):'Pasos hacia el objetivo'}</small></div>{!readOnly&&<button onClick={e=>{e.stopPropagation();onAddMilestone()}}><Plus/> Paso</button>}</div>
    <div className="planning-milestones">{milestones.map(m=><div key={m.id} className={m.status==='completed'?'done':m.due_date&&m.due_date<iso()?'late':''}><button disabled={readOnly} onClick={()=>onToggleMilestone(m)}>{m.status==='completed'?<Check/>:<span/>}</button><div><strong>{m.title}</strong><small>{fmtDate(m.due_date)}{m.estimated_amount!=null?' · '+money(Number(m.estimated_amount)):''}</small></div>{m.linked_tab&&<button className="go" onClick={()=>onNavigate(String(m.linked_tab))}><ArrowRight/></button>}{!readOnly&&<button className="delete" onClick={()=>onDeleteMilestone(m)}><Trash2/></button>}</div>)}</div>
    {!readOnly&&<div className="planning-goal-actions"><button onClick={onEdit}><Edit3/> Editar</button>{goal.status==='active'?<button onClick={()=>onStatus('paused')}><Pause/> Pausar</button>:goal.status==='paused'?<button onClick={()=>onStatus('active')}><TrendingUp/> Reactivar</button>:null}{goal.status!=='completed'&&<button className="complete" onClick={()=>onStatus('completed')}><CheckCircle2/> Completar</button>}<button className="danger" onClick={onDelete}><Trash2/> Eliminar</button></div>}
   </div>}
@@ -195,7 +195,7 @@ function GoalModal({goal,savings,accounts,maintenance,events,busy,onClose,onSubm
  const [type,setType]=useState<GoalType>(goal?.goal_type||'saving'),[horizon,setHorizon]=useState<number>(goal?.horizon_months||3);
  const [targetDate,setTargetDate]=useState(goal?.target_date||addMonths(goal?.horizon_months||3));
  useEffect(()=>{if(!goal)setTargetDate(addMonths(horizon))},[horizon]);
- return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="finance-modal planning-modal"><div className="modal-head"><div><p className="eyebrow">PLANEACIÓN</p><h3>{goal?'Editar objetivo':'Nuevo objetivo'}</h3></div><button onClick={onClose}><X/></button></div><form className="finance-form" onSubmit={onSubmit}>
+ return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><div className="finance-modal planning-modal"><div className="modal-head"><div><p className="eyebrow">PLANEACIÓN</p><h3>{goal?'Editar objetivo':'Nuevo objetivo'}</h3></div><button type="button" aria-label="Cerrar" onClick={onClose}><X/></button></div><form className="finance-form" onSubmit={onSubmit}>
   <label>Objetivo<input name="title" defaultValue={goal?.title||''} placeholder="Ej. Fondo para vivienda" required/></label>
   <div className="two"><label>Tipo<select name="goal_type" value={type} onChange={e=>setType(e.target.value as GoalType)}><option value="saving">Ahorro</option><option value="travel">Viaje</option><option value="purchase">Compra</option><option value="housing">Vivienda</option><option value="vehicle">Vehículo</option><option value="debt">Deuda</option><option value="maintenance">Mantenimiento</option><option value="event">Evento</option><option value="home">Hogar</option><option value="other">Otro</option></select></label><label>Prioridad<select name="priority" defaultValue={goal?.priority||'medium'}><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select></label></div>
   <label>Descripción<input name="description" defaultValue={goal?.description||''} placeholder="Qué quieren lograr y por qué"/></label>
@@ -207,7 +207,7 @@ function GoalModal({goal,savings,accounts,maintenance,events,busy,onClose,onSubm
   {type==='maintenance'&&<label>Vincular mantenimiento<select name="linked_maintenance_id" defaultValue={goal?.linked_maintenance_id||''}><option value="">Sin vincular</option>{maintenance.map(m=><option key={m.id} value={m.id}>{m.title}{m.next_due_date?' · '+fmtDate(m.next_due_date):''}</option>)}</select></label>}
   {type==='event'&&<label>Vincular evento<select name="linked_event_id" defaultValue={goal?.linked_event_id||''}><option value="">Sin vincular</option>{events.map(e=><option key={e.id} value={e.id}>{e.title} · {fmtDate(e.event_date)}</option>)}</select></label>}
   <label>Notas<textarea name="notes" rows={3} defaultValue={goal?.notes||''} placeholder="Condiciones, ideas o decisiones importantes"/></label>
-  {!goal&&<div className="planning-auto-roadmap"><Sparkles/><div><strong>Roadmap automático</strong><small>Al crear el objetivo agregaremos tres pasos iniciales: preparación, revisión al 50% y cierre.</small></div></div>}
+  {!goal&&<div className="planning-auto-roadmap"><Sparkles/><div><strong>Pasos sugeridos automáticamente</strong><small>Al crear el objetivo agregaremos tres pasos iniciales: preparación, revisión al 50% y cierre.</small></div></div>}
   <button className="finance-primary" disabled={busy}><Check/>{busy?'Guardando...':goal?'Guardar cambios':'Crear objetivo'}</button>
  </form></div></div>
 }

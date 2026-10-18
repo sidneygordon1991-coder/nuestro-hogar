@@ -103,30 +103,37 @@ export default function App(){
   window.dispatchEvent(new PopStateEvent('popstate'));
   window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
  }
- useEffect(()=>{if(household){setAccess(null);setAccessError('');loadAccess(household.id);loadData(household.id)}},[household?.id,session?.user.id]);
+ useEffect(()=>{if(household){setAccess(null);setAccessError('');loadAccess(household.id);loadData(household.id);try{if(session)localStorage.setItem('nh:last-household:'+session.user.id,household.id)}catch{/* storage unavailable */}}},[household?.id,session?.user.id]);
  // Returning to Inicio refreshes its summary; the first render is already covered by the household effect.
  const previousTab=useRef(tab);
  useEffect(()=>{if(previousTab.current!==tab&&tab==='inicio'&&household)loadData(household.id);previousTab.current=tab},[tab]);
  async function loadHouseholds(){
   const sequence=++householdsSequence.current;const userId=session?.user.id;if(!userId)return;setHouseholdsLoading(true);setHouseholdsError('');
-  const {data,error}=await supabase.from('household_members').select('household_id, households(id,name,invite_code)').eq('user_id',userId);
+  const {data,error}=await supabase.from('household_members').select('household_id, households(id,name,invite_code)').eq('user_id',userId).order('joined_at');
   if(userRef.current!==userId||sequence!==householdsSequence.current)return;setHouseholdsLoading(false);setHouseholdsLoadedFor(userId);if(error){setHouseholdsError('No pudimos consultar tus hogares. Reintenta antes de crear uno nuevo.');return}
   const joined=(data||[]).map((r:any)=>r.households).filter(Boolean) as Household[];
   const rows=Array.from(new Map(joined.map(h=>[h.id,h])).values());
-  setHouseholds(rows);setHousehold(current=>rows.find(h=>h.id===current?.id)||rows[0]||null);
+  // A link (?household=…) or the last household used on this device opens first; otherwise the oldest membership.
+  const wanted=new URLSearchParams(window.location.search).get('household');let remembered='';try{remembered=localStorage.getItem('nh:last-household:'+userId)||''}catch{/* storage unavailable */}
+  setHouseholds(rows);setHousehold(current=>rows.find(h=>h.id===current?.id)||rows.find(h=>h.id===wanted)||rows.find(h=>h.id===remembered)||rows[0]||null);
  }
- async function loadAccess(id:string){const requestedScope=(session?.user.id||'')+':'+id;const {data,error}=await supabase.rpc('get_my_household_access',{p_household_id:id});if(scopeRef.current!==requestedScope)return;if(error){setAccess(null);setAccessError('No pudimos verificar tus permisos.');return}setAccessError('');setAccessScope(requestedScope);setAccess(data as HouseholdAccess)}
+ const accessSequence=useRef(0);
+ async function loadAccess(id:string){const requestedScope=(session?.user.id||'')+':'+id,sequence=++accessSequence.current;const {data,error}=await supabase.rpc('get_my_household_access',{p_household_id:id});if(scopeRef.current!==requestedScope||sequence!==accessSequence.current)return;if(error){setAccess(null);setAccessError('No pudimos verificar tus permisos.');return}setAccessError('');setAccessScope(requestedScope);setAccess(data as HouseholdAccess)}
  async function loadData(id:string){
   const requestedScope=(session?.user.id||'')+':'+id,sequence=++dataSequence.current;
   const period=currentMonth();
   // One server read for the finance summary; older backends without it fall back to individual queries.
-  const [listR,eventR,homeR]=await Promise.all([
+  const [listR,eventR,homeR,overdueR]=await Promise.all([
    supabase.from('lists').select('id,title').eq('household_id',id).order('created_at',{ascending:false}),
    supabase.from('events').select('id,title,event_date,start_time').eq('household_id',id).gte('event_date',today()).order('event_date').limit(6),
-   supabase.rpc('get_home_finance_source',{p_household_id:id,p_month:period.month})
+   supabase.rpc('get_home_finance_source',{p_household_id:id,p_month:period.month}),
+   // Payments still pending from the two previous months stay visible as overdue (RLS hides them without Finance access).
+   supabase.from('recurring_transaction_occurrences').select('id,recurring_transaction_id,due_date,status,transaction_id,details_snapshot').eq('household_id',id).eq('status','pending').lt('due_date',period.start).gte('due_date',localIso(new Date(new Date(period.start+'T12:00').getFullYear(),new Date(period.start+'T12:00').getMonth()-2,1))).order('due_date').limit(60)
   ]);
   const legacy=homeR.error&&['PGRST202','42883'].includes(homeR.error.code);
-  const read=isFinanceRead(homeR.data)&&!homeR.error?homeR.data:legacy?await readFinanceSeparately(id,period):null;
+  const fetched=isFinanceRead(homeR.data)&&!homeR.error?homeR.data:legacy?await readFinanceSeparately(id,period):null;
+  const earlier=(overdueR.error?[]:overdueR.data||[]) as any[];
+  const read=fetched&&earlier.length?{...fetched,occurrences:[...fetched.occurrences.filter((o:any)=>!earlier.some(e=>e.id===o.id)),...earlier]}:fetched;
   if(scopeRef.current!==requestedScope||sequence!==dataSequence.current)return;
   setLists(listR.data||[]);setEvents(eventR.data||[]);setTxs((read?.transactions||[]) as Tx[]);setDataScope(requestedScope);
   if(!read){setFinanceHome(current=>({...current,loading:false,error:'No pudimos verificar el resumen financiero. Reintenta para ver cifras actualizadas.'}));return}
@@ -136,17 +143,17 @@ export default function App(){
   const flow=buildCashFlow(source);
   const primaryGoal=read.goals[0];
   const goalSaved=primaryGoal?read.goal_contributions.filter(r=>r.goal_id===primaryGoal.id&&r.contribution_date<=today()).reduce((sum,r)=>sum+Math.round(Number(r.amount)*100),0)/100:0;
-  const goalProgress=primaryGoal&&Number(primaryGoal.target_amount)>0?Math.min(100,Math.round(goalSaved/Number(primaryGoal.target_amount)*100)):0;
+  const goalProgress=primaryGoal&&Number(primaryGoal.target_amount)>0?Math.min(100,Math.floor(goalSaved/Number(primaryGoal.target_amount)*100)):0;
   setFinanceHome({source,goals:read.goals,goalEntries:read.goal_contributions,splits:read.splits,settlements:read.settlements,privateEntries:read.private,usdRate:usdRate(read.settings?.usd_rate),income:flow.income,expense:flow.expense,saving:flow.saving,available:flow.available,pending:flow.fixedCommitments,projected:flow.projectedClose,overdue:flow.overdue,nextPayment:flow.nextPayment?.terms.description||null,nextPaymentAmount:Number(flow.nextPayment?.terms.amount||0),nextPaymentDate:flow.nextPayment?.due_date||null,goalName:primaryGoal?.name||null,goalProgress,remainingExpenses:flow.remainingExpenses,savingsRemaining:flow.savingsRemaining,expectedIncomeRemaining:flow.expectedIncomeRemaining,futureCount:flow.futureCount,planComplete:members.length>0&&members.every(m=>read.plans.some(p=>p.user_id===m.user_id))&&read.allocations.length>0});
  }
- if(loading)return <div className="center"><div className="loader"/></div>;
+ if(loading)return <div className="center" role="status" aria-label="Cargando Nuestro Hogar"><div className="loader" aria-hidden="true"/></div>;
  if(recovery)return <UpdatePassword onDone={()=>{setRecovery(false);window.history.replaceState({},'',authRedirectUrl())}}/>;
  if(!session)return <><Auth/><PwaUpdatePrompt/></>;
  if(tab==='master')return <div className="app master-standalone"><MasterHeader onBack={()=>setTab('inicio')} onProfile={()=>setTab('familia')}/><main className="content" id="main-content">{masterLoading?<ModuleFallback/>:isMaster?<AppErrorBoundary householdId={household?.id||''}><Suspense fallback={<ModuleFallback/>}><MasterSecurityGate><MasterPanel onChanged={()=>{if(household){loadAccess(household.id);loadData(household.id)}}}/></MasterSecurityGate></Suspense></AppErrorBoundary>:<section className="access-denied"><ShieldOff/><h2>Acceso master requerido</h2><p>Tu cuenta no está autorizada para la administración global.</p><button onClick={()=>setTab('inicio')}>Volver a Inicio</button></section>}</main><PwaUpdatePrompt/></div>;
  if(householdsError)return <main className="center"><div className="workspace-status error" role="alert"><p>{householdsError}</p><button onClick={loadHouseholds}>Reintentar</button></div></main>;
- if(householdsLoading||householdsLoadedFor!==session.user.id)return <div className="center"><div className="loader"/></div>;
- if(!household)return <><Onboarding onDone={loadHouseholds}/><PwaUpdatePrompt/></>;
- if(!access)return accessError?<main className="center"><div className="workspace-status error" role="alert"><p>{accessError}</p><button onClick={()=>loadAccess(household.id)}>Reintentar</button></div></main>:<div className="center"><div className="loader"/></div>;
+ if(householdsLoading||householdsLoadedFor!==session.user.id)return <div className="center" role="status" aria-label="Cargando Nuestro Hogar"><div className="loader" aria-hidden="true"/></div>;
+ if(!household)return <><Onboarding onDone={loadHouseholds} userId={session.user.id}/><PwaUpdatePrompt/></>;
+ if(!access)return accessError?<main className="center"><div className="workspace-status error" role="alert"><p>{accessError}</p><button onClick={()=>loadAccess(household.id)}>Reintentar</button></div></main>:<div className="center" role="status" aria-label="Cargando Nuestro Hogar"><div className="loader" aria-hidden="true"/></div>;
  return <AppErrorBoundary key={scope} householdId={household.id}><ClientErrorReporter householdId={household.id}/><Shell key={scope} userId={session.user.id} isMaster={isMaster} household={household} households={households} tab={tab} setTab={setTab} onSwitch={setHousehold} onRefresh={()=>loadData(household.id)} onAccessChanged={()=>loadAccess(household.id)} onHouseholdRenamed={(name:string)=>{setHousehold(current=>current?{...current,name}:current);setHouseholds(current=>current.map(h=>h.id===household.id?{...h,name}:h))}} lists={dataScope===scope?lists:[]} events={dataScope===scope?events:[]} txs={dataScope===scope?txs:[]} financeHome={dataScope===scope?financeHome:{...financeHome,loading:true}} access={access}/></AppErrorBoundary>;
 }
 
@@ -163,13 +170,45 @@ function UpdatePassword({onDone}:{onDone:()=>void}){
   setBusy(false);
   if(error)setMsg(error.message);else{setMsg('Contraseña actualizada correctamente.');setTimeout(onDone,700)}
  }
- return <main className="auth"><section className="auth-card"><div className="brand-mark"><ModuleIcon name="home"/></div><p className="eyebrow">SEGURIDAD</p><h1>Nueva contraseña</h1><p className="muted">Crea una contraseña nueva para volver a entrar a Nuestro Hogar.</p><form onSubmit={submit}><input name="password" type="password" minLength={10} autoComplete="new-password" placeholder="Nueva contraseña" required/><input name="confirm" type="password" minLength={10} autoComplete="new-password" placeholder="Confirmar contraseña" required/><button disabled={busy}>{busy?'Actualizando...':'Guardar nueva contraseña'}</button></form>{msg&&<p className="status">{msg}</p>}</section></main>
+ return <main className="auth"><section className="auth-card"><div className="brand-mark"><ModuleIcon name="home"/></div><p className="eyebrow">SEGURIDAD</p><h1>Nueva contraseña</h1><p className="muted">Crea una contraseña nueva para volver a entrar a Nuestro Hogar.</p><form onSubmit={submit}><label>Nueva contraseña<input name="password" type="password" minLength={10} autoComplete="new-password" placeholder="Mínimo 10 caracteres" required/></label><label>Confirmar contraseña<input name="confirm" type="password" minLength={10} autoComplete="new-password" placeholder="Repite la contraseña" required/></label><button disabled={busy}>{busy?'Actualizando...':'Guardar nueva contraseña'}</button></form>{msg&&<p className="status" role="status">{msg}</p>}</section></main>
 }
 
-function Onboarding({onDone}:{onDone:()=>void}){
- const [join,setJoin]=useState(false),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
- async function go(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);const f=new FormData(e.currentTarget);const {error}=join?await supabase.rpc('join_household',{p_invite_code:String(f.get('value'))}):await supabase.rpc('create_household',{p_name:String(f.get('value'))});setBusy(false);if(error)setMsg(error.message);else onDone()}
- return <main className="auth"><section className="auth-card wide"><p className="eyebrow">BIENVENIDO</p><h1>{join?'Únete a un hogar':'Crea tu hogar'}</h1><p className="muted">{join?'Ingresa el código de invitación que te compartieron.':'Tu espacio para ti, tu pareja o tu familia. Puedes empezar solo e invitar después.'}</p><form onSubmit={go}><label>{join?'Código de invitación':'Nombre de tu hogar'}<input name="value" placeholder={join?'Código de invitación':'Ej. Mi espacio'} maxLength={100} required/></label><button disabled={busy}>{join?'Unirme':'Crear hogar'}</button></form>{msg&&<p className="status">{msg}</p>}<button className="link" onClick={()=>setJoin(!join)}>{join?'Prefiero crear un hogar':'Ya tengo un código de invitación'}</button></section></main>
+type HouseholdKind='solo'|'couple'|'family';
+const householdKinds:{id:HouseholdKind;title:string;detail:string;name:string}[]=[
+ {id:'solo',title:'Solo yo',detail:'Mis ingresos, gastos y metas personales.',name:'Mis finanzas'},
+ {id:'couple',title:'En pareja',detail:'Gastos compartidos y quién le debe a quién.',name:'Nuestro hogar'},
+ {id:'family',title:'En familia',detail:'Presupuesto, agenda y listas para todos.',name:'Nuestra familia'}
+];
+/** First run: who is this for, then a name. Solo starts with the simplest set of modules; a code joins an existing home. */
+function Onboarding({onDone,userId}:{onDone:()=>void;userId:string}){
+ const [join,setJoin]=useState(false),[kind,setKind]=useState<HouseholdKind|null>(null),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
+ async function go(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();if(busy)return;setBusy(true);setMsg('');const value=String(new FormData(e.currentTarget).get('value')||'').trim();
+  if(join){
+   const {data,error}=await supabase.rpc('join_household',{p_invite_code:value});setBusy(false);
+   if(error){setMsg(/too many|demasiados/i.test(error.message)?'Demasiados intentos. Espera 15 minutos y vuelve a intentarlo.':/invalid invite/i.test(error.message)?'Ese código no corresponde a ningún hogar. Revisa que esté completo.':error.message);return}
+   if(!data){setMsg('Ese código no corresponde a ningún hogar. Revisa que esté completo.');return}
+   onDone();return;
+  }
+  const {data,error}=await supabase.rpc('create_household',{p_name:value});setBusy(false);
+  if(error){setMsg(error.message);return}
+  // Starting favorites follow the answer; everything else stays one tap away in "Ver todas las secciones".
+  const id=typeof data==='string'?data:(data as {id?:string}|null)?.id;
+  if(id&&kind){try{localStorage.setItem(appearanceKey(userId,id),JSON.stringify({accent:'forest',focus:'balance',view:'essential',favorites:kind==='solo'?['presupuesto','documentos']:['presupuesto','calendario','listas','documentos'],cover:''}))}catch{/* storage unavailable */}}
+  onDone();
+ }
+ const chosen=householdKinds.find(k=>k.id===kind);
+ return <main className="auth"><section className="auth-card wide onboarding-card"><p className="eyebrow">BIENVENIDO</p>
+  {join?<><h1>Únete a un hogar</h1><p className="muted">Ingresa el código de invitación que te compartieron.</p>
+   <form onSubmit={go}><label>Código de invitación<input name="value" placeholder="Ej. 4F7A9C21B3D05E68" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={40} required/></label><button disabled={busy}>{busy?'Verificando…':'Unirme'}</button></form></>
+  :!chosen?<><h1>¿Para quién es?</h1><p className="muted">Así empezamos con lo justo. Puedes invitar a alguien o activar más espacios después.</p>
+   <div className="onboarding-kinds" role="group" aria-label="Para quién es este espacio">{householdKinds.map(k=><button type="button" key={k.id} onClick={()=>setKind(k.id)}><strong>{k.title}</strong><small>{k.detail}</small></button>)}</div></>
+  :<><h1>Ponle nombre</h1><p className="muted">{chosen.id==='solo'?'Tu espacio personal. Si después quieres compartirlo, invitas a alguien desde Familia.':'Después de crearlo, comparte el código de invitación desde Familia.'}</p>
+   <form onSubmit={go}><label>Nombre de tu espacio<input name="value" defaultValue={chosen.name} maxLength={100} required/></label><button disabled={busy}>{busy?'Creando…':'Crear y empezar'}</button></form>
+   <button type="button" className="link" onClick={()=>setKind(null)}>Cambiar mi respuesta</button></>}
+  {msg&&<p className="status" role="alert">{msg}</p>}
+  <button type="button" className="link" onClick={()=>{setJoin(!join);setMsg('')}}>{join?'Prefiero crear mi propio espacio':'Ya tengo un código de invitación'}</button>
+ </section></main>;
 }
 
 function MasterHeader({onBack,onProfile}:{onBack:()=>void;onProfile:()=>void}){
@@ -187,11 +226,11 @@ function Shell(p:any){
  const preferenceKey=appearanceKey(p.userId,p.household.id);
  const [appearanceOpen,setAppearanceOpen]=useState(false),[savedAppearance,setSavedAppearance]=useState(()=>({key:preferenceKey,value:readAppearance(preferenceKey)}));
  const appearance=savedAppearance.key===preferenceKey?savedAppearance.value:readAppearance(preferenceKey);
- function saveAppearance(value:Appearance){localStorage.setItem(preferenceKey,JSON.stringify(value));setSavedAppearance({key:preferenceKey,value});window.dispatchEvent(new CustomEvent('nh:appearance-saved'))}
+ function saveAppearance(value:Appearance){try{localStorage.setItem(preferenceKey,JSON.stringify(value))}catch{/* storage unavailable: keep this session's choice */}setSavedAppearance({key:preferenceKey,value});window.dispatchEvent(new CustomEvent('nh:appearance-saved'))}
 
  const module=tabModule(p.tab),level=module?p.access?.modules?.[module]:null,denied=level==='none';
  useEffect(()=>{const url=new URL(window.location.href);if(url.searchParams.get('quick')!=='1')return;const timer=window.setTimeout(()=>window.dispatchEvent(new CustomEvent('nh:quick-add')),180);url.searchParams.delete('quick');window.history.replaceState({},'',url);return()=>window.clearTimeout(timer)},[p.household.id]);
- return <WorkspaceHeadingSlot.Provider value={headingSlot}><div className="app app-studio" data-accent={appearance.accent} data-module={p.tab}><DesktopRail essential={appearance.view==='essential'} favorites={appearance.favorites} currentTab={p.tab} access={p.access.modules} isMaster={p.isMaster} onNavigate={p.setTab} onAppearance={()=>setAppearanceOpen(true)}/><a className="skip-link" href="#main-content">Saltar al contenido</a><header className="workspace-header"><div className="workspace-household"><div className="home-select-wrap household-pill">{appearance.cover?<img className="household-pill-photo" src={appearance.cover} alt=""/>:<span className="household-pill-photo" aria-hidden="true"><BrandMark size={16}/></span>}<span className="home-select-label" aria-hidden="true">{p.household.name}</span><select className="home-select" aria-label="Cambiar de familia" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={16} aria-hidden="true"/></div><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={effectiveTheme==='dark'} title={effectiveTheme==='light'?'Tema de día · cambiar a noche':'Tema de noche · cambiar a día'}><span className="theme-sun"><Sun size={16}/></span><span className="theme-moon"><Moon size={16}/></span></button><button type="button" className="amounts-toggle" onClick={toggleAmounts} aria-pressed={amountsMasked} aria-label={amountsMasked?'Mostrar montos':'Ocultar montos'} title={amountsMasked?'Mostrar montos':'Ocultar montos'}>{amountsMasked?<EyeOff size={18}/>:<Eye size={18}/>}</button></div><div className="header-actions"><AppMenu essential={appearance.view==='essential'} favorites={appearance.favorites} onPersonalize={()=>setAppearanceOpen(true)} isMaster={p.isMaster} currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar onClick={()=>p.setTab('familia')}/></div><div className="workspace-header-slot" ref={setHeadingSlot}/></header>
+ return <WorkspaceHeadingSlot.Provider value={headingSlot}><div className="app app-studio" data-accent={appearance.accent} data-module={p.tab}><DesktopRail essential={appearance.view==='essential'} favorites={appearance.favorites} shared={(p.financeHome?.source?.members?.length||0)>1} currentTab={p.tab} access={p.access.modules} isMaster={p.isMaster} onNavigate={p.setTab} onAppearance={()=>setAppearanceOpen(true)}/><a className="skip-link" href="#main-content">Saltar al contenido</a><header className="workspace-header"><div className="workspace-household"><div className="home-select-wrap household-pill">{appearance.cover?<img className="household-pill-photo" src={appearance.cover} alt=""/>:<span className="household-pill-photo" aria-hidden="true"><BrandMark size={16}/></span>}<span className="home-select-label" aria-hidden="true">{p.household.name}</span><select className="home-select" aria-label="Cambiar de familia" value={p.household.id} onChange={e=>p.onSwitch(p.households.find((h:Household)=>h.id===e.target.value)||p.household)}>{p.households.map((h:Household)=><option key={h.id} value={h.id}>{h.name}</option>)}</select><ChevronDown size={16} aria-hidden="true"/></div><button type="button" className="header-theme-toggle" onClick={toggleTheme} aria-label={effectiveTheme==='light'?'Activar tema de noche':'Activar tema de día'} aria-pressed={effectiveTheme==='dark'} title={effectiveTheme==='light'?'Tema de día · cambiar a noche':'Tema de noche · cambiar a día'}><span className="theme-sun"><Sun size={16}/></span><span className="theme-moon"><Moon size={16}/></span></button><button type="button" className="amounts-toggle" onClick={toggleAmounts} aria-pressed={amountsMasked} aria-label={amountsMasked?'Mostrar montos':'Ocultar montos'} title={amountsMasked?'Mostrar montos':'Ocultar montos'}>{amountsMasked?<EyeOff size={18}/>:<Eye size={18}/>}</button></div><div className="header-actions"><AppMenu essential={appearance.view==='essential'} favorites={appearance.favorites} onPersonalize={()=>setAppearanceOpen(true)} isMaster={p.isMaster} currentTab={p.tab} access={p.access.modules} onNavigate={p.setTab}/><GlobalCommandCenter household={p.household} access={p.access.modules} onNavigate={p.setTab} onChanged={p.onRefresh}/><NotificationCenter household={p.household} onNavigate={p.setTab}/><ProfileAvatar onClick={()=>p.setTab('familia')}/></div><div className="workspace-header-slot" ref={setHeadingSlot}/></header>
  <main className="content" id="main-content" tabIndex={-1}><ConnectionStatus/>
  <HouseholdWelcome household={p.household} canManage={p.access.can_manage_members} onChanged={()=>{p.onRefresh();p.onAccessChanged?.()}}/>
  <HouseholdStorageNote householdId={p.household.id} version={p.tab+JSON.stringify(p.access.modules)}/>

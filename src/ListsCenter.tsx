@@ -26,7 +26,7 @@ export default function ListsCenter({household,onChanged,readOnly=false,financeA
  const [editingList,setEditingList]=useState<ListRow|null>(null),[editingItem,setEditingItem]=useState<ListItem|null>(null);
  const [newFrequency,setNewFrequency]=useState<Frequency>('none'),[editFrequency,setEditFrequency]=useState<Frequency>('none');
  const request=useRef(0);
- useEffect(()=>{load();const channel=supabase.channel('shared-lists-'+household.id)
+ useEffect(()=>{load();const channel=supabase.channel('shared-lists-'+household.id+'-'+Math.random().toString(36).slice(2))
   .on('postgres_changes',{event:'*',schema:'public',table:'lists',filter:'household_id=eq.'+household.id},()=>load(false))
   .on('postgres_changes',{event:'*',schema:'public',table:'list_items',filter:'household_id=eq.'+household.id},()=>load(false)).subscribe();
   return()=>{request.current++;supabase.removeChannel(channel)};

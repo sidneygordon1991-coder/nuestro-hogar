@@ -140,7 +140,7 @@ test('bank statement import: mapping, preview, duplicates and chunked insert',as
  await expect(dialog.locator('.import-row.duplicate')).toContainText('Posible duplicado de “SUPER LA TORRE Z10”');
 
  await dialog.getByText('Ver 1 fila omitida y el motivo').click();await expect(dialog.locator('.import-skipped')).toContainText('Línea 6: Fecha no válida: 32/10/2026');
- await dialog.getByLabel('Categoría de los gastos').selectOption({index:1});
+ await dialog.getByLabel('Categoría de los gastos').selectOption({index:2});
  await dialog.getByRole('button',{name:/^Importar 123 movimientos/}).click();
  await expect(dialog.locator('.tools-success')).toContainText('se importaron 123 movimientos');
  expect(s.posts.transactions.map(b=>b.length)).toEqual([100,23]);

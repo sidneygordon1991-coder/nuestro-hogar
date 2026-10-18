@@ -14,8 +14,9 @@ export type PreviewRow={
  valid:boolean;reason:string|null;
 };
 export type ExistingMovement={transaction_date:string;amount:number|string;description:string|null;type?:string|null};
-export type CheckedRow=PreviewRow&{duplicate:boolean;duplicateOf:string|null};
-export type PreviewOptions={positiveIsExpense?:boolean};
+export type CheckedRow=PreviewRow&{duplicate:boolean;duplicateOf:string|null;transfer?:boolean};
+export type DateOrder='dmy'|'mdy';
+export type PreviewOptions={positiveIsExpense?:boolean;dateOrder?:DateOrder};
 
 export const MAX_AMOUNT=9999999999.99;
 export const MAX_DESCRIPTION=250;
@@ -140,16 +141,32 @@ const isoOf=(y:number,m:number,d:number)=>{
 const fullYear=(y:string)=>y.length===2?(Number(y)<=69?2000:1900)+Number(y):Number(y);
 
 /** dd/mm/yyyy, d/m/yy, yyyy-mm-dd (also with - or .), "05-oct-2026"; a trailing time is ignored. Returns YYYY-MM-DD or null. */
-export function parseDate(value:string):string|null{
+export function parseDate(value:string,order:DateOrder='dmy'):string|null{
  const text=value.trim().split(/[T\s]+(?=\d{1,2}:)/)[0].trim();
  let m=text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
  if(m)return isoOf(Number(m[1]),Number(m[2]),Number(m[3]));
  m=text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/);
- if(m)return isoOf(fullYear(m[3]),Number(m[2]),Number(m[1]));
+ if(m)return order==='mdy'?isoOf(fullYear(m[3]),Number(m[1]),Number(m[2])):isoOf(fullYear(m[3]),Number(m[2]),Number(m[1]));
  m=normalizeText(text).match(/^(\d{1,2}) ([a-z]{3})[a-z]* (\d{2}|\d{4})$/);
  if(m&&MONTHS[m[2]])return isoOf(fullYear(m[3]),MONTHS[m[2]],Number(m[1]));
  return null;
 }
+
+/**
+ * Day/month order of a date column. Guatemalan banks use dd/mm; a US export (mm/dd) is recognised when some value
+ * can only be read that way (second number above 12, first at most 12) and none can only be read as dd/mm.
+ */
+export function detectDateOrder(values:string[]):DateOrder{
+ let onlyMdy=0,onlyDmy=0;
+ for(const v of values){const m=v.trim().match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})/);if(!m)continue;const a=Number(m[1]),b=Number(m[2]);if(b>12&&a<=12)onlyMdy++;else if(a>12&&b<=12)onlyDmy++}
+ return onlyMdy>0&&onlyDmy===0?'mdy':'dmy';
+}
+
+/** Card payments and moves between your own accounts are neither income nor spending. */
+const TRANSFER_PATTERN=/\b(pago (de |a )?(tarjeta|tc|t c)|pago recibido|abono a (tarjeta|tc|cuenta)|su pago|gracias por su pago|transferencia|transf|trf|traslado|entre cuentas|ach propia|deposito propio|retiro (en )?cajero|retiro atm|atm)\b/;
+// Salary and payroll deposits often arrive as "transferencia recibida": those stay as income.
+const INCOME_PATTERN=/\b(nomina|planilla|salario|sueldo|honorarios|bono|aguinaldo)\b/;
+export function looksLikeTransfer(description:string){const text=normalizeText(description);return TRANSFER_PATTERN.test(text)&&!INCOME_PATTERN.test(text)}
 
 /**
  * Signed amount from bank formats: "Q1,234.50", "1.234,50", "(250.00)", "-250", "250.00-", "US$ 12".
@@ -167,6 +184,9 @@ export function parseAmount(value:string):number|null{
   if(/^[-\u2212]/.test(s)){negative=true;s=s.slice(1)}else if(s.startsWith('+'))s=s.slice(1);
   if(/[-\u2212]$/.test(s)){negative=true;s=s.slice(0,-1)}
   s=s.replace(/^(GTQ|USD|US\$|Q\.?|\$)/i,'').replace(/(GTQ|USD|Q)$/i,'');
+  // "250.00CR" is a credit (positive); "DB250" / "250.00DB" a debit (negative).
+  if(/^(DB|DR)/i.test(s)){negative=true;s=s.slice(2)}else if(/(DB|DR)$/i.test(s)){negative=true;s=s.slice(0,-2)}
+  else if(/^CR/i.test(s))s=s.slice(2);else if(/CR$/i.test(s))s=s.slice(0,-2);
   if(s===before)break;
  }
  if(!/^[\d.,]+$/.test(s)||!/\d/.test(s))return null;
@@ -196,9 +216,10 @@ const cell=(row:string[],index:number|null)=>index===null?'':(row[index]??'').tr
 /** One preview row per non-blank data row after the header, valid or with the reason it is skipped. */
 export function buildPreview(rows:string[][],headerIndex:number,mapping:ColumnMapping,options:PreviewOptions={}):PreviewRow[]{
  const result:PreviewRow[]=[];
+ const order=options.dateOrder||detectDateOrder(rows.slice(headerIndex+1).map(r=>cell(r,mapping.date)));
  for(let i=headerIndex+1;i<rows.length;i++){
   const row=rows[i];if(!row.some(c=>c.trim()))continue;
-  const rawDate=cell(row,mapping.date),date=parseDate(rawDate);
+  const rawDate=cell(row,mapping.date),date=parseDate(rawDate,order);
   const description=cell(row,mapping.description).replace(/\s+/g,' ').slice(0,MAX_DESCRIPTION);
   const base={line:i+1,date,description,amount:0,type:null as MovementType|null};
   const invalid=(reason:string):PreviewRow=>({...base,valid:false,reason});
@@ -257,10 +278,15 @@ export function markDuplicates(rows:PreviewRow[],existing:ExistingMovement[]):Ch
   const key=e.transaction_date+'|'+Math.round(Math.abs(Number(e.amount))*100);
   byKey.set(key,[...(byKey.get(key)||[]),e]);
  }
+ // Each existing movement explains at most one imported row, and an income never duplicates an expense:
+ // two identical purchases on the same day stay two purchases.
+ const used=new Set<ExistingMovement>();
  return rows.map(row=>{
-  if(!row.valid||!row.date)return {...row,duplicate:false,duplicateOf:null};
-  const match=(byKey.get(row.date+'|'+Math.round(row.amount*100))||[]).find(e=>descriptionSimilarity(row.description,e.description||'')>=SIMILAR_DESCRIPTION);
-  return {...row,duplicate:Boolean(match),duplicateOf:match?String(match.description||''):null};
+  const transfer=row.valid?looksLikeTransfer(row.description):false;
+  if(!row.valid||!row.date)return {...row,duplicate:false,duplicateOf:null,transfer};
+  const match=(byKey.get(row.date+'|'+Math.round(row.amount*100))||[]).find(e=>!used.has(e)&&(!e.type||!row.type||e.type===row.type)&&descriptionSimilarity(row.description,e.description||'')>=SIMILAR_DESCRIPTION);
+  if(match)used.add(match);
+  return {...row,duplicate:Boolean(match),duplicateOf:match?String(match.description||''):null,transfer};
  });
 }
 

@@ -43,7 +43,7 @@ export default function DebtPlanner({debts}:{debts:DebtAccount[]}){
    <PlanCard plan={snowball} title="Bola de nieve" icon={<Snowflake size={18} aria-hidden="true"/>} text="Primero el saldo más pequeño: liquidas deudas antes y ganas impulso." badge={best==='snowball'?badge:''}/>
   </div>
   <p className={stuck?'tools-alert':'tools-note'} role="status">{verdict}</p>
-  {result.estimatedMinimums&&<p className="tools-note">Los pagos mínimos marcados como estimados usan el {MINIMUM_RATE*100}% del saldo (mínimo {formatMoney(MINIMUM_FLOOR)}). Regístralos en cada cuenta para un cálculo exacto.</p>}
+  {result.estimatedMinimums&&<p className="tools-note">Los pagos mínimos marcados como estimados usan el {MINIMUM_RATE*100}% del saldo (mínimo {formatMoney(MINIMUM_FLOOR)}) o, si la tasa es alta, el interés del mes más 1% del saldo. Regístralos en cada cuenta para un cálculo exacto.</p>}
   <p className="tools-note">Estimación: interés mensual = tasa anual ÷ 12, sin comisiones ni nuevos cargos. Primer pago en {monthName(start)}.</p>
  </section>;
 }

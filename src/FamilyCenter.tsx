@@ -1,5 +1,6 @@
 import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
+import {signOutDevice} from './lib/signOut';
 import ModuleIcon from './ModuleIcon';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
 import {Cake,AlertTriangle,Check,Copy,Eye,History,LogOut,Phone,RefreshCw,Save,Settings2,Shield,ShieldCheck,Trash2,UserCog,UserRound,X} from 'lucide-react';
@@ -20,7 +21,7 @@ const moduleDefs:{key:ModuleKey;label:string;description:string}[]=[
  {key:'documents',label:'Documentos',description:'Bóveda compartida, archivos y vencimientos.'},
  {key:'meals',label:'Comidas',description:'Recetas, despensa, menú y compras relacionadas.'},
  {key:'maintenance',label:'Mantenimiento',description:'Casa, vehículos, servicios y garantías.'},
- {key:'planning',label:'Planeación',description:'Objetivos, roadmap y seguimiento a 12 meses.'},
+ {key:'planning',label:'Planeación',description:'Planes grandes, paso a paso, hasta 12 meses.'},
  {key:'health',label:'Salud del hogar',description:'Índice general y recomendaciones integradas.'},
  {key:'monthly_close',label:'Cierre mensual',description:'Resumen, reflexión y fotografía histórica del mes.'},
  {key:'automations',label:'Automatizaciones',description:'Reglas, umbrales y acciones automáticas.'}
@@ -122,7 +123,7 @@ export default function FamilyCenter({household,onChanged,onHouseholdRenamed}:{h
   if(error){setMessage(error.message);return}onChanged?.();window.location.reload();
  }
 
- async function copyInvite(){await navigator.clipboard.writeText(inviteCode);setCopied(true);setTimeout(()=>setCopied(false),1400)}
+ async function copyInvite(){try{await navigator.clipboard.writeText(inviteCode);setCopied(true);setTimeout(()=>setCopied(false),1400)}catch{window.prompt('Copia el código de invitación:',inviteCode)}}
  async function rotateInvite(){
   if(!window.confirm('¿Generar un código nuevo? El código anterior dejará de funcionar inmediatamente.'))return;
   setBusy(true);setMessage('');
@@ -181,7 +182,7 @@ export default function FamilyCenter({household,onChanged,onHouseholdRenamed}:{h
 
   {me?.role!=='owner'&&<button className="family-leave" onClick={leaveHousehold}><LogOut/> Salir de este hogar</button>}
   {myAccess.can_manage_members&&<button className="primary compact" onClick={()=>window.dispatchEvent(new CustomEvent('nh:setup'))}><ShieldCheck size={17}/> Configuración guiada</button>}
-  <button className="logout family-logout" onClick={()=>supabase.auth.signOut()}><LogOut size={17}/> Cerrar sesión</button>
+  <button className="logout family-logout" onClick={()=>void signOutDevice()}><LogOut size={17}/> Cerrar sesión</button>
 
   {renamingHousehold&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setRenamingHousehold(false)}}><div className="finance-modal"><div className="modal-head"><h3>Editar nombre de la familia</h3><button onClick={()=>setRenamingHousehold(false)} aria-label="Cerrar"><X/></button></div><form className="finance-form" onSubmit={saveHouseholdName}><label>Nombre de la familia<input value={householdName} maxLength={80} onChange={e=>setHouseholdName(e.target.value)} required autoFocus/></label><button className="finance-primary" disabled={busy||!householdName.trim()}><Save/>{busy?'Guardando...':'Guardar nombre'}</button></form></div></div>}
   {editing&&me&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setEditing(false)}}><div className="finance-modal"><div className="modal-head"><h3>Mi perfil</h3><button onClick={()=>setEditing(false)}><X/></button></div><form className="finance-form" onSubmit={saveProfile}>

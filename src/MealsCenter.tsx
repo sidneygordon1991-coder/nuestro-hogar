@@ -64,7 +64,7 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
  const request=useRef(0),pantryRef=useRef<PantryItem[]>([]),pantrySaving=useRef(new Set<string>()),[savingPantryIds,setSavingPantryIds]=useState<string[]>([]);
  pantryRef.current=pantry;
 
- useEffect(()=>{setMessage('');load();const channel=supabase.channel('meals-'+household.id)
+ useEffect(()=>{setMessage('');load();const channel=supabase.channel('meals-'+household.id+'-'+Math.random().toString(36).slice(2))
   .on('postgres_changes',{event:'*',schema:'public',table:'pantry_items',filter:'household_id=eq.'+household.id},()=>load(false))
   .on('postgres_changes',{event:'*',schema:'public',table:'recipes',filter:'household_id=eq.'+household.id},()=>load(false))
   .on('postgres_changes',{event:'*',schema:'public',table:'recipe_ingredients',filter:'household_id=eq.'+household.id},()=>load(false))
@@ -278,7 +278,7 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
   </>}
 
   {shoppingOpen&&<WeeklyShoppingDialog key={household.id+iso(week)} householdId={household.id} week={iso(week)} canSave={canManageShopping} onClose={()=>setShoppingOpen(false)} onOpenLists={onNavigate?()=>onNavigate('listas'):undefined}/>}
-  {showPantryForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closePantry()}}><div className="finance-modal"><div className="modal-head"><h3>{editingPantry?'Editar producto':'Nuevo producto'}</h3><button onClick={closePantry}><X/></button></div><form className="finance-form" onSubmit={savePantry}>
+  {showPantryForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closePantry()}}><div className="finance-modal"><div className="modal-head"><h3>{editingPantry?'Editar producto':'Nuevo producto'}</h3><button type="button" aria-label="Cerrar" onClick={closePantry}><X/></button></div><form className="finance-form" onSubmit={savePantry}>
    <label>Producto<input name="name" defaultValue={editingPantry?.name||''} placeholder="Ej. Arroz" required/></label>
    <div className="two"><label>Categoría<select name="category" defaultValue={editingPantry?.category||'other'}>{pantryCategories.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label><label>Ubicación<select name="location" defaultValue={editingPantry?.location||'pantry'}>{pantryLocations.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label></div>
    <div className="three"><label>Cantidad<input name="quantity" type="number" min="0" step=".01" defaultValue={editingPantry?Number(editingPantry.quantity):1}/></label><label>Unidad<input name="unit" defaultValue={editingPantry?.unit||'unidad'} placeholder="kg, lb, unidad"/></label><label>Mínimo<input name="minimum_quantity" type="number" min="0" step=".01" defaultValue={editingPantry?Number(editingPantry.minimum_quantity):0}/></label></div>
@@ -287,7 +287,7 @@ export default function MealsCenter({household,onNavigate,readOnly=false,canMana
    <button className="finance-primary" disabled={busy}><Check/>{busy?'Guardando...':'Guardar producto'}</button>
   </form></div></div>}
 
-  {showRecipeForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeRecipe()}}><div className="finance-modal recipe-modal"><div className="modal-head"><h3>{editingRecipe?'Editar receta':'Nueva receta'}</h3><button onClick={closeRecipe}><X/></button></div><form className="finance-form" onSubmit={saveRecipe}>
+  {showRecipeForm&&!readOnly&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeRecipe()}}><div className="finance-modal recipe-modal"><div className="modal-head"><h3>{editingRecipe?'Editar receta':'Nueva receta'}</h3><button type="button" aria-label="Cerrar" onClick={closeRecipe}><X/></button></div><form className="finance-form" onSubmit={saveRecipe}>
    <label>Nombre<input name="name" defaultValue={editingRecipe?.name||''} placeholder="Ej. Pollo parmesano" required/></label>
    <label>Descripción<input name="description" defaultValue={editingRecipe?.description||''} placeholder="Descripción corta"/></label>
    <div className="three"><label>Porciones<input name="servings" type="number" min="1" max="100" defaultValue={editingRecipe?.servings||2}/></label><label>Preparación min<input name="prep_minutes" type="number" min="0" defaultValue={editingRecipe?.prep_minutes||0}/></label><label>Cocción min<input name="cook_minutes" type="number" min="0" defaultValue={editingRecipe?.cook_minutes||0}/></label></div>

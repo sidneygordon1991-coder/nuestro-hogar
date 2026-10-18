@@ -4,6 +4,9 @@ PWA familiar construida con React + TypeScript + Supabase.
 
 ## Estado y documentación
 
+**v32:** ver [docs/V32_MEJORAS.md](docs/V32_MEJORAS.md) (seguridad, finanzas, robustez y diseño).
+
+
 La rama `feat/nuestro-hogar-2-premium` contiene una propuesta revisable de la versión 2.0. No está desplegada y su migración de retiros no se aplica automáticamente.
 
 - [Guía del proyecto, interfaz y código](docs/PROJECT_GUIDE.md)
