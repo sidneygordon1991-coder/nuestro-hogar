@@ -19,3 +19,17 @@
 @media(max-width:650px){.savings-history-filters{grid-template-columns:1fr 1fr;}.savings-history-filters>div{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;}.savings-history-row,.recurring-management-row{grid-template-columns:34px minmax(0,1fr) auto;gap:10px;}.finance-entry-actions{grid-column:2/-1;justify-content:flex-end;}.finance-entry-actions button{min-height:44px;}.savings-history-row>b,.recurring-management-row>b{font-size:var(--ds-fs-sm);}.savings-history-icon{width:33px;height:33px;border-radius:var(--ds-radius-md);}.finance-management-confirm>div{display:grid;grid-template-columns:1fr;}.finance-management-confirm button{width:100%;}}
 @media(max-width:380px){.savings-history-filters{grid-template-columns:1fr;}.savings-history-filters label{grid-column:1/-1;}.savings-history-row,.recurring-management-row{grid-template-columns:30px minmax(0,1fr);}.savings-history-row>b,.recurring-management-row>b{grid-column:2;text-align:left;}.finance-entry-actions{grid-column:1/-1;}}
 .app.app-studio .recurring-actions button.recurring-edit {display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 12px;min-height:40px;font-size:var(--ds-fs-xs);font-weight:600;border:1px solid var(--nh-border);border-radius:var(--ds-radius-md);background:var(--nh-subtle);color:var(--nh-accent);}
+
+/* Goal management: explicit text actions on every card and a recoverable archive. */
+.goal-view-switch{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 12px}
+.goal-view-switch button,.goal-management-actions button,.goal-delete-confirm{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:10px 12px;border:1px solid var(--nh-border);border-radius:var(--ds-radius-md);background:var(--nh-surface);color:var(--nh-text);font:inherit;font-size:var(--ds-fs-sm);cursor:pointer}
+.goal-view-switch button[aria-pressed=true]{background:var(--nh-accent-soft);color:var(--nh-accent);border-color:var(--nh-accent)}
+.goal-management-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--nh-border)}
+.goal-management-actions .goal-delete,.goal-delete-confirm{color:var(--nh-danger);border-color:var(--nh-danger);background:var(--nh-danger-soft)}
+.goal-management-note{color:var(--nh-muted);font-size:var(--ds-fs-sm);line-height:1.6;margin:8px 0 16px}
+.goal-archived-label{color:var(--nh-muted)}
+.goal-dialog-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px}
+/* Keep Edit / Delete legible in movement rows, including on phones. */
+.app.app-studio .transaction-actions button.transaction-action:not(.receipt){width:auto;min-width:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 10px}
+.app.app-studio .transaction-actions .transaction-action span{font-size:var(--ds-fs-xs);font-weight:600}
+@media(max-width:650px){.app.app-studio .transaction-actions{grid-column:1/-1;justify-content:flex-end;flex-wrap:wrap}.goal-dialog-actions>*{flex:1}}

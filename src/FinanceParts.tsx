@@ -4,6 +4,8 @@ import {InteractiveTrend} from './FinancialVisuals';
 import ModuleIcon from './ModuleIcon';
 import {useEffect, useRef, useState} from 'react';
 import {
+  Archive,
+  RotateCcw,
   ArrowDownLeft,
   Building2,
   Car,
@@ -269,7 +271,8 @@ export function TransactionRows({
                 aria-label="Editar movimiento"
                 onClick={() => onEdit(t)}
               >
-                <Pencil />
+                <Pencil aria-hidden="true" />
+                <span>Editar</span>
               </button>
               <button
                 className="transaction-action delete"
@@ -277,7 +280,8 @@ export function TransactionRows({
                 aria-label="Eliminar movimiento"
                 onClick={() => onDelete(t)}
               >
-                <Trash2 />
+                <Trash2 aria-hidden="true" />
+                <span>Eliminar</span>
               </button>
             </>
           )}
@@ -453,7 +457,10 @@ export function GoalCard({
   busy,
   readOnly,
   onContribute,
-  onWithdraw
+  onWithdraw,
+  onEdit,
+  onArchive,
+  onDelete
 }: {
   goal: Goal;
   saved: number;
@@ -461,6 +468,9 @@ export function GoalCard({
   readOnly: boolean;
   onContribute: (id: string, amount: number) => Promise<boolean>;
   onWithdraw?: () => void;
+  onEdit?: () => void;
+  onArchive?: () => void;
+  onDelete?: () => void;
 }) {
   const [amount, setAmount] = useState('');
   const progress = pct(saved, Number(goal.target_amount));
@@ -472,6 +482,7 @@ export function GoalCard({
         </span>
         <div>
           <strong>{goal.name}</strong>
+          {!goal.active && <small className="goal-archived-label">Archivada · conserva su historial</small>}
           <small>
             {goal.target_date
               ? 'Meta ' + new Date(goal.target_date + 'T12:00').toLocaleDateString('es-GT')
@@ -486,7 +497,7 @@ export function GoalCard({
       <Progress value={progress} />
       <div className="goal-footer">
         <small>{progress}% completado</small>
-        {!readOnly && (
+        {!readOnly && goal.active && (
           <div>
             <input
               aria-label={'Nuevo aporte para ' + goal.name}
@@ -514,6 +525,39 @@ export function GoalCard({
           </div>
         )}
       </div>
+      {!readOnly && (onEdit || onArchive || onDelete) && (
+        <div className="goal-management-actions">
+          {onEdit && (
+            <button type="button" disabled={busy} onClick={onEdit} aria-label={'Editar meta ' + goal.name}>
+              <Pencil aria-hidden="true" size={16} />
+              Editar
+            </button>
+          )}
+          {onArchive && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onArchive}
+              aria-label={(goal.active ? 'Archivar meta ' : 'Reactivar meta ') + goal.name}
+            >
+              {goal.active ? <Archive aria-hidden="true" size={16} /> : <RotateCcw aria-hidden="true" size={16} />}
+              {goal.active ? 'Archivar' : 'Reactivar'}
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              disabled={busy}
+              className="goal-delete"
+              onClick={onDelete}
+              aria-label={'Eliminar meta ' + goal.name}
+            >
+              <Trash2 aria-hidden="true" size={16} />
+              Eliminar
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
