@@ -1,8 +1,7 @@
 import {Component, ErrorInfo, ReactNode, useEffect} from 'react';
 import {AlertTriangle, RefreshCw} from 'lucide-react';
 import {supabase} from './lib/supabase';
-
-const APP_VERSION = 'v32';
+import {version as APP_VERSION} from '../package.json';
 
 function report(
   householdId: string,
