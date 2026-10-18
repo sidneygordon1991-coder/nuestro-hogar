@@ -111,5 +111,28 @@ do $$ begin
  begin perform public.get_platform_overview();raise exception 'Anonymous overview allowed';exception when insufficient_privilege then null;end;
 end $$;
 reset role;
+-- v33 activity: private movements do not count and MFA remains mandatory.
+select set_config('request.jwt.claim.sub',current_setting('platform_qa.master'),true);
+select set_config('request.jwt.claims','{"aal":"aal2"}',true);
+set local role authenticated;
+do $$ declare before_count int; after_count int; private_hh uuid;begin
+ private_hh:=public.create_household('Private activity test');
+ before_count:=(public.get_platform_activity()->>'active_households_30')::int;
+ insert into public.transactions(household_id,type,amount,description,paid_by,is_shared)
+ values(private_hh,'expense',1,'Private activity QA',auth.uid(),false);
+ after_count:=(public.get_platform_activity()->>'active_households_30')::int;
+ if before_count<>after_count then raise exception 'Private transaction changed activity count';end if;
+ if jsonb_array_length(public.get_platform_activity()->'weekly_active')<>12 then raise exception 'Expected twelve weeks';end if;
+end $$;
+select set_config('request.jwt.claims','{"aal":"aal1"}',true);
+do $$ begin
+ begin perform public.get_platform_activity();raise exception 'Activity bypassed master MFA';exception when insufficient_privilege then null;end;
+end $$;
+select set_config('request.jwt.claims','{"aal":"aal2"}',true);
+select set_config('request.jwt.claim.sub',current_setting('platform_qa.owner'),true);
+do $$ begin
+ begin perform public.get_platform_activity();raise exception 'Nonmaster read platform activity';exception when insufficient_privilege then null;end;
+end $$;
+reset role;
 rollback;
 select json_build_object('passed',true,'checks',array['master authorization','metadata cannot escalate','private tables protected','family isolation','confirmed changes','owner protection','allocated quotas cannot exceed free capacity','idempotent repeat joins','idempotent duplicate file metadata','family member limits','join RPC cannot bypass member quota','both bucket quotas','final metadata quota','failed upload rollback','global quota','quota released on reduced metadata','archive read-only','reactivation','membership revocation','unchanged finances','audit trail','anonymous denied'],'fixtures','rolled back') as result;

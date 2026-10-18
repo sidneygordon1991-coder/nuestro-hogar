@@ -1,0 +1,41 @@
+/* Mesada. Tokens only: --ds-* scales and --nh-* color roles. */
+.allowance-center{display:grid;gap:var(--ds-space-4)}
+.allowance-panel{border:1px solid var(--nh-border);background:var(--nh-surface);border-radius:var(--ds-radius-xl);padding:var(--ds-space-6)}
+.allowance-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:var(--ds-space-4)}
+.allowance-card{display:grid;gap:var(--ds-space-5);align-content:start}
+.allowance-card.is-paused{background:var(--nh-subtle)}
+.allowance-card.is-paused .allowance-jars{opacity:.6}
+.allowance-head{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--ds-space-3)}
+.allowance-head h3{margin:0;font-family:var(--ds-font-display);font-weight:600;font-size:var(--ds-fs-2xl);line-height:var(--ds-lh-tight)}
+.allowance-head p{margin:var(--ds-space-1) 0 0;font-size:var(--ds-fs-sm);color:var(--nh-muted)}
+.allowance-tools{display:flex;gap:var(--ds-space-1);flex-wrap:wrap;justify-content:flex-end}
+
+/* Three jars: glass outline, a lid, and a fill that rises with what has gone into each. */
+.allowance-jars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--ds-space-3)}
+.allowance-jar{display:grid;justify-items:center;gap:var(--ds-space-1);text-align:center}
+.allowance-jar-glass{position:relative;display:block;width:64px;height:76px;border:2px solid var(--nh-ill-line);border-top-width:0;border-radius:6px 6px 18px 18px;overflow:hidden;background:var(--nh-ill-paper)}
+.allowance-jar-glass:before{content:"";position:absolute;left:-2px;right:-2px;top:0;height:8px;border-radius:4px;background:var(--nh-ill-line);opacity:.45;z-index:1}
+.allowance-jar-glass>i{position:absolute;left:0;right:0;bottom:0;display:block;border-radius:0 0 14px 14px;transition:height var(--ds-dur-count) var(--ds-ease-out)}
+.allowance-jar--spend .allowance-jar-glass>i{background:var(--nh-chart-accent)}
+.allowance-jar--save .allowance-jar-glass>i{background:var(--nh-chart-purple)}
+.allowance-jar--give .allowance-jar-glass>i{background:var(--nh-chart-warning)}
+.allowance-jar strong{font-size:var(--ds-fs-md);font-variant-numeric:tabular-nums}
+.allowance-jar small{font-size:var(--ds-fs-xs);line-height:var(--ds-lh-snug);color:var(--nh-muted)}
+
+.allowance-goal{display:grid;gap:var(--ds-space-2)}
+.allowance-goal>div{display:flex;justify-content:space-between;align-items:baseline;gap:var(--ds-space-3);font-size:var(--ds-fs-sm)}
+.allowance-goal span{color:var(--nh-muted);font-size:var(--ds-fs-xs);text-align:right}
+.allowance-due{display:grid;gap:var(--ds-space-2);padding:var(--ds-space-3) var(--ds-space-4);border-radius:var(--ds-radius-lg);background:var(--nh-accent-soft)}
+.allowance-due>div{display:flex;justify-content:space-between;align-items:center;gap:var(--ds-space-3);font-size:var(--ds-fs-sm);color:var(--nh-text)}
+.allowance-record{display:flex;align-items:center;gap:var(--ds-space-2);font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.allowance-record input{width:18px;height:18px}
+.allowance-foot{display:flex;justify-content:space-between;align-items:center;gap:var(--ds-space-3);padding-top:var(--ds-space-3);border-top:1px solid var(--nh-border);font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.allowance-form-note{margin:0;font-size:var(--ds-fs-sm);line-height:var(--ds-lh-body);color:var(--nh-muted)}
+.allowance-form-actions{display:flex;justify-content:flex-end;gap:var(--ds-space-2)}
+@media(max-width:640px){
+ .allowance-panel{padding:var(--ds-space-5) var(--ds-space-4)}
+ .allowance-head{flex-direction:column}
+ .allowance-tools{justify-content:flex-start;margin-left:calc(var(--ds-space-2) * -1)}
+ .allowance-jar-glass{width:54px;height:64px}
+}
+.allowance-foot .ds-button{flex:0 0 auto;white-space:nowrap}

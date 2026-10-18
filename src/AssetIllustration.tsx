@@ -1,5 +1,33 @@
 import HouseScene from './HouseScene';
 import ModuleIcon from './ModuleIcon';
-export default function AssetIllustration({kind}:{kind:string}){
- return <div className={'studio-asset-art '+kind} aria-hidden="true">{kind==='property'?<HouseScene/>:kind==='vehicle'?<svg viewBox="0 0 300 105" fill="none"><ellipse cx="148" cy="91" rx="119" ry="8" fill="var(--nh-accent)" opacity=".1"/><path d="m38 60 24-9 28-29h94l35 28 36 9 12 17-5 12H31l-3-14z" fill="var(--nh-accent-soft)" stroke="var(--nh-accent-border)" strokeWidth="2"/><path d="m79 49 20-20h35v20zM142 29h36l23 20h-59z" fill="var(--nh-blue)" opacity=".6"/><path d="M36 69h225M144 52v29M94 53v25" stroke="var(--nh-accent-border)"/><path d="M151 57h12M99 57h11" stroke="var(--nh-accent)" strokeWidth="2" strokeLinecap="round"/><circle cx="77" cy="82" r="16" fill="var(--nh-surface)" stroke="var(--nh-muted)" strokeWidth="4"/><circle cx="77" cy="82" r="7" fill="var(--nh-accent-border)"/><circle cx="222" cy="82" r="16" fill="var(--nh-surface)" stroke="var(--nh-muted)" strokeWidth="4"/><circle cx="222" cy="82" r="7" fill="var(--nh-accent-border)"/><path d="M250 62h9v5h-9z" fill="var(--nh-warning)"/><path d="M34 62h10v5H34z" fill="var(--nh-danger)"/><path d="M18 42h29M13 50h17M250 25h18M259 16v18" stroke="var(--nh-accent-border)" strokeLinecap="round"/></svg>:<ModuleIcon name="maintenance" size={64}/>}</div>
+export default function AssetIllustration({kind}: {kind: string}) {
+  return (
+    <div className={'studio-asset-art ' + kind} aria-hidden="true">
+      {kind === 'property' ? (
+        <HouseScene />
+      ) : kind === 'vehicle' ? (
+        <svg viewBox="0 0 300 105" fill="none">
+          <ellipse cx="148" cy="91" rx="119" ry="8" fill="var(--nh-accent)" opacity=".1" />
+          <path
+            d="m38 60 24-9 28-29h94l35 28 36 9 12 17-5 12H31l-3-14z"
+            fill="var(--nh-accent-soft)"
+            stroke="var(--nh-accent-border)"
+            strokeWidth="2"
+          />
+          <path d="m79 49 20-20h35v20zM142 29h36l23 20h-59z" fill="var(--nh-blue)" opacity=".6" />
+          <path d="M36 69h225M144 52v29M94 53v25" stroke="var(--nh-accent-border)" />
+          <path d="M151 57h12M99 57h11" stroke="var(--nh-accent)" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="77" cy="82" r="16" fill="var(--nh-surface)" stroke="var(--nh-muted)" strokeWidth="4" />
+          <circle cx="77" cy="82" r="7" fill="var(--nh-accent-border)" />
+          <circle cx="222" cy="82" r="16" fill="var(--nh-surface)" stroke="var(--nh-muted)" strokeWidth="4" />
+          <circle cx="222" cy="82" r="7" fill="var(--nh-accent-border)" />
+          <path d="M250 62h9v5h-9z" fill="var(--nh-warning)" />
+          <path d="M34 62h10v5H34z" fill="var(--nh-danger)" />
+          <path d="M18 42h29M13 50h17M250 25h18M259 16v18" stroke="var(--nh-accent-border)" strokeLinecap="round" />
+        </svg>
+      ) : (
+        <ModuleIcon name="maintenance" size={64} />
+      )}
+    </div>
+  );
 }

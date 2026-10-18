@@ -4,6 +4,7 @@ PWA familiar construida con React + TypeScript + Supabase.
 
 ## Estado y documentación
 
+**v33:** ver [docs/V33_MEJORAS.md](docs/V33_MEJORAS.md) (sistema de diseño, Guatemala y funciones opcionales sin IA).
 **v32:** ver [docs/V32_MEJORAS.md](docs/V32_MEJORAS.md) (seguridad, finanzas, robustez y diseño).
 
 

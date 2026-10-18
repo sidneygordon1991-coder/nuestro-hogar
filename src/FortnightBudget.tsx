@@ -3,38 +3,365 @@ import {categorySpending} from './lib/budgetProgress';
 import {useState} from 'react';
 import GuidedFortnightClose from './GuidedFortnightClose';
 import type {ReviewHalf} from './lib/fortnightReview';
-import {ArrowRight,CalendarRange,Info,Wallet} from 'lucide-react';
-import {financePeriodSummary,periodShares,type FinancePeriod,type PeriodAllocation,type ShareContext} from './lib/financePeriods';
-import './fortnight-budget.css';
+import {ArrowRight, CalendarRange, Info, Wallet} from 'lucide-react';
+import {
+  financePeriodSummary,
+  periodShares,
+  type FinancePeriod,
+  type PeriodAllocation,
+  type ShareContext
+} from './lib/financePeriods';
+import './styles/modules/fortnight-budget.css';
 import {formatMoney as money} from './lib/money';
-import {effectivePayDays,type PayDays} from './lib/monthlyIncome';
-import './finance-tools.css';
-const onDay=(day:number)=>day>=31?'el último día del mes':'el día '+day;
-const titles:Record<FinancePeriod,string>={month:'Mes completo',first:'Primera quincena',second:'Segunda quincena'};
-type Props={householdId:string;householdName:string;readOnly:boolean;onPayments:()=>void;onMovements:()=>void;month:string;label:string;context:ShareContext;allocations:PeriodAllocation[];categories:{id:string;name:string;icon?:string;budget_group:string}[];movements:Parameters<typeof financePeriodSummary>[7];savings:Parameters<typeof financePeriodSummary>[8];splits:Parameters<typeof financePeriodSummary>[9];loadError:boolean;onIncome:()=>void;onBudget:()=>void;onRules:()=>void;payDays?:Record<string,PayDays>};
+import {effectivePayDays, type PayDays} from './lib/monthlyIncome';
+import './styles/modules/finance-tools.css';
+const onDay = (day: number) => (day >= 31 ? 'el último día del mes' : 'el día ' + day);
+const titles: Record<FinancePeriod, string> = {
+  month: 'Mes completo',
+  first: 'Primera quincena',
+  second: 'Segunda quincena'
+};
+type Props = {
+  householdId: string;
+  householdName: string;
+  readOnly: boolean;
+  onPayments: () => void;
+  onMovements: () => void;
+  month: string;
+  label: string;
+  context: ShareContext;
+  allocations: PeriodAllocation[];
+  categories: {id: string; name: string; icon?: string; budget_group: string}[];
+  movements: Parameters<typeof financePeriodSummary>[7];
+  savings: Parameters<typeof financePeriodSummary>[8];
+  splits: Parameters<typeof financePeriodSummary>[9];
+  loadError: boolean;
+  onIncome: () => void;
+  onBudget: () => void;
+  onRules: () => void;
+  payDays?: Record<string, PayDays>;
+};
 
-export default function FortnightBudget({householdId,householdName,readOnly,onPayments,onMovements,month,label,context,allocations,categories,movements,savings,splits,loadError,onIncome,onBudget,onRules,payDays}:Props){
- const [period,setPeriod]=useState<FinancePeriod>('month'),[reviewHalf,setReviewHalf]=useState<ReviewHalf|null>(null);
- const summaries=Object.fromEntries((['month','first','second'] as FinancePeriod[]).map(p=>[p,financePeriodSummary(month,p,context.members,context.plans,context.references,allocations,categories,movements,savings,splits,context)])) as Record<FinancePeriod,ReturnType<typeof financePeriodSummary>>;
- const data=summaries[period],lastDay=new Date(Number(month.slice(0,4)),Number(month.slice(5,7)),0).getDate();
- const range=period==='month'?`1–${lastDay}`:period==='first'?'1–15':`16–${lastDay}`;
- const fallback=period!=='month'&&(periodShares(context,period).fallback||categories.some(c=>periodShares(context,period,c.id).fallback));
- const today=new Date(),cutoff=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
- const ruleText=({equal:'Partes iguales',income:'Proporcional al ingreso esperado',custom:'Porcentajes personalizados'} as const)[context.method];
- if(reviewHalf)return <GuidedFortnightClose householdId={householdId} householdName={householdName} month={month} period={reviewHalf} readOnly={readOnly} onBack={()=>setReviewHalf(null)} onAction={action=>{if(action==='income')onIncome();else if(action==='payments')onPayments();else if(action==='budget')onBudget();else if(action==='rules')onRules();else onMovements()}}/>;
- return <div className="fortnight-budget">
-  <section className="finance-panel fortnight-heading"><div><span className="fortnight-symbol"><CalendarRange size={23}/></span><p className="eyebrow">TU MES, CON MÁS CLARIDAD</p><h3>Presupuesto por quincena</h3><p>Los ingresos de ambos se suman. Compara lo planeado con lo que realmente entra y sale.</p></div><div className="fortnight-actions"><button onClick={onIncome}>Planificar ingresos <ArrowRight size={15}/></button><button onClick={onBudget}>Distribuir presupuesto <ArrowRight size={15}/></button></div></section>
-  {loadError?<p className="monthly-income-alert" role="alert">No pudimos cargar toda la planificación. Vuelve a cargar Finanzas antes de consultar los cálculos.</p>:<>
-  <section className="fortnight-review-launch"><div><strong>Cierre guiado de quincena</strong><p>Revisen ingresos, pagos y aportes. Guarden el resumen y dejen claro lo que sigue pendiente.</p></div><div>{period==='month'?<><button onClick={()=>setReviewHalf('first')}>Revisar primera <ArrowRight size={15}/></button><button onClick={()=>setReviewHalf('second')}>Revisar segunda <ArrowRight size={15}/></button></>:<button onClick={()=>setReviewHalf(period)}>Revisar y cerrar quincena <ArrowRight size={15}/></button>}</div></section>
-  <div className="fortnight-selector" role="group" aria-label="Período del presupuesto">{(['month','first','second'] as FinancePeriod[]).map(p=><button key={p} aria-pressed={period===p} onClick={()=>setPeriod(p)}><strong>{titles[p]}</strong><small>{p==='month'?`1–${lastDay}`:p==='first'?'1–15':`16–${lastDay}`}</small></button>)}</div>
-  <section className="fortnight-balance" aria-live="polite"><div><p className="eyebrow">{titles[period]} · {range} de {label}</p><small>Saldo real {period==='second'?'con arrastre':''}</small><strong className={data.balance<0?'negative':''}>{money(data.balance)}</strong><p>Ingresos recibidos menos gastos y ahorro registrado{period==='second'?'; incluye el saldo real del 1–15':''}.</p></div><div className="fortnight-plan-margin"><Wallet size={21}/><small>Margen del plan {period==='second'?'con arrastre planeado':''}</small><strong className={data.planBalance<0?'negative':''}>{money(data.planBalance)}</strong><p>Ingreso esperado − presupuesto de gastos − ahorro planeado.</p></div></section>
-  <div className="fortnight-metrics"><div><small>Ingreso esperado</small><strong>{money(data.expected)}</strong></div><div><small>Ingreso recibido</small><strong>{money(data.income)}</strong></div><div><small>Presupuesto de gastos</small><strong>{money(data.budget)}</strong></div><div><small>Gastos registrados</small><strong>{money(data.expense)}</strong></div><div><small>Ahorro planeado / real</small><strong>{money(data.savingPlan)} / {money(data.saving)}</strong></div></div>
-  {period==='second'&&<p className="fortnight-note"><Info size={18}/><span>Arrastre del 1–15: <b>{money(data.carry)} real</b> y <b>{money(data.planCarry)} planeado</b>. Un saldo negativo también pasa a la segunda quincena. El mes completo cuenta cada ingreso y gasto una sola vez.</span></p>}
-  {(data.unallocatedIncome>0||data.unallocatedBudget>0)&&<p className="monthly-income-alert">Por distribuir en las quincenas: <b>{money(data.unallocatedIncome)} de ingresos</b> y <b>{money(data.unallocatedBudget)} de presupuesto</b>. El mes completo sí los incluye. Las quincenas solo muestran lo que asignaste.</p>}
-  {fallback&&<p className="monthly-income-alert">Hay una regla proporcional sin ingresos quincenales completos o con total cero. Para esa regla se usa el plan mensual guardado (o el ingreso de referencia); si también es cero, se reparte en partes iguales. Completa los ingresos de cada persona para usar la proporción quincenal.</p>}
-  <section className="finance-panel"><div className="panel-title"><div><h3>Ingresos de cada persona</h3><small>{titles[period]} · {label}</small></div></div><div className="fortnight-people">{data.people.map(p=><article key={p.user_id}><strong>{p.full_name}</strong>{payDays&&(()=>{const d=effectivePayDays(payDays[p.user_id]);return <small className="tools-note">Cobra {period==='first'?onDay(d.first):period==='second'?onDay(d.second):onDay(d.first)+' y '+onDay(d.second)}</small>})()}<dl><div><dt>Esperado</dt><dd>{money(p.expected)}</dd></div><div><dt>Recibido</dt><dd>{money(p.received)}</dd></div><div><dt>Pendiente</dt><dd>{money(p.pending)}</dd></div></dl></article>)}</div>{!data.people.length&&<p className="finance-empty">Sin integrantes para este período.</p>}</section>
-  <section className="finance-panel"><div className="panel-title"><div><h3>Aportes y reglas</h3><small>{ruleText} · las reglas por categoría tienen prioridad</small></div><button onClick={onRules}>Ver reglas <ArrowRight size={15}/></button></div><p className="fortnight-caption">El aporte planeado cubre el presupuesto de gastos según la regla de cada categoría. El pagado y el asignado corresponden solo a gastos compartidos registrados; los personales quedan a cargo de su responsable.</p><div className="fortnight-people">{data.people.map(p=><article key={p.user_id}><strong>{p.full_name}</strong><dl><div><dt>Aporte planeado</dt><dd>{money(p.planned)}</dd></div><div><dt>Pagado compartido</dt><dd>{money(p.paid)}</dd></div><div><dt>Asignado guardado</dt><dd>{money(p.assigned)}</dd></div><div><dt>{p.balance>=0?'A favor':'Por cubrir'}</dt><dd>{money(Math.abs(p.balance))}</dd></div></dl></article>)}</div>{Math.abs(data.unassignedSplits)>.009&&<p className="monthly-income-alert">Hay {money(data.unassignedSplits)} de diferencia entre los gastos compartidos y sus repartos guardados. Revisa esos movimientos en Aportes. No se han recalculado automáticamente.</p>}<p className="fortnight-caption">Los ingresos reales y los cambios al plan no alteran repartos guardados. El aporte mensual suma ambas quincenas y la parte aún sin distribuir.</p></section>
-  <section className="finance-panel"><div className="panel-title"><div><h3>Presupuesto por categoría</h3><small>Planeado y gastado · {titles[period].toLowerCase()}</small></div><button onClick={onBudget}>Editar <ArrowRight size={15}/></button></div><div className="budget-category-cards">{categories.filter(c=>c.budget_group!=='saving').map(c=>{const row=data.rows.find(r=>r.category_id===c.id);return <BudgetCategoryProgress key={c.id} name={c.name} icon={c.icon} planned={row?.planned||0} spent={categorySpending(movements,c.id,month,period,cutoff)}/>})}</div>{!categories.some(c=>c.budget_group!=='saving')&&<p className="finance-empty">Agrega un rubro y asigna su presupuesto para empezar a ver el avance.</p>}</section>
-  </>}
- </div>;
+export default function FortnightBudget({
+  householdId,
+  householdName,
+  readOnly,
+  onPayments,
+  onMovements,
+  month,
+  label,
+  context,
+  allocations,
+  categories,
+  movements,
+  savings,
+  splits,
+  loadError,
+  onIncome,
+  onBudget,
+  onRules,
+  payDays
+}: Props) {
+  const [period, setPeriod] = useState<FinancePeriod>('month'),
+    [reviewHalf, setReviewHalf] = useState<ReviewHalf | null>(null);
+  const summaries = Object.fromEntries(
+    (['month', 'first', 'second'] as FinancePeriod[]).map(p => [
+      p,
+      financePeriodSummary(
+        month,
+        p,
+        context.members,
+        context.plans,
+        context.references,
+        allocations,
+        categories,
+        movements,
+        savings,
+        splits,
+        context
+      )
+    ])
+  ) as Record<FinancePeriod, ReturnType<typeof financePeriodSummary>>;
+  const data = summaries[period],
+    lastDay = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
+  const range = period === 'month' ? `1–${lastDay}` : period === 'first' ? '1–15' : `16–${lastDay}`;
+  const fallback =
+    period !== 'month' &&
+    (periodShares(context, period).fallback || categories.some(c => periodShares(context, period, c.id).fallback));
+  const today = new Date(),
+    cutoff = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const ruleText = (
+    {equal: 'Partes iguales', income: 'Proporcional al ingreso esperado', custom: 'Porcentajes personalizados'} as const
+  )[context.method];
+  if (reviewHalf)
+    return (
+      <GuidedFortnightClose
+        householdId={householdId}
+        householdName={householdName}
+        month={month}
+        period={reviewHalf}
+        readOnly={readOnly}
+        onBack={() => setReviewHalf(null)}
+        onAction={action => {
+          if (action === 'income') onIncome();
+          else if (action === 'payments') onPayments();
+          else if (action === 'budget') onBudget();
+          else if (action === 'rules') onRules();
+          else onMovements();
+        }}
+      />
+    );
+  return (
+    <div className="fortnight-budget">
+      <section className="finance-panel fortnight-heading">
+        <div>
+          <span className="fortnight-symbol">
+            <CalendarRange size={23} />
+          </span>
+          <p className="eyebrow">Tu mes, con más claridad</p>
+          <h3>Presupuesto por quincena</h3>
+          <p>Los ingresos de ambos se suman. Compara lo planeado con lo que realmente entra y sale.</p>
+        </div>
+        <div className="fortnight-actions">
+          <button onClick={onIncome}>
+            Planificar ingresos <ArrowRight size={15} />
+          </button>
+          <button onClick={onBudget}>
+            Distribuir presupuesto <ArrowRight size={15} />
+          </button>
+        </div>
+      </section>
+      {loadError ? (
+        <p className="monthly-income-alert" role="alert">
+          No pudimos cargar toda la planificación. Vuelve a cargar Finanzas antes de consultar los cálculos.
+        </p>
+      ) : (
+        <>
+          <section className="fortnight-review-launch">
+            <div>
+              <strong>Cierre guiado de quincena</strong>
+              <p>Revisen ingresos, pagos y aportes. Guarden el resumen y dejen claro lo que sigue pendiente.</p>
+            </div>
+            <div>
+              {period === 'month' ? (
+                <>
+                  <button onClick={() => setReviewHalf('first')}>
+                    Revisar primera <ArrowRight size={15} />
+                  </button>
+                  <button onClick={() => setReviewHalf('second')}>
+                    Revisar segunda <ArrowRight size={15} />
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setReviewHalf(period)}>
+                  Revisar y cerrar quincena <ArrowRight size={15} />
+                </button>
+              )}
+            </div>
+          </section>
+          <div className="fortnight-selector" role="group" aria-label="Período del presupuesto">
+            {(['month', 'first', 'second'] as FinancePeriod[]).map(p => (
+              <button key={p} aria-pressed={period === p} onClick={() => setPeriod(p)}>
+                <strong>{titles[p]}</strong>
+                <small>{p === 'month' ? `1–${lastDay}` : p === 'first' ? '1–15' : `16–${lastDay}`}</small>
+              </button>
+            ))}
+          </div>
+          <section className="fortnight-balance" aria-live="polite">
+            <div>
+              <p className="eyebrow">
+                {titles[period]} · {range} de {label}
+              </p>
+              <small>Saldo real {period === 'second' ? 'con arrastre' : ''}</small>
+              <strong className={data.balance < 0 ? 'negative' : ''}>{money(data.balance)}</strong>
+              <p>
+                Ingresos recibidos menos gastos y ahorro registrado
+                {period === 'second' ? '; incluye el saldo real del 1–15' : ''}.
+              </p>
+            </div>
+            <div className="fortnight-plan-margin">
+              <Wallet size={21} />
+              <small>Margen del plan {period === 'second' ? 'con arrastre planeado' : ''}</small>
+              <strong className={data.planBalance < 0 ? 'negative' : ''}>{money(data.planBalance)}</strong>
+              <p>Ingreso esperado − presupuesto de gastos − ahorro planeado.</p>
+            </div>
+          </section>
+          <div className="fortnight-metrics">
+            <div>
+              <small>Ingreso esperado</small>
+              <strong>{money(data.expected)}</strong>
+            </div>
+            <div>
+              <small>Ingreso recibido</small>
+              <strong>{money(data.income)}</strong>
+            </div>
+            <div>
+              <small>Presupuesto de gastos</small>
+              <strong>{money(data.budget)}</strong>
+            </div>
+            <div>
+              <small>Gastos registrados</small>
+              <strong>{money(data.expense)}</strong>
+            </div>
+            <div>
+              <small>Ahorro planeado / real</small>
+              <strong>
+                {money(data.savingPlan)} / {money(data.saving)}
+              </strong>
+            </div>
+          </div>
+          {period === 'second' && (
+            <p className="fortnight-note">
+              <Info size={18} />
+              <span>
+                Arrastre del 1–15: <b>{money(data.carry)} real</b> y <b>{money(data.planCarry)} planeado</b>. Un saldo
+                negativo también pasa a la segunda quincena. El mes completo cuenta cada ingreso y gasto una sola vez.
+              </span>
+            </p>
+          )}
+          {(data.unallocatedIncome > 0 || data.unallocatedBudget > 0) && (
+            <p className="monthly-income-alert">
+              Por distribuir en las quincenas: <b>{money(data.unallocatedIncome)} de ingresos</b> y{' '}
+              <b>{money(data.unallocatedBudget)} de presupuesto</b>. El mes completo sí los incluye. Las quincenas solo
+              muestran lo que asignaste.
+            </p>
+          )}
+          {fallback && (
+            <p className="monthly-income-alert">
+              Hay una regla proporcional sin ingresos quincenales completos o con total cero. Para esa regla se usa el
+              plan mensual guardado (o el ingreso de referencia); si también es cero, se reparte en partes iguales.
+              Completa los ingresos de cada persona para usar la proporción quincenal.
+            </p>
+          )}
+          <section className="finance-panel">
+            <div className="panel-title">
+              <div>
+                <h3>Ingresos de cada persona</h3>
+                <small>
+                  {titles[period]} · {label}
+                </small>
+              </div>
+            </div>
+            <div className="fortnight-people">
+              {data.people.map(p => (
+                <article key={p.user_id}>
+                  <strong>{p.full_name}</strong>
+                  {payDays &&
+                    (() => {
+                      const d = effectivePayDays(payDays[p.user_id]);
+                      return (
+                        <small className="tools-note">
+                          Cobra{' '}
+                          {period === 'first'
+                            ? onDay(d.first)
+                            : period === 'second'
+                              ? onDay(d.second)
+                              : onDay(d.first) + ' y ' + onDay(d.second)}
+                        </small>
+                      );
+                    })()}
+                  <dl>
+                    <div>
+                      <dt>Esperado</dt>
+                      <dd>{money(p.expected)}</dd>
+                    </div>
+                    <div>
+                      <dt>Recibido</dt>
+                      <dd>{money(p.received)}</dd>
+                    </div>
+                    <div>
+                      <dt>Pendiente</dt>
+                      <dd>{money(p.pending)}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+            {!data.people.length && <p className="finance-empty">Sin integrantes para este período.</p>}
+          </section>
+          <section className="finance-panel">
+            <div className="panel-title">
+              <div>
+                <h3>Aportes y reglas</h3>
+                <small>{ruleText} · las reglas por categoría tienen prioridad</small>
+              </div>
+              <button onClick={onRules}>
+                Ver reglas <ArrowRight size={15} />
+              </button>
+            </div>
+            <p className="fortnight-caption">
+              El aporte planeado cubre el presupuesto de gastos según la regla de cada categoría. El pagado y el
+              asignado corresponden solo a gastos compartidos registrados; los personales quedan a cargo de su
+              responsable.
+            </p>
+            <div className="fortnight-people">
+              {data.people.map(p => (
+                <article key={p.user_id}>
+                  <strong>{p.full_name}</strong>
+                  <dl>
+                    <div>
+                      <dt>Aporte planeado</dt>
+                      <dd>{money(p.planned)}</dd>
+                    </div>
+                    <div>
+                      <dt>Pagado compartido</dt>
+                      <dd>{money(p.paid)}</dd>
+                    </div>
+                    <div>
+                      <dt>Asignado guardado</dt>
+                      <dd>{money(p.assigned)}</dd>
+                    </div>
+                    <div>
+                      <dt>{p.balance >= 0 ? 'A favor' : 'Por cubrir'}</dt>
+                      <dd>{money(Math.abs(p.balance))}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+            {Math.abs(data.unassignedSplits) > 0.009 && (
+              <p className="monthly-income-alert">
+                Hay {money(data.unassignedSplits)} de diferencia entre los gastos compartidos y sus repartos guardados.
+                Revisa esos movimientos en Aportes. No se han recalculado automáticamente.
+              </p>
+            )}
+            <p className="fortnight-caption">
+              Los ingresos reales y los cambios al plan no alteran repartos guardados. El aporte mensual suma ambas
+              quincenas y la parte aún sin distribuir.
+            </p>
+          </section>
+          <section className="finance-panel">
+            <div className="panel-title">
+              <div>
+                <h3>Presupuesto por categoría</h3>
+                <small>Planeado y gastado · {titles[period].toLowerCase()}</small>
+              </div>
+              <button onClick={onBudget}>
+                Editar <ArrowRight size={15} />
+              </button>
+            </div>
+            <div className="budget-category-cards">
+              {categories
+                .filter(c => c.budget_group !== 'saving')
+                .map(c => {
+                  const row = data.rows.find(r => r.category_id === c.id);
+                  return (
+                    <BudgetCategoryProgress
+                      key={c.id}
+                      name={c.name}
+                      icon={c.icon}
+                      planned={row?.planned || 0}
+                      spent={categorySpending(movements, c.id, month, period, cutoff)}
+                    />
+                  );
+                })}
+            </div>
+            {!categories.some(c => c.budget_group !== 'saving') && (
+              <p className="finance-empty">Agrega un rubro y asigna su presupuesto para empezar a ver el avance.</p>
+            )}
+          </section>
+        </>
+      )}
+    </div>
+  );
 }

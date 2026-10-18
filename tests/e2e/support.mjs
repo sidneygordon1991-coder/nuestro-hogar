@@ -1,104 +1,965 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-const uid='11111111-1111-4111-8111-111111111111',hh='22222222-2222-4222-8222-222222222222',tx='33333333-3333-4333-8333-333333333333',rid='44444444-4444-4444-8444-444444444444',factor='55555555-5555-4555-8555-555555555555';
-const user={id:uid,email:'qa@example.invalid',aud:'authenticated',role:'authenticated',app_metadata:{provider:'email'},user_metadata:{full_name:'QA owner'},factors:[]};
-function token(level){return Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')+'.'+Buffer.from(JSON.stringify({sub:uid,aud:'authenticated',role:'authenticated',aal:level,amr:[],exp:Math.floor(Date.parse(day+'T23:59:59Z')/1000)})).toString('base64url')+'.qa'}
-function session(level){return {access_token:token(level),refresh_token:'qa-only',expires_at:Math.floor(Date.parse(day+'T23:59:59Z')/1000),expires_in:3600,token_type:'bearer',user}}
-const report={month:'2026-10-01',period_end:'2026-10-13',is_complete_month:false,score:84,status:'good',status_label:'Buen avance del hogar',financial:{income:12000,expense:6000,saving:2000,balance:4000,budget:8000,saving_rate:16.7,budget_usage:75,net_worth:25000},previous:{month:'2026-09-01',period_end:'2026-09-30',income:10000,expense:6500,saving:1500,balance:2000,budget:7500,saving_rate:15,budget_usage:86,net_worth:21000},changes:{income_pct:20,expense_pct:-7.7,saving_pct:33.3,net_worth_amount:4000},operations:{recurring_paid:3,recurring_pending:1,tasks_completed:18,tasks_overdue:2,events:4,maintenance_count:1,maintenance_cost:300,documents_due:1,meals_prepared:15},top_categories:[{category_id:null,name:'Alimentación',amount:2200,previous_amount:2500,share:36.7,change_pct:-12},{category_id:null,name:'Casa y servicios',amount:1800,previous_amount:1800,share:30,change_pct:0}],insights:[{tone:'positive',title:'El ahorro creció',body:'El hogar mantiene un buen ritmo de ahorro.',tab:'presupuesto'}],suggested_focus:['Mantener el ahorro','Revisar el presupuesto de alimentación'],generated_at:new Date().toISOString()};
-const snapshot={product:'Nuestro Hogar',schema_version:1,household:{id:hh,name:'Familia QA'},members:[],tables:{household_documents:[],finance_receipts:[{id:rid,household_id:hh,transaction_id:tx,file_path:hh+'/'+tx+'/'+rid+'.pdf',original_filename:'invoice.pdf',mime_type:'application/pdf',file_size:12}],transactions:[]},notes:{}};
-const cat1='66666666-1111-4111-8111-111111111111',cat2='66666666-2222-4222-8222-222222222222',goalId='77777777-1111-4111-8111-111111111111',recipeId='88888888-1111-4111-8111-111111111111';
-const current=new Date('2026-10-16T12:00:00Z'),day=current.toISOString().slice(0,10),month=day.slice(0,7),monthStart=month+'-01';
-const cats=[{id:cat1,name:'Alimentación',icon:'food',budget_group:'variable'},{id:cat2,name:'Casa y servicios',icon:'home',budget_group:'fixed'}];
-const txData=[];for(let i=0;i<6;i++){const d=new Date(current.getFullYear(),current.getMonth()-i,5,12),date=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-05';txData.push({id:tx+'-'+i,household_id:hh,description:'Ingreso mensual',amount:18000-i*800,type:'income',transaction_date:date,category_id:null,paid_by:uid,account_id:null,is_shared:true,notes:null,recurring_transaction_id:null},{id:rid+'-'+i,household_id:hh,description:'Compra de supermercado',amount:2400+i*100,type:'expense',transaction_date:date,category_id:cat1,paid_by:uid,account_id:null,is_shared:true,notes:'Compra semanal',recurring_transaction_id:null},{id:factor+'-'+i,household_id:hh,description:'Servicios del hogar',amount:3500,type:'expense',transaction_date:date,category_id:cat2,paid_by:uid,account_id:null,is_shared:true,notes:null,recurring_transaction_id:null})}
-function filtered(rows,dateKey,url){const filters=url.searchParams.getAll(dateKey);return rows.filter(r=>filters.every(f=>f.startsWith('gte.')?r[dateKey]>=f.slice(4):f.startsWith('lte.')?r[dateKey]<=f.slice(4):f.startsWith('eq.')?r[dateKey]===f.slice(3):true))}
-
-async function setup(browser,{loggedIn=true,master=false,aal='aal1',google=false,theme='light',rich=false,ledgerAvailable=false,futureMovement=false,accessOverride=null,planFailure=false,saveFailure=false,twoPeople=true,twoHomes=false,duplicateResponse=false,diagnosisFailure=false,diagnosisEmpty=false,diagnosisDelay=0,staleEntry=false}={}){
-
- const context=await browser.newContext({timezoneId:'America/Guatemala',viewport:{width:390,height:844},reducedMotion:'reduce',acceptDownloads:true});
- await context.addInitScript(({loggedIn,theme,session})=>{localStorage.setItem('nh-theme',theme);if(loggedIn)localStorage.setItem('sb-dchihxrjtngwabbvsqap-auth-token',JSON.stringify(session))},{loggedIn,theme,session:session(aal)});
- const page=await context.newPage(),errors=[],calls=[];await page.clock.install({time:new Date(day+'T12:00:00Z')});let enrolled=false,verified=aal==='aal2',storedPlans=[];let entryContributions=[{id:goalId+'-c',goal_id:goalId,amount:6500.25,contribution_date:month+'-08',created_by:uid},{id:goalId+'-old',goal_id:goalId,amount:50,contribution_date:'2026-09-01',created_by:uid}],entryRecurring=[{id:rid,description:'Servicio mensual',amount:350.25,type:'expense',due_day:20,category_id:cat2,account_id:null,paid_by:uid,is_shared:true,active:true,created_at:'2026-01-01T12:00:00Z'}],entryOccurrences=[{id:'pending',recurring_transaction_id:rid,period_month:monthStart,due_date:month+'-20',status:'pending',transaction_id:null,paid_at:null,details_snapshot:null},{id:'paid',recurring_transaction_id:rid,period_month:monthStart,due_date:month+'-05',status:'paid',transaction_id:'paidtx',paid_at:new Date().toISOString(),details_snapshot:{description:'Servicio anterior',amount:300,type:'expense',category_id:cat2,account_id:null,paid_by:uid,is_shared:true}}],entryTransactions=[...txData,{id:'paidtx',description:'Servicio anterior',amount:300,type:'expense',transaction_date:month+'-05',category_id:cat2,paid_by:uid,account_id:null,is_shared:true,recurring_transaction_id:rid}];if(futureMovement)entryTransactions.push({id:'future-income',description:'Ingreso con fecha futura',amount:9999,type:'income',transaction_date:month+'-30',paid_by:uid,category_id:null,account_id:null,is_shared:false});page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));await page.routeWebSocket(/supabase.co/,ws=>ws.close());
- await page.route('https://dchihxrjtngwabbvsqap.supabase.co/**',async route=>{
-  const request=route.request(),url=new URL(request.url()),path=url.pathname;let body=[],status=200;calls.push({path,query:Object.fromEntries(url.searchParams),body:request.postDataJSON()});
-  if(path.endsWith('/get_savings_ledger_capability'))body=ledgerAvailable;
-  else if(path.endsWith('/save_savings_entry')){const p=request.postDataJSON();if(saveFailure){status=403;body={message:'No se pudo confirmar el movimiento'}}else{if(!entryContributions.some(c=>c.id===p.p_entry_id))entryContributions.push({id:p.p_entry_id,goal_id:p.p_goal_id,amount:p.p_direction==='withdrawal'?-p.p_amount:p.p_amount,contribution_date:p.p_date,created_by:uid});body=p.p_entry_id;}}
-  else if(path.endsWith('/goal_contributions')){if(request.method()==='GET')body=filtered(entryContributions,'contribution_date',url);else if(saveFailure||staleEntry){status=staleEntry?406:403;body={code:staleEntry?'PGRST116':'42501',message:'QA mutation unavailable'}}else{const id=url.searchParams.get('id')?.slice(3);if(request.method()==='PATCH'){const value=request.postDataJSON();entryContributions=entryContributions.map(c=>c.id===id?{...c,...value}:c);body={id}}else if(request.method()==='DELETE'){entryContributions=entryContributions.filter(c=>c.id!==id);body={id}}else body=null;}}
-  else if(path.endsWith('/recurring_transactions'))body=entryRecurring;
-  else if(path.endsWith('/recurring_transaction_occurrences'))body=entryOccurrences.filter(o=>(!url.searchParams.has('status')||url.searchParams.get('status')==='eq.'+o.status));
-  else if(path.endsWith('/transactions'))body=filtered(entryTransactions,'transaction_date',url).filter(t=>!url.searchParams.has('type')||url.searchParams.get('type')==='eq.'+t.type);
-  else if(path.endsWith('/manage_finance_recurring')){if(saveFailure||staleEntry){status=staleEntry?409:403;body={code:staleEntry?'40001':'42501',message:staleEntry?'El recurrente cambió. Actualiza la vista antes de guardar.':'No tienes permiso para modificar este recurrente.'}}else{const p=request.postDataJSON(),old=entryRecurring.find(r=>r.id===p.p_recurring_id);const next=p.p_delete?{...old,active:false}:{...old,...p.p_values};entryOccurrences=entryOccurrences.map(o=>o.recurring_transaction_id===old.id&&o.status==='pending'?{...o,due_date:p.p_delete?o.due_date:month+'-'+String(next.due_day).padStart(2,'0'),status:p.p_delete?'skipped':'pending',details_snapshot:next}:o);entryRecurring=entryRecurring.map(r=>r.id===old.id?next:r);body=old.id;}}
-  else if(path.endsWith('/pay_finance_recurring_occurrence')){const p=request.postDataJSON(),o=entryOccurrences.find(o=>o.id===p.p_occurrence_id),r=entryRecurring.find(r=>r.id===o.recurring_transaction_id);if(o.status!=='paid'){const id='newpaid-'+entryTransactions.length;entryTransactions.push({id,...r,transaction_date:day,recurring_transaction_id:r.id});o.status='paid';o.transaction_id=id;o.details_snapshot={...r}}body=o.transaction_id;}
-  else if(path.endsWith('/get_finance_fortnight_review'))body={source:diagnosisData().source,fingerprint:'a'.repeat(32),server_date:'2026-10-15',review:null};
-  else if(path.endsWith('/get_household_financial_diagnosis')){if(diagnosisDelay)await new Promise(r=>setTimeout(r,diagnosisDelay));if(diagnosisFailure){status=500;body={message:'QA diagnosis unavailable'}}else body=diagnosisEmpty?emptyDiagnosis():diagnosisData();}
-  else if(path.endsWith('/save_household_emergency_reserve')){if(saveFailure){status=403;body={message:'QA save rejected'}}else{const p=request.postDataJSON();body={amount:p.p_amount,target_months:p.p_target_months,confirmed_on:'2026-10-15'};}}
-  else if(path.endsWith('/finance_income_plans')){if(request.method()==='GET'){body=storedPlans.filter(p=>url.searchParams.get('month')==='eq.'+p.month);if(planFailure){status=500;body={message:'Plan unavailable'}}}else if(saveFailure){status=403;body={message:'No se pudo guardar el plan'}}else{const rows=request.postDataJSON();for(const p of rows){storedPlans=storedPlans.filter(old=>old.month!==p.month||old.user_id!==p.user_id);storedPlans.push(p)}body=null;}}
-  else if(rich&&path.endsWith('/transactions'))body=filtered(txData,'transaction_date',url).filter(r=>!url.searchParams.has('type')||url.searchParams.get('type')==='eq.'+r.type);
-  else if(rich&&path.endsWith('/budget_categories'))body=cats;
-  else if(rich&&path.endsWith('/budget_allocations')){const rows=cats.flatMap(c=>Array.from({length:6},(_,i)=>{const d=new Date(current.getFullYear(),current.getMonth()-i,1),m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';return {id:c.id+'-'+i,category_id:c.id,month:m,planned_amount:c.id===cat1?4000:5000}}));body=filtered(rows,'month',url)}
-  else if(rich&&path.endsWith('/savings_goals'))body=[{id:goalId,name:'Nuestro próximo viaje',target_amount:15000,target_date:'2027-04-01',active:true,icon:'travel'}];
-  else if(rich&&path.endsWith('/goal_contributions'))body=filtered([{id:goalId+'-c',goal_id:goalId,amount:6500,contribution_date:month+'-08',created_by:uid}],'contribution_date',url);
-  else if(rich&&path.endsWith('/finance_member_settings'))body=twoPeople?[{user_id:uid,monthly_income:18000,custom_share_percent:50},{user_id:factor,monthly_income:6000,custom_share_percent:50}]:[{user_id:uid,monthly_income:18000,custom_share_percent:100}];
-  else if(rich&&path.endsWith('/finance_household_settings'))body={split_method:'equal'};
-  else if(rich&&path.endsWith('/household_setup_state'))body=[{completed_at:new Date().toISOString()}];
-  else if(rich&&path.endsWith('/profiles'))body=request.headers().accept?.includes('object')?{id:uid,full_name:'Persona QA',relationship:'Pareja',birth_date:null,avatar_url:null}:[{id:uid,full_name:'Persona QA',relationship:'Pareja',birth_date:null,avatar_url:null}];
-  else if(rich&&path.endsWith('/events'))body=[{id:rid,title:'Cena en familia',event_date:day,start_time:'19:00',location:'En casa',event_type:'family',category:'family',recurrence:'none',recurrence_until:null}];
-  else if(rich&&path.endsWith('/list_items'))body=[{id:rid,list_id:tx,text:'Compra semanal',completed:false,due_date:day,assigned_to:uid,sort_order:0,quantity:null,notes:null,created_at:new Date().toISOString()}];
-  else if(rich&&path.endsWith('/lists'))body=[{id:tx,title:'Supermercado',list_type:'shopping',created_at:new Date().toISOString()}];
-  else if(rich&&path.endsWith('/household_documents'))body=[{id:rid,title:'Comprobante de compra',category:'finance',document_number:'QA-001',issuer:'Supermercado',owner_user_id:uid,access_scope:'private',issued_on:day,expires_on:null,file_path:hh+'/'+uid+'/'+rid+'.png',original_filename:'comprobante.png',mime_type:'image/png',file_size:100,notes:null,tags:['compra'],created_by:uid,created_at:new Date().toISOString()}];
-  else if(rich&&path.includes('/storage/v1/object/sign/')&&request.method()==='POST'){body={signedURL:'/object/sign/household-documents/qa-preview.png?token=qa-only'};}
-  else if(rich&&path.endsWith('/recipes'))body=[{id:recipeId,name:'Ensalada de la casa',description:'Una receta fresca para compartir.',servings:2,prep_minutes:15,cook_minutes:0,instructions:'Mezclar los ingredientes.',notes:null,active:true}];
-  else if(rich&&path.endsWith('/finance_assets'))body=[{id:rid,name:'Vehículo familiar',asset_type:'vehicle',brand:'Toyota',model:'Corolla',asset_year:2022,current_mileage:35000,license_plate:'QA-123',warranty_expires_on:null,notes:null,active:true}];
-  else if(rich&&path.endsWith('/get_household_health_dashboard'))body={generated_at:new Date().toISOString(),overall_score:86,coverage_score:80,status:'good',status_label:'En buen camino',urgent_count:0,domains:[],recommendations:[],metrics:{}};
-  else if(rich&&path.endsWith('/get_household_plan'))body={summary:{active:0,at_risk:0,due_soon:0,completed:0,monthly_required:0},goals:[],generated_at:new Date().toISOString()};
-  else if(rich&&path.endsWith('/run_household_diagnostics'))body={run_id:rid,score:100,status:'healthy',error_count:0,warning_count:0,info_count:0,checks:[],generated_at:new Date().toISOString()};
-  else if(path.endsWith('/get_home_finance_source')){status=404;body={code:'PGRST202',message:'Legacy test backend: function unavailable'}}
-  else if(path.endsWith('/settings'))body={external:{google}};
-  else if(path.endsWith('/authorize')){assert.equal(url.searchParams.get('provider'),'google');assert.equal(url.searchParams.get('redirect_to'),'http://127.0.0.1:4173/nuestro-hogar/');await route.fulfill({status:200,contentType:'text/html',body:'<h1>Google redirect ready</h1>'});return}
-  else if(path.endsWith('/user'))body={...user,factors:enrolled?[{id:factor,factor_type:'totp',status:verified?'verified':'unverified',friendly_name:'QA factor'}]:[]};
-  else if(path.endsWith('/factors')&&request.method()==='POST'){enrolled=true;body={id:factor,type:'totp',totp:{qr_code:'<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150"><rect width="150" height="150" fill="white"/><path d="M20 20h40v40H20zM90 20h40v40H90zM20 90h40v40H20z" fill="black"/></svg>',secret:'QA-TOTP-NOT-A-REAL-SECRET',uri:'otpauth://qa'}}}
-  else if(path.endsWith('/challenge'))body={id:'66666666-6666-4666-8666-666666666666',type:'totp',expires_at:Math.floor(Date.now()/1000)+300};
-  else if(path.endsWith('/verify')){if(request.postDataJSON().code!=='123456'){status=400;body={code:'mfa_verification_failed',msg:'Invalid TOTP code'}}else{verified=true;body=session('aal2')}}
-  else if(path.endsWith('/get_my_platform_access'))body=master;
-  else if(path.endsWith('/get_platform_overview'))body={plan:'Free',database_bytes:19000000,database_limit_bytes:500000000,storage_bytes:0,allocated_bytes:100000000,storage_limit_bytes:1000000000,households:[{id:hh,name:'Familia QA',status:'active',quota_bytes:100000000,used_bytes:0,member_limit:10,members:1,movements:5,files:0,created_at:new Date().toISOString()}],audit:[]};
-  else if(path.endsWith('/get_my_household_access'))body={role:'owner',can_manage_members:true,can_view_audit:true,modules:accessOverride||Object.fromEntries(['finance','calendar','lists','documents','meals','maintenance','planning','health','monthly_close','automations','backups','diagnostics'].map(x=>[x,'edit']))};
-  else if(path.endsWith('/get_my_household_storage'))body={status:'active',used_bytes:0,quota_bytes:100000000};
-  else if(path.endsWith('/household_members')){
-   if(url.searchParams.get('select')?.includes('households(')){
-    const home={id:hh,name:'Familia de prueba',invite_code:'QAHOME'};
-    let rows=[{user_id:uid,household_id:hh,households:home},{user_id:factor,household_id:hh,households:home}];
-    if(twoHomes)rows.push({user_id:uid,household_id:rid,households:{id:rid,name:'Familia de prueba',invite_code:'QATWO'}});
-    const filter=url.searchParams.get('user_id');if(filter)rows=rows.filter(r=>'eq.'+r.user_id===filter);
-    if(duplicateResponse)rows.push({...rows[0]});body=rows;
-   }else body=[{user_id:uid,role:'owner'},{user_id:factor,role:'adult'}];
-  }
-
-  else if(path.endsWith('/household_setup_state'))body=[{completed_at:null}];
-  else if(path.endsWith('/profiles'))body=[{id:uid,full_name:'QA owner',avatar_url:null,birth_date:null,relationship:'Pareja'}];
-  else if(path.endsWith('/finance_household_settings'))body=[{split_method:'equal'}];
-  else if(path.endsWith('/finance_member_settings'))body=[{user_id:uid,monthly_income:0}];
-  else if(path.endsWith('/save_household_setup'))body=null;
-  else if(path.endsWith('/build_household_file_backup'))body=snapshot;
-  else if(rich&&path.includes('qa-preview.png')){await route.fulfill({status:200,contentType:'image/png',body:fs.readFileSync(new URL('../../public/icon-192.png',import.meta.url))});return}
-  else if(path.includes('/storage/v1/object/')){await route.fulfill({status:200,contentType:'application/pdf',body:'%PDF-1.7\nQA!'});return}
-  else if(path.endsWith('/import_household_backup'))body='77777777-7777-4777-8777-777777777777';
-  else if(path.endsWith('/restore_household_backup_missing'))body={restored_records:0};
-  else if(path.endsWith('/build_monthly_household_close'))body=report;
-  await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
- });
- return {context,page,errors,calls,getPlans:()=>storedPlans,entries:()=>({contributions:entryContributions,recurring:entryRecurring,occurrences:entryOccurrences,transactions:entryTransactions})};
+const uid = '11111111-1111-4111-8111-111111111111',
+  hh = '22222222-2222-4222-8222-222222222222',
+  tx = '33333333-3333-4333-8333-333333333333',
+  rid = '44444444-4444-4444-8444-444444444444',
+  factor = '55555555-5555-4555-8555-555555555555';
+const user = {
+  id: uid,
+  email: 'qa@example.invalid',
+  aud: 'authenticated',
+  role: 'authenticated',
+  app_metadata: {provider: 'email'},
+  user_metadata: {full_name: 'QA owner'},
+  factors: []
+};
+function token(level) {
+  return (
+    Buffer.from(JSON.stringify({alg: 'HS256', typ: 'JWT'})).toString('base64url') +
+    '.' +
+    Buffer.from(
+      JSON.stringify({
+        sub: uid,
+        aud: 'authenticated',
+        role: 'authenticated',
+        aal: level,
+        amr: [],
+        exp: Math.floor(Date.parse(day + 'T23:59:59Z') / 1000)
+      })
+    ).toString('base64url') +
+    '.qa'
+  );
 }
-async function noOverflow(page){const layout=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,offenders:Array.from(document.querySelectorAll('body *')).filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.right>innerWidth+1&&getComputedStyle(e).position!=='fixed'}).slice(-12).map(e=>({tag:e.tagName,cls:e.className,right:e.getBoundingClientRect().right,text:e.textContent?.slice(0,70)}))}));assert(layout.scroll<=layout.width,'Horizontal overflow '+JSON.stringify(layout))}async function healthy(s){assert.equal(s.errors.length,0,s.errors.join('\n'));assert.equal(await s.page.getByText('Algo no salió como esperábamos').count(),0);await noOverflow(s.page)}
-async function openIncome(s){await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/?tab=presupuesto');await s.page.getByRole('heading',{name:'Tu mapa de gastos'}).waitFor();await s.page.locator('.finance-tabs button').getByText('Ingresos',{exact:true}).click();await s.page.getByRole('heading',{name:'Lo que esperamos recibir'}).waitFor()}
-async function open(s){await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/');await s.page.getByLabel('Cambiar de familia',{exact:true}).waitFor()}
+function session(level) {
+  return {
+    access_token: token(level),
+    refresh_token: 'qa-only',
+    expires_at: Math.floor(Date.parse(day + 'T23:59:59Z') / 1000),
+    expires_in: 3600,
+    token_type: 'bearer',
+    user
+  };
+}
+const report = {
+  month: '2026-10-01',
+  period_end: '2026-10-13',
+  is_complete_month: false,
+  score: 84,
+  status: 'good',
+  status_label: 'Buen avance del hogar',
+  financial: {
+    income: 12000,
+    expense: 6000,
+    saving: 2000,
+    balance: 4000,
+    budget: 8000,
+    saving_rate: 16.7,
+    budget_usage: 75,
+    net_worth: 25000
+  },
+  previous: {
+    month: '2026-09-01',
+    period_end: '2026-09-30',
+    income: 10000,
+    expense: 6500,
+    saving: 1500,
+    balance: 2000,
+    budget: 7500,
+    saving_rate: 15,
+    budget_usage: 86,
+    net_worth: 21000
+  },
+  changes: {income_pct: 20, expense_pct: -7.7, saving_pct: 33.3, net_worth_amount: 4000},
+  operations: {
+    recurring_paid: 3,
+    recurring_pending: 1,
+    tasks_completed: 18,
+    tasks_overdue: 2,
+    events: 4,
+    maintenance_count: 1,
+    maintenance_cost: 300,
+    documents_due: 1,
+    meals_prepared: 15
+  },
+  top_categories: [
+    {category_id: null, name: 'Alimentación', amount: 2200, previous_amount: 2500, share: 36.7, change_pct: -12},
+    {category_id: null, name: 'Casa y servicios', amount: 1800, previous_amount: 1800, share: 30, change_pct: 0}
+  ],
+  insights: [
+    {
+      tone: 'positive',
+      title: 'El ahorro creció',
+      body: 'El hogar mantiene un buen ritmo de ahorro.',
+      tab: 'presupuesto'
+    }
+  ],
+  suggested_focus: ['Mantener el ahorro', 'Revisar el presupuesto de alimentación'],
+  generated_at: new Date().toISOString()
+};
+const snapshot = {
+  product: 'Nuestro Hogar',
+  schema_version: 1,
+  household: {id: hh, name: 'Familia QA'},
+  members: [],
+  tables: {
+    household_documents: [],
+    finance_receipts: [
+      {
+        id: rid,
+        household_id: hh,
+        transaction_id: tx,
+        file_path: hh + '/' + tx + '/' + rid + '.pdf',
+        original_filename: 'invoice.pdf',
+        mime_type: 'application/pdf',
+        file_size: 12
+      }
+    ],
+    transactions: []
+  },
+  notes: {}
+};
+const cat1 = '66666666-1111-4111-8111-111111111111',
+  cat2 = '66666666-2222-4222-8222-222222222222',
+  goalId = '77777777-1111-4111-8111-111111111111',
+  recipeId = '88888888-1111-4111-8111-111111111111';
+const current = new Date('2026-10-16T12:00:00Z'),
+  day = current.toISOString().slice(0, 10),
+  month = day.slice(0, 7),
+  monthStart = month + '-01';
+const cats = [
+  {id: cat1, name: 'Alimentación', icon: 'food', budget_group: 'variable'},
+  {id: cat2, name: 'Casa y servicios', icon: 'home', budget_group: 'fixed'}
+];
+const txData = [];
+for (let i = 0; i < 6; i++) {
+  const d = new Date(current.getFullYear(), current.getMonth() - i, 5, 12),
+    date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-05';
+  txData.push(
+    {
+      id: tx + '-' + i,
+      household_id: hh,
+      description: 'Ingreso mensual',
+      amount: 18000 - i * 800,
+      type: 'income',
+      transaction_date: date,
+      category_id: null,
+      paid_by: uid,
+      account_id: null,
+      is_shared: true,
+      notes: null,
+      recurring_transaction_id: null
+    },
+    {
+      id: rid + '-' + i,
+      household_id: hh,
+      description: 'Compra de supermercado',
+      amount: 2400 + i * 100,
+      type: 'expense',
+      transaction_date: date,
+      category_id: cat1,
+      paid_by: uid,
+      account_id: null,
+      is_shared: true,
+      notes: 'Compra semanal',
+      recurring_transaction_id: null
+    },
+    {
+      id: factor + '-' + i,
+      household_id: hh,
+      description: 'Servicios del hogar',
+      amount: 3500,
+      type: 'expense',
+      transaction_date: date,
+      category_id: cat2,
+      paid_by: uid,
+      account_id: null,
+      is_shared: true,
+      notes: null,
+      recurring_transaction_id: null
+    }
+  );
+}
+function filtered(rows, dateKey, url) {
+  const filters = url.searchParams.getAll(dateKey);
+  return rows.filter(r =>
+    filters.every(f =>
+      f.startsWith('gte.')
+        ? r[dateKey] >= f.slice(4)
+        : f.startsWith('lte.')
+          ? r[dateKey] <= f.slice(4)
+          : f.startsWith('eq.')
+            ? r[dateKey] === f.slice(3)
+            : true
+    )
+  );
+}
 
-function diagnosisData(){return {month:'2026-10-01',server_date:'2026-10-15',generated_at:'2026-10-15T12:00:00Z',source:{members:[{user_id:uid,full_name:'Persona QA'},{user_id:factor,full_name:'Pareja'}],income_plans:[{user_id:uid,month:'2026-10-01',expected_amount:10000,first_half_amount:5000,second_half_amount:5000},{user_id:factor,month:'2026-10-01',expected_amount:6000,first_half_amount:3000,second_half_amount:3000}],allocations:cats.map((c,i)=>({category_id:c.id,month:'2026-10-01',planned_amount:i?5000:4000,first_half_amount:i?2500:2000,second_half_amount:i?2500:2000})),categories:cats,transactions:txData.filter(t=>t.transaction_date.startsWith('2026-10')),savings:[],splits:[],settings:{split_method:'income'},member_settings:[],category_settings:[],category_member_settings:[],recurring:[{id:rid,description:'Servicios',amount:1500,type:'expense',active:true,due_day:20,created_at:'2026-10-01',category_id:cat2}],occurrences:[{id:rid,recurring_transaction_id:rid,due_date:'2026-10-20',status:'pending',transaction_id:null}]},accounts:[{id:tx,name:'Cuenta familiar',account_type:'checking',account_class:'asset',balance:14000,minimum_payment:null},{id:rid,name:'Tarjeta',account_type:'credit',account_class:'liability',balance:2000,minimum_payment:250}],history:[{month:'2026-07-01',income:14000,expense:7000,saving:1500,transaction_count:12},{month:'2026-08-01',income:15000,expense:7500,saving:2000,transaction_count:14},{month:'2026-09-01',income:16000,expense:8000,saving:2500,transaction_count:15}],reserve:{amount:12000,target_months:3,confirmed_on:'2026-09-01'}}}
-function emptyDiagnosis(){const d=diagnosisData();for(const k of ['income_plans','allocations','transactions','savings','splits','member_settings','recurring','occurrences'])d.source[k]=[];d.accounts=[];d.history=d.history.map(h=>({...h,income:0,expense:0,saving:0,transaction_count:0}));d.reserve=null;return d}
-async function openDiagnosis(s){await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/?tab=salud');await s.page.getByRole('region',{name:'Diagnóstico financiero'}).waitFor();await healthy(s)}
+async function setup(
+  browser,
+  {
+    loggedIn = true,
+    master = false,
+    aal = 'aal1',
+    google = false,
+    theme = 'light',
+    rich = false,
+    ledgerAvailable = false,
+    futureMovement = false,
+    accessOverride = null,
+    planFailure = false,
+    saveFailure = false,
+    twoPeople = true,
+    twoHomes = false,
+    duplicateResponse = false,
+    diagnosisFailure = false,
+    diagnosisEmpty = false,
+    diagnosisDelay = 0,
+    staleEntry = false
+  } = {}
+) {
+  const context = await browser.newContext({
+    timezoneId: 'America/Guatemala',
+    viewport: {width: 390, height: 844},
+    reducedMotion: 'reduce',
+    acceptDownloads: true
+  });
+  await context.addInitScript(
+    ({loggedIn, theme, session}) => {
+      localStorage.setItem('nh-theme', theme);
+      if (loggedIn) localStorage.setItem('sb-dchihxrjtngwabbvsqap-auth-token', JSON.stringify(session));
+    },
+    {loggedIn, theme, session: session(aal)}
+  );
+  const page = await context.newPage(),
+    errors = [],
+    calls = [];
+  await page.clock.install({time: new Date(day + 'T12:00:00Z')});
+  let enrolled = false,
+    verified = aal === 'aal2',
+    storedPlans = [];
+  let entryContributions = [
+      {id: goalId + '-c', goal_id: goalId, amount: 6500.25, contribution_date: month + '-08', created_by: uid},
+      {id: goalId + '-old', goal_id: goalId, amount: 50, contribution_date: '2026-09-01', created_by: uid}
+    ],
+    entryRecurring = [
+      {
+        id: rid,
+        description: 'Servicio mensual',
+        amount: 350.25,
+        type: 'expense',
+        due_day: 20,
+        category_id: cat2,
+        account_id: null,
+        paid_by: uid,
+        is_shared: true,
+        active: true,
+        created_at: '2026-01-01T12:00:00Z'
+      }
+    ],
+    entryOccurrences = [
+      {
+        id: 'pending',
+        recurring_transaction_id: rid,
+        period_month: monthStart,
+        due_date: month + '-20',
+        status: 'pending',
+        transaction_id: null,
+        paid_at: null,
+        details_snapshot: null
+      },
+      {
+        id: 'paid',
+        recurring_transaction_id: rid,
+        period_month: monthStart,
+        due_date: month + '-05',
+        status: 'paid',
+        transaction_id: 'paidtx',
+        paid_at: new Date().toISOString(),
+        details_snapshot: {
+          description: 'Servicio anterior',
+          amount: 300,
+          type: 'expense',
+          category_id: cat2,
+          account_id: null,
+          paid_by: uid,
+          is_shared: true
+        }
+      }
+    ],
+    entryTransactions = [
+      ...txData,
+      {
+        id: 'paidtx',
+        description: 'Servicio anterior',
+        amount: 300,
+        type: 'expense',
+        transaction_date: month + '-05',
+        category_id: cat2,
+        paid_by: uid,
+        account_id: null,
+        is_shared: true,
+        recurring_transaction_id: rid
+      }
+    ];
+  if (futureMovement)
+    entryTransactions.push({
+      id: 'future-income',
+      description: 'Ingreso con fecha futura',
+      amount: 9999,
+      type: 'income',
+      transaction_date: month + '-30',
+      paid_by: uid,
+      category_id: null,
+      account_id: null,
+      is_shared: false
+    });
+  page.setDefaultTimeout(10000);
+  page.on('pageerror', e => errors.push(e.message));
+  await page.routeWebSocket(/supabase.co/, ws => ws.close());
+  await page.route('https://dchihxrjtngwabbvsqap.supabase.co/**', async route => {
+    const request = route.request(),
+      url = new URL(request.url()),
+      path = url.pathname;
+    let body = [],
+      status = 200;
+    calls.push({path, query: Object.fromEntries(url.searchParams), body: request.postDataJSON()});
+    if (path.endsWith('/get_savings_ledger_capability')) body = ledgerAvailable;
+    else if (path.endsWith('/save_savings_entry')) {
+      const p = request.postDataJSON();
+      if (saveFailure) {
+        status = 403;
+        body = {message: 'No se pudo confirmar el movimiento'};
+      } else {
+        if (!entryContributions.some(c => c.id === p.p_entry_id))
+          entryContributions.push({
+            id: p.p_entry_id,
+            goal_id: p.p_goal_id,
+            amount: p.p_direction === 'withdrawal' ? -p.p_amount : p.p_amount,
+            contribution_date: p.p_date,
+            created_by: uid
+          });
+        body = p.p_entry_id;
+      }
+    } else if (path.endsWith('/goal_contributions')) {
+      if (request.method() === 'GET') body = filtered(entryContributions, 'contribution_date', url);
+      else if (saveFailure || staleEntry) {
+        status = staleEntry ? 406 : 403;
+        body = {code: staleEntry ? 'PGRST116' : '42501', message: 'QA mutation unavailable'};
+      } else {
+        const id = url.searchParams.get('id')?.slice(3);
+        if (request.method() === 'PATCH') {
+          const value = request.postDataJSON();
+          entryContributions = entryContributions.map(c => (c.id === id ? {...c, ...value} : c));
+          body = {id};
+        } else if (request.method() === 'DELETE') {
+          entryContributions = entryContributions.filter(c => c.id !== id);
+          body = {id};
+        } else body = null;
+      }
+    } else if (path.endsWith('/recurring_transactions')) body = entryRecurring;
+    else if (path.endsWith('/recurring_transaction_occurrences'))
+      body = entryOccurrences.filter(
+        o => !url.searchParams.has('status') || url.searchParams.get('status') === 'eq.' + o.status
+      );
+    else if (path.endsWith('/transactions'))
+      body = filtered(entryTransactions, 'transaction_date', url).filter(
+        t => !url.searchParams.has('type') || url.searchParams.get('type') === 'eq.' + t.type
+      );
+    else if (path.endsWith('/manage_finance_recurring')) {
+      if (saveFailure || staleEntry) {
+        status = staleEntry ? 409 : 403;
+        body = {
+          code: staleEntry ? '40001' : '42501',
+          message: staleEntry
+            ? 'El recurrente cambió. Actualiza la vista antes de guardar.'
+            : 'No tienes permiso para modificar este recurrente.'
+        };
+      } else {
+        const p = request.postDataJSON(),
+          old = entryRecurring.find(r => r.id === p.p_recurring_id);
+        const next = p.p_delete ? {...old, active: false} : {...old, ...p.p_values};
+        entryOccurrences = entryOccurrences.map(o =>
+          o.recurring_transaction_id === old.id && o.status === 'pending'
+            ? {
+                ...o,
+                due_date: p.p_delete ? o.due_date : month + '-' + String(next.due_day).padStart(2, '0'),
+                status: p.p_delete ? 'skipped' : 'pending',
+                details_snapshot: next
+              }
+            : o
+        );
+        entryRecurring = entryRecurring.map(r => (r.id === old.id ? next : r));
+        body = old.id;
+      }
+    } else if (path.endsWith('/pay_finance_recurring_occurrence')) {
+      const p = request.postDataJSON(),
+        o = entryOccurrences.find(o => o.id === p.p_occurrence_id),
+        r = entryRecurring.find(r => r.id === o.recurring_transaction_id);
+      if (o.status !== 'paid') {
+        const id = 'newpaid-' + entryTransactions.length;
+        entryTransactions.push({id, ...r, transaction_date: day, recurring_transaction_id: r.id});
+        o.status = 'paid';
+        o.transaction_id = id;
+        o.details_snapshot = {...r};
+      }
+      body = o.transaction_id;
+    } else if (path.endsWith('/get_finance_fortnight_review'))
+      body = {source: diagnosisData().source, fingerprint: 'a'.repeat(32), server_date: '2026-10-15', review: null};
+    else if (path.endsWith('/get_household_financial_diagnosis')) {
+      if (diagnosisDelay) await new Promise(r => setTimeout(r, diagnosisDelay));
+      if (diagnosisFailure) {
+        status = 500;
+        body = {message: 'QA diagnosis unavailable'};
+      } else body = diagnosisEmpty ? emptyDiagnosis() : diagnosisData();
+    } else if (path.endsWith('/save_household_emergency_reserve')) {
+      if (saveFailure) {
+        status = 403;
+        body = {message: 'QA save rejected'};
+      } else {
+        const p = request.postDataJSON();
+        body = {amount: p.p_amount, target_months: p.p_target_months, confirmed_on: '2026-10-15'};
+      }
+    } else if (path.endsWith('/finance_income_plans')) {
+      if (request.method() === 'GET') {
+        body = storedPlans.filter(p => url.searchParams.get('month') === 'eq.' + p.month);
+        if (planFailure) {
+          status = 500;
+          body = {message: 'Plan unavailable'};
+        }
+      } else if (saveFailure) {
+        status = 403;
+        body = {message: 'No se pudo guardar el plan'};
+      } else {
+        const rows = request.postDataJSON();
+        for (const p of rows) {
+          storedPlans = storedPlans.filter(old => old.month !== p.month || old.user_id !== p.user_id);
+          storedPlans.push(p);
+        }
+        body = null;
+      }
+    } else if (rich && path.endsWith('/transactions'))
+      body = filtered(txData, 'transaction_date', url).filter(
+        r => !url.searchParams.has('type') || url.searchParams.get('type') === 'eq.' + r.type
+      );
+    else if (rich && path.endsWith('/budget_categories')) body = cats;
+    else if (rich && path.endsWith('/budget_allocations')) {
+      const rows = cats.flatMap(c =>
+        Array.from({length: 6}, (_, i) => {
+          const d = new Date(current.getFullYear(), current.getMonth() - i, 1),
+            m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+          return {id: c.id + '-' + i, category_id: c.id, month: m, planned_amount: c.id === cat1 ? 4000 : 5000};
+        })
+      );
+      body = filtered(rows, 'month', url);
+    } else if (rich && path.endsWith('/savings_goals'))
+      body = [
+        {
+          id: goalId,
+          name: 'Nuestro próximo viaje',
+          target_amount: 15000,
+          target_date: '2027-04-01',
+          active: true,
+          icon: 'travel'
+        }
+      ];
+    else if (rich && path.endsWith('/goal_contributions'))
+      body = filtered(
+        [{id: goalId + '-c', goal_id: goalId, amount: 6500, contribution_date: month + '-08', created_by: uid}],
+        'contribution_date',
+        url
+      );
+    else if (rich && path.endsWith('/finance_member_settings'))
+      body = twoPeople
+        ? [
+            {user_id: uid, monthly_income: 18000, custom_share_percent: 50},
+            {user_id: factor, monthly_income: 6000, custom_share_percent: 50}
+          ]
+        : [{user_id: uid, monthly_income: 18000, custom_share_percent: 100}];
+    else if (rich && path.endsWith('/finance_household_settings')) body = {split_method: 'equal'};
+    else if (rich && path.endsWith('/household_setup_state')) body = [{completed_at: new Date().toISOString()}];
+    else if (rich && path.endsWith('/profiles'))
+      body = request.headers().accept?.includes('object')
+        ? {id: uid, full_name: 'Persona QA', relationship: 'Pareja', birth_date: null, avatar_url: null}
+        : [{id: uid, full_name: 'Persona QA', relationship: 'Pareja', birth_date: null, avatar_url: null}];
+    else if (rich && path.endsWith('/events'))
+      body = [
+        {
+          id: rid,
+          title: 'Cena en familia',
+          event_date: day,
+          start_time: '19:00',
+          location: 'En casa',
+          event_type: 'family',
+          category: 'family',
+          recurrence: 'none',
+          recurrence_until: null
+        }
+      ];
+    else if (rich && path.endsWith('/list_items'))
+      body = [
+        {
+          id: rid,
+          list_id: tx,
+          text: 'Compra semanal',
+          completed: false,
+          due_date: day,
+          assigned_to: uid,
+          sort_order: 0,
+          quantity: null,
+          notes: null,
+          created_at: new Date().toISOString()
+        }
+      ];
+    else if (rich && path.endsWith('/lists'))
+      body = [{id: tx, title: 'Supermercado', list_type: 'shopping', created_at: new Date().toISOString()}];
+    else if (rich && path.endsWith('/household_documents'))
+      body = [
+        {
+          id: rid,
+          title: 'Comprobante de compra',
+          category: 'finance',
+          document_number: 'QA-001',
+          issuer: 'Supermercado',
+          owner_user_id: uid,
+          access_scope: 'private',
+          issued_on: day,
+          expires_on: null,
+          file_path: hh + '/' + uid + '/' + rid + '.png',
+          original_filename: 'comprobante.png',
+          mime_type: 'image/png',
+          file_size: 100,
+          notes: null,
+          tags: ['compra'],
+          created_by: uid,
+          created_at: new Date().toISOString()
+        }
+      ];
+    else if (rich && path.includes('/storage/v1/object/sign/') && request.method() === 'POST') {
+      body = {signedURL: '/object/sign/household-documents/qa-preview.png?token=qa-only'};
+    } else if (rich && path.endsWith('/recipes'))
+      body = [
+        {
+          id: recipeId,
+          name: 'Ensalada de la casa',
+          description: 'Una receta fresca para compartir.',
+          servings: 2,
+          prep_minutes: 15,
+          cook_minutes: 0,
+          instructions: 'Mezclar los ingredientes.',
+          notes: null,
+          active: true
+        }
+      ];
+    else if (rich && path.endsWith('/finance_assets'))
+      body = [
+        {
+          id: rid,
+          name: 'Vehículo familiar',
+          asset_type: 'vehicle',
+          brand: 'Toyota',
+          model: 'Corolla',
+          asset_year: 2022,
+          current_mileage: 35000,
+          license_plate: 'QA-123',
+          warranty_expires_on: null,
+          notes: null,
+          active: true
+        }
+      ];
+    else if (rich && path.endsWith('/get_household_health_dashboard'))
+      body = {
+        generated_at: new Date().toISOString(),
+        overall_score: 86,
+        coverage_score: 80,
+        status: 'good',
+        status_label: 'En buen camino',
+        urgent_count: 0,
+        domains: [],
+        recommendations: [],
+        metrics: {}
+      };
+    else if (rich && path.endsWith('/get_household_plan'))
+      body = {
+        summary: {active: 0, at_risk: 0, due_soon: 0, completed: 0, monthly_required: 0},
+        goals: [],
+        generated_at: new Date().toISOString()
+      };
+    else if (rich && path.endsWith('/run_household_diagnostics'))
+      body = {
+        run_id: rid,
+        score: 100,
+        status: 'healthy',
+        error_count: 0,
+        warning_count: 0,
+        info_count: 0,
+        checks: [],
+        generated_at: new Date().toISOString()
+      };
+    else if (path.endsWith('/get_home_finance_source')) {
+      status = 404;
+      body = {code: 'PGRST202', message: 'Legacy test backend: function unavailable'};
+    } else if (path.endsWith('/settings')) body = {external: {google}};
+    else if (path.endsWith('/authorize')) {
+      assert.equal(url.searchParams.get('provider'), 'google');
+      assert.equal(url.searchParams.get('redirect_to'), 'http://127.0.0.1:4173/nuestro-hogar/');
+      await route.fulfill({status: 200, contentType: 'text/html', body: '<h1>Google redirect ready</h1>'});
+      return;
+    } else if (path.endsWith('/user'))
+      body = {
+        ...user,
+        factors: enrolled
+          ? [
+              {
+                id: factor,
+                factor_type: 'totp',
+                status: verified ? 'verified' : 'unverified',
+                friendly_name: 'QA factor'
+              }
+            ]
+          : []
+      };
+    else if (path.endsWith('/factors') && request.method() === 'POST') {
+      enrolled = true;
+      body = {
+        id: factor,
+        type: 'totp',
+        totp: {
+          qr_code:
+            '<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150"><rect width="150" height="150" fill="white"/><path d="M20 20h40v40H20zM90 20h40v40H90zM20 90h40v40H20z" fill="black"/></svg>',
+          secret: 'QA-TOTP-NOT-A-REAL-SECRET',
+          uri: 'otpauth://qa'
+        }
+      };
+    } else if (path.endsWith('/challenge'))
+      body = {
+        id: '66666666-6666-4666-8666-666666666666',
+        type: 'totp',
+        expires_at: Math.floor(Date.now() / 1000) + 300
+      };
+    else if (path.endsWith('/verify')) {
+      if (request.postDataJSON().code !== '123456') {
+        status = 400;
+        body = {code: 'mfa_verification_failed', msg: 'Invalid TOTP code'};
+      } else {
+        verified = true;
+        body = session('aal2');
+      }
+    } else if (path.endsWith('/get_my_platform_access')) body = master;
+    else if (path.endsWith('/get_platform_activity'))
+      body = {
+        generated_at: new Date().toISOString(),
+        households: 1,
+        new_households_30: 1,
+        active_households_30: 1,
+        weekly_active: [
+          {week: '2026-10-05', households: 0},
+          {week: '2026-10-12', households: 1}
+        ],
+        errors: {open: 0, last_7_days: 0, occurrences_7_days: 0, top: []}
+      };
+    else if (path.endsWith('/get_platform_overview'))
+      body = {
+        plan: 'Free',
+        database_bytes: 19000000,
+        database_limit_bytes: 500000000,
+        storage_bytes: 0,
+        allocated_bytes: 100000000,
+        storage_limit_bytes: 1000000000,
+        households: [
+          {
+            id: hh,
+            name: 'Familia QA',
+            status: 'active',
+            quota_bytes: 100000000,
+            used_bytes: 0,
+            member_limit: 10,
+            members: 1,
+            movements: 5,
+            files: 0,
+            created_at: new Date().toISOString()
+          }
+        ],
+        audit: []
+      };
+    else if (path.endsWith('/get_my_household_access'))
+      body = {
+        role: 'owner',
+        can_manage_members: true,
+        can_view_audit: true,
+        modules:
+          accessOverride ||
+          Object.fromEntries(
+            [
+              'finance',
+              'calendar',
+              'lists',
+              'documents',
+              'meals',
+              'maintenance',
+              'planning',
+              'health',
+              'monthly_close',
+              'automations',
+              'backups',
+              'diagnostics'
+            ].map(x => [x, 'edit'])
+          )
+      };
+    else if (path.endsWith('/get_my_household_storage'))
+      body = {status: 'active', used_bytes: 0, quota_bytes: 100000000};
+    else if (path.endsWith('/household_members')) {
+      if (url.searchParams.get('select')?.includes('households(')) {
+        const home = {id: hh, name: 'Familia de prueba', invite_code: 'QAHOME'};
+        let rows = [
+          {user_id: uid, household_id: hh, households: home},
+          {user_id: factor, household_id: hh, households: home}
+        ];
+        if (twoHomes)
+          rows.push({
+            user_id: uid,
+            household_id: rid,
+            households: {id: rid, name: 'Familia de prueba', invite_code: 'QATWO'}
+          });
+        const filter = url.searchParams.get('user_id');
+        if (filter) rows = rows.filter(r => 'eq.' + r.user_id === filter);
+        if (duplicateResponse) rows.push({...rows[0]});
+        body = rows;
+      } else
+        body = [
+          {user_id: uid, role: 'owner'},
+          {user_id: factor, role: 'adult'}
+        ];
+    } else if (path.endsWith('/household_setup_state')) body = [{completed_at: null}];
+    else if (path.endsWith('/profiles'))
+      body = [{id: uid, full_name: 'QA owner', avatar_url: null, birth_date: null, relationship: 'Pareja'}];
+    else if (path.endsWith('/finance_household_settings')) body = [{split_method: 'equal'}];
+    else if (path.endsWith('/finance_member_settings')) body = [{user_id: uid, monthly_income: 0}];
+    else if (path.endsWith('/save_household_setup')) body = null;
+    else if (path.endsWith('/build_household_file_backup')) body = snapshot;
+    else if (rich && path.includes('qa-preview.png')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        body: fs.readFileSync(new URL('../../public/icon-192.png', import.meta.url))
+      });
+      return;
+    } else if (path.includes('/storage/v1/object/')) {
+      await route.fulfill({status: 200, contentType: 'application/pdf', body: '%PDF-1.7\nQA!'});
+      return;
+    } else if (path.endsWith('/import_household_backup')) body = '77777777-7777-4777-8777-777777777777';
+    else if (path.endsWith('/restore_household_backup_missing')) body = {restored_records: 0};
+    else if (path.endsWith('/build_monthly_household_close')) body = report;
+    await route.fulfill({status, contentType: 'application/json', body: JSON.stringify(body)});
+  });
+  return {
+    context,
+    page,
+    errors,
+    calls,
+    getPlans: () => storedPlans,
+    entries: () => ({
+      contributions: entryContributions,
+      recurring: entryRecurring,
+      occurrences: entryOccurrences,
+      transactions: entryTransactions
+    })
+  };
+}
+async function noOverflow(page) {
+  const layout = await page.evaluate(() => ({
+    width: innerWidth,
+    scroll: document.documentElement.scrollWidth,
+    offenders: Array.from(document.querySelectorAll('body *'))
+      .filter(e => {
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && r.right > innerWidth + 1 && getComputedStyle(e).position !== 'fixed';
+      })
+      .slice(-12)
+      .map(e => ({
+        tag: e.tagName,
+        cls: e.className,
+        right: e.getBoundingClientRect().right,
+        text: e.textContent?.slice(0, 70)
+      }))
+  }));
+  assert(layout.scroll <= layout.width, 'Horizontal overflow ' + JSON.stringify(layout));
+}
+async function healthy(s) {
+  assert.equal(s.errors.length, 0, s.errors.join('\n'));
+  assert.equal(await s.page.getByText('Algo no salió como esperábamos').count(), 0);
+  await noOverflow(s.page);
+}
+async function openIncome(s) {
+  await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/?tab=presupuesto');
+  await s.page.getByRole('heading', {name: 'Tu mapa de gastos'}).waitFor();
+  await s.page.locator('.finance-tabs button').getByText('Ingresos', {exact: true}).click();
+  await s.page.getByRole('heading', {name: 'Lo que esperamos recibir'}).waitFor();
+}
+async function open(s) {
+  await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/');
+  await s.page.getByLabel('Cambiar de familia', {exact: true}).waitFor();
+}
 
-async function ready(s,tab){await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/'+(tab?'?tab='+tab:''));await s.page.locator('.content').waitFor().catch(async e=>{throw new Error(e.message+'\n'+JSON.stringify({errors:s.errors,calls:s.calls.map(c=>c.path),body:(await s.page.locator('body').innerText()).slice(0,1600)}))});await s.page.waitForFunction(()=>!document.querySelector('.content .studio-skeleton')).catch(async e=>{throw new Error('Module '+tab+': '+e.message+'\n'+JSON.stringify({errors:s.errors,body:(await s.page.locator('body').innerText()).slice(0,1500),calls:s.calls.slice(-10).map(c=>c.path)}))});await healthy(s)}
+function diagnosisData() {
+  return {
+    month: '2026-10-01',
+    server_date: '2026-10-15',
+    generated_at: '2026-10-15T12:00:00Z',
+    source: {
+      members: [
+        {user_id: uid, full_name: 'Persona QA'},
+        {user_id: factor, full_name: 'Pareja'}
+      ],
+      income_plans: [
+        {user_id: uid, month: '2026-10-01', expected_amount: 10000, first_half_amount: 5000, second_half_amount: 5000},
+        {user_id: factor, month: '2026-10-01', expected_amount: 6000, first_half_amount: 3000, second_half_amount: 3000}
+      ],
+      allocations: cats.map((c, i) => ({
+        category_id: c.id,
+        month: '2026-10-01',
+        planned_amount: i ? 5000 : 4000,
+        first_half_amount: i ? 2500 : 2000,
+        second_half_amount: i ? 2500 : 2000
+      })),
+      categories: cats,
+      transactions: txData.filter(t => t.transaction_date.startsWith('2026-10')),
+      savings: [],
+      splits: [],
+      settings: {split_method: 'income'},
+      member_settings: [],
+      category_settings: [],
+      category_member_settings: [],
+      recurring: [
+        {
+          id: rid,
+          description: 'Servicios',
+          amount: 1500,
+          type: 'expense',
+          active: true,
+          due_day: 20,
+          created_at: '2026-10-01',
+          category_id: cat2
+        }
+      ],
+      occurrences: [
+        {id: rid, recurring_transaction_id: rid, due_date: '2026-10-20', status: 'pending', transaction_id: null}
+      ]
+    },
+    accounts: [
+      {
+        id: tx,
+        name: 'Cuenta familiar',
+        account_type: 'checking',
+        account_class: 'asset',
+        balance: 14000,
+        minimum_payment: null
+      },
+      {
+        id: rid,
+        name: 'Tarjeta',
+        account_type: 'credit',
+        account_class: 'liability',
+        balance: 2000,
+        minimum_payment: 250
+      }
+    ],
+    history: [
+      {month: '2026-07-01', income: 14000, expense: 7000, saving: 1500, transaction_count: 12},
+      {month: '2026-08-01', income: 15000, expense: 7500, saving: 2000, transaction_count: 14},
+      {month: '2026-09-01', income: 16000, expense: 8000, saving: 2500, transaction_count: 15}
+    ],
+    reserve: {amount: 12000, target_months: 3, confirmed_on: '2026-09-01'}
+  };
+}
+function emptyDiagnosis() {
+  const d = diagnosisData();
+  for (const k of [
+    'income_plans',
+    'allocations',
+    'transactions',
+    'savings',
+    'splits',
+    'member_settings',
+    'recurring',
+    'occurrences'
+  ])
+    d.source[k] = [];
+  d.accounts = [];
+  d.history = d.history.map(h => ({...h, income: 0, expense: 0, saving: 0, transaction_count: 0}));
+  d.reserve = null;
+  return d;
+}
+async function openDiagnosis(s) {
+  await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/?tab=salud');
+  await s.page.getByRole('region', {name: 'Diagnóstico financiero'}).waitFor();
+  await healthy(s);
+}
 
+async function ready(s, tab) {
+  await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/' + (tab ? '?tab=' + tab : ''));
+  await s.page
+    .locator('.content')
+    .waitFor()
+    .catch(async e => {
+      throw new Error(
+        e.message +
+          '\n' +
+          JSON.stringify({
+            errors: s.errors,
+            calls: s.calls.map(c => c.path),
+            body: (await s.page.locator('body').innerText()).slice(0, 1600)
+          })
+      );
+    });
+  await s.page
+    .waitForFunction(() => !document.querySelector('.content .studio-skeleton'))
+    .catch(async e => {
+      throw new Error(
+        'Module ' +
+          tab +
+          ': ' +
+          e.message +
+          '\n' +
+          JSON.stringify({
+            errors: s.errors,
+            body: (await s.page.locator('body').innerText()).slice(0, 1500),
+            calls: s.calls.slice(-10).map(c => c.path)
+          })
+      );
+    });
+  await healthy(s);
+}
 
-async function chooseFinance(s,name){const primary=s.page.locator('.finance-tabs>button').filter({hasText:new RegExp('^'+name+'$')});if(await primary.count())await primary.click();else{await s.page.locator('.finance-more>summary').click();await s.page.getByRole('group',{name:'Más secciones financieras',exact:true}).getByRole('button',{name,exact:true}).click()}}
-async function waitReady(s){await s.page.waitForFunction(()=>!document.querySelector('.content .studio-skeleton')).catch(async e=>{throw new Error('Module '+tab+': '+e.message+'\n'+JSON.stringify({errors:s.errors,body:(await s.page.locator('body').innerText()).slice(0,1500),calls:s.calls.slice(-10).map(c=>c.path)}))});await healthy(s)}
+async function chooseFinance(s, name) {
+  const primary = s.page.locator('.finance-tabs>button').filter({hasText: new RegExp('^' + name + '$')});
+  if (await primary.count()) await primary.click();
+  else {
+    await s.page.locator('.finance-more>summary').click();
+    await s.page
+      .getByRole('group', {name: 'Más secciones financieras', exact: true})
+      .getByRole('button', {name, exact: true})
+      .click();
+  }
+}
+async function waitReady(s) {
+  await s.page
+    .waitForFunction(() => !document.querySelector('.content .studio-skeleton'))
+    .catch(async e => {
+      throw new Error(
+        'Module ' +
+          tab +
+          ': ' +
+          e.message +
+          '\n' +
+          JSON.stringify({
+            errors: s.errors,
+            body: (await s.page.locator('body').innerText()).slice(0, 1500),
+            calls: s.calls.slice(-10).map(c => c.path)
+          })
+      );
+    });
+  await healthy(s);
+}
 
-
-export {setup,ready,chooseFinance,healthy,uid,hh,rid,day,monthStart};
+export {setup, ready, chooseFinance, healthy, uid, hh, rid, day, monthStart};

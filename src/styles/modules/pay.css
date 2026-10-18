@@ -1,0 +1,63 @@
+/* Sueldo y prestaciones. Tokens only: --ds-* scales and --nh-* color roles. */
+.pay-center{display:grid;gap:var(--ds-space-4)}
+.pay-panel{border:1px solid var(--nh-border);background:var(--nh-surface);border-radius:var(--ds-radius-xl);padding:var(--ds-space-6)}
+.pay-label{margin:0;font-size:var(--ds-fs-sm);font-weight:var(--ds-fw-semibold);color:var(--nh-muted)}
+.pay-figure{display:block;margin:var(--ds-space-1) 0 var(--ds-space-2);font-family:var(--ds-font-display);font-weight:600;font-size:var(--ds-fs-display);line-height:var(--ds-lh-tight);color:var(--nh-text);letter-spacing:-.01em}
+.pay-figure .ds-amount{font-variant-numeric:lining-nums proportional-nums}
+.pay-figure--sm{font-size:var(--ds-fs-3xl)}
+.pay-note{margin:0 0 var(--ds-space-4);max-width:52ch;font-size:var(--ds-fs-sm);line-height:var(--ds-lh-body);color:var(--nh-muted)}
+.pay-period{margin:0;font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.pay-hint{margin:0;font-size:var(--ds-fs-xs);line-height:var(--ds-lh-body);color:var(--nh-muted)}
+
+/* Net pay: the figure on the left, the payslip on the right. */
+.pay-net{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--ds-space-8);align-items:start}
+.pay-breakdown{margin:0;display:grid;font-size:var(--ds-fs-sm)}
+.pay-breakdown>div{display:flex;justify-content:space-between;align-items:baseline;gap:var(--ds-space-4);padding:var(--ds-space-3) 0;border-bottom:1px solid var(--nh-border)}
+.pay-breakdown dt{color:var(--nh-text)}
+.pay-breakdown dt small{display:block;margin-top:2px;font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.pay-breakdown dd{margin:0;font-variant-numeric:tabular-nums lining-nums;white-space:nowrap;color:var(--nh-text)}
+.pay-breakdown dd.minus{color:var(--nh-muted)}
+.pay-breakdown .pay-total{border-bottom:0;padding-top:var(--ds-space-4)}
+.pay-breakdown .pay-total dt,.pay-breakdown .pay-total dd{font-weight:var(--ds-fw-bold);font-size:var(--ds-fs-md)}
+.pay-form{display:grid;gap:var(--ds-space-4)}
+.pay-form .ds-empty{padding-top:0}
+.pay-form-actions{display:flex;justify-content:flex-end;gap:var(--ds-space-2)}
+
+/* Bono 14 and aguinaldo */
+.pay-extras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--ds-space-4)}
+.pay-extra{display:grid;gap:var(--ds-space-5);align-content:start}
+.pay-extra-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--ds-space-4);align-items:start}
+.pay-extra-head>div:only-child{grid-column:1/-1}
+.pay-extra--next{background:linear-gradient(160deg,var(--nh-warning-soft),var(--nh-surface) 55%)}
+.pay-plan{display:grid;gap:var(--ds-space-3);padding-top:var(--ds-space-4);border-top:1px solid var(--nh-border)}
+.pay-plan-head{display:flex;justify-content:space-between;align-items:center;gap:var(--ds-space-3)}
+.pay-plan-head h3{margin:0;font-size:var(--ds-fs-md)}
+.pay-split{display:flex;gap:3px;height:10px;border-radius:var(--ds-radius-pill);overflow:hidden;background:var(--nh-track)}
+.pay-split>i{display:block;min-width:4px;transition:flex-grow var(--ds-dur-slow) var(--ds-ease-out)}
+.pay-split--debt{background:var(--nh-chart-blue)}
+.pay-split--saving{background:var(--nh-chart-purple)}
+.pay-split--planned{background:var(--nh-chart-warning)}
+.pay-split--free{background:var(--nh-chart-success)}
+.pay-plan-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--ds-space-3)}
+.pay-plan-field{display:grid;gap:var(--ds-space-1);font-size:var(--ds-fs-xs);color:var(--nh-muted)}
+.pay-plan-field>span{display:flex;align-items:center;gap:var(--ds-space-2)}
+.pay-plan-field>span:before{content:"";width:10px;height:10px;border-radius:3px;background:var(--nh-chart-success)}
+.pay-plan-field--debt>span:before{background:var(--nh-chart-blue)}
+.pay-plan-field--saving>span:before{background:var(--nh-chart-purple)}
+.pay-plan-field--planned>span:before{background:var(--nh-chart-warning)}
+.pay-plan-field input{min-height:var(--ds-tap);padding:0 var(--ds-space-3);font-size:var(--ds-fs-md);text-align:right;font-variant-numeric:tabular-nums}
+.pay-plan-field b{display:flex;align-items:center;justify-content:flex-end;min-height:var(--ds-tap);padding:0 var(--ds-space-3);border-radius:var(--ds-radius-md);background:var(--nh-subtle);font-size:var(--ds-fs-md);color:var(--nh-text);font-variant-numeric:tabular-nums}
+.pay-plan>.ds-button--primary{justify-self:end}
+.pay-footnote{display:block;margin:0;max-width:80ch;font-size:var(--ds-fs-xs);line-height:var(--ds-lh-body);color:var(--nh-muted)}
+.pay-footnote svg{display:inline-block;width:14px;height:14px;margin:0 4px;vertical-align:-2px}
+
+@media(max-width:900px){.pay-extras{grid-template-columns:1fr}}
+@media(max-width:640px){
+ .pay-panel{padding:var(--ds-space-5) var(--ds-space-4)}
+ .pay-net{grid-template-columns:1fr;gap:var(--ds-space-4)}
+ .pay-figure{font-size:var(--ds-fs-3xl)}
+ .pay-figure--sm{font-size:var(--ds-fs-2xl)}
+ .pay-extra-head .ds-illustration{width:72px;height:54px}
+ .pay-form .two{grid-template-columns:1fr}
+ .pay-plan>.ds-button--primary{justify-self:stretch}
+}
