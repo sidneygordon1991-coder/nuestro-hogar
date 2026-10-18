@@ -48,8 +48,8 @@
 .pay-plan-field input{min-height:var(--ds-tap);padding:0 var(--ds-space-3);font-size:var(--ds-fs-md);text-align:right;font-variant-numeric:tabular-nums}
 .pay-plan-field b{display:flex;align-items:center;justify-content:flex-end;min-height:var(--ds-tap);padding:0 var(--ds-space-3);border-radius:var(--ds-radius-md);background:var(--nh-subtle);font-size:var(--ds-fs-md);color:var(--nh-text);font-variant-numeric:tabular-nums}
 .pay-plan>.ds-button--primary{justify-self:end}
-.pay-footnote{display:flex;gap:var(--ds-space-2);align-items:flex-start;margin:0;max-width:80ch;font-size:var(--ds-fs-xs);line-height:var(--ds-lh-body);color:var(--nh-muted)}
-.pay-footnote svg{flex:0 0 auto;width:14px;height:14px;margin-top:2px}
+.pay-footnote{display:block;margin:0;max-width:80ch;font-size:var(--ds-fs-xs);line-height:var(--ds-lh-body);color:var(--nh-muted)}
+.pay-footnote svg{display:inline-block;width:14px;height:14px;margin:0 4px;vertical-align:-2px}
 
 @media(max-width:900px){.pay-extras{grid-template-columns:1fr}}
 @media(max-width:640px){
