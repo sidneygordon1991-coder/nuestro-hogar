@@ -103,6 +103,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
   const [categories, setCategories] = useState<Category[]>([]),
     [txs, setTxs] = useState<Tx[]>([]),
     [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [goalsDataError, setGoalsDataError] = useState(false);
   const [goals, setGoals] = useState<Goal[]>([]),
     [contributions, setContributions] = useState<Contribution[]>([]),
     [recurring, setRecurring] = useState<Recurring[]>([]),
@@ -374,11 +375,17 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
         .select('id,category_id,planned_amount,month,first_half_amount,second_half_amount')
         .eq('household_id', household.id)
         .eq('month', m),
-      supabase
-        .from('savings_goals')
-        .select('id,name,target_amount,target_date,icon,active')
-        .eq('household_id', household.id)
-        .order('created_at'),
+      pagedResult(() =>
+        fetchAllRows<Goal>((from, to) =>
+          supabase
+            .from('savings_goals')
+            .select('id,name,target_amount,target_date,icon,active')
+            .eq('household_id', household.id)
+            .order('created_at')
+            .order('id')
+            .range(from, to)
+        )
+      ),
       pagedResult(() =>
         fetchAllRows((from, to) =>
           supabase
@@ -593,6 +600,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
     setCategories((catR.data || []) as Category[]);
     setTxs(txData);
     setAllocations((allocR.data || []) as unknown as Allocation[]);
+    setGoalsDataError(Boolean(goalR.error || contR.error));
     setGoals((goalR.data || []) as unknown as Goal[]);
     setContributions((contR.data || []) as unknown as Contribution[]);
     setRecurring((recR.data || []) as unknown as Recurring[]);
@@ -2183,6 +2191,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
     setAllocations,
     goals,
     setGoals,
+    goalsDataError,
     contributions,
     setContributions,
     recurring,

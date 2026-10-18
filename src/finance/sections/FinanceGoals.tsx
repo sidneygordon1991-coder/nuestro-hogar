@@ -1,3 +1,6 @@
+import {useEffect, useState} from 'react';
+import GoalManagementDialog, {type GoalAction} from '../GoalManagementDialog';
+import type {Goal} from '../../FinanceParts';
 // Finance section: goals.
 import {toCents} from '../../lib/financePeriods';
 import {Pencil, PiggyBank, Plus, Trash2} from 'lucide-react';
@@ -8,6 +11,10 @@ import {useFinance} from '../useFinanceWorkspace';
 export default function FinanceGoals() {
   const {
     tab,
+    household,
+    load,
+    setMessage,
+    goalsDataError,
     setEditingContribution,
     setRemoving,
     setManagementError,
@@ -29,6 +36,21 @@ export default function FinanceGoals() {
     goalName,
     readOnly
   } = useFinance();
+  const [goalView, setGoalView] = useState<'active' | 'archived'>('active');
+  const [management, setManagement] = useState<{goal: Goal; action: GoalAction} | null>(null);
+  useEffect(() => {
+    setManagement(null);
+    setGoalView('active');
+  }, [household.id]);
+  if (tab === 'goals' && goalsDataError)
+    return (
+      <section className="finance-panel" role="alert">
+        <p>No pudimos cargar las metas y su historial completos. Actualiza antes de modificarlas.</p>
+        <button type="button" className="secondary-action" onClick={() => load()}>
+          Reintentar
+        </button>
+      </section>
+    );
   return (
     <>
       {tab === 'goals' && (
@@ -45,9 +67,21 @@ export default function FinanceGoals() {
                 </button>
               )}
             </div>
+            <div className="goal-view-switch" role="group" aria-label="Estado de las metas">
+              <button type="button" aria-pressed={goalView === 'active'} onClick={() => setGoalView('active')}>
+                Activas ({goals.filter(g => g.active).length})
+              </button>
+              <button type="button" aria-pressed={goalView === 'archived'} onClick={() => setGoalView('archived')}>
+                Archivadas ({goals.filter(g => !g.active).length})
+              </button>
+            </div>
+            <p className="goal-management-note">
+              Edita nombre, monto y fecha. Archiva para conservar el historial; elimina solo metas sin aportes ni
+              vínculos.
+            </p>
             <div className="goal-grid">
               {goals
-                .filter(g => g.active)
+                .filter(g => g.active === (goalView === 'active'))
                 .map(g => {
                   const saved =
                     actualContributions.filter(c => c.goal_id === g.id).reduce((s, c) => s + toCents(c.amount), 0) /
@@ -60,8 +94,11 @@ export default function FinanceGoals() {
                       busy={busy}
                       readOnly={readOnly}
                       onContribute={contribute}
+                      onEdit={() => setManagement({goal: g, action: 'edit'})}
+                      onArchive={() => setManagement({goal: g, action: g.active ? 'archive' : 'restore'})}
+                      onDelete={() => setManagement({goal: g, action: 'delete'})}
                       onWithdraw={
-                        ledgerEnabled && saved > 0
+                        g.active && ledgerEnabled && saved > 0
                           ? () => setSavingsEntry({goal: g, direction: 'withdrawal'})
                           : undefined
                       }
@@ -69,8 +106,33 @@ export default function FinanceGoals() {
                   );
                 })}
             </div>
-            {!goals.some(g => g.active) && <EmptyFinance art="goal" text="Crea la primera meta de ahorro del hogar." />}
+            {!goals.some(g => g.active === (goalView === 'active')) && (
+              <EmptyFinance
+                art="goal"
+                text={
+                  goalView === 'active'
+                    ? 'Crea una meta o reactiva una archivada para continuar.'
+                    : 'No tienes metas archivadas.'
+                }
+              />
+            )}
           </div>
+          {management && !readOnly && (
+            <GoalManagementDialog
+              key={household.id + ':' + management.goal.id + ':' + management.action}
+              householdId={household.id}
+              goal={management.goal}
+              action={management.action}
+              onClose={() => setManagement(null)}
+              onSaved={async message => {
+                const action = management.action;
+                setManagement(null);
+                if (action === 'restore') setGoalView('active');
+                await load();
+                setMessage(message);
+              }}
+            />
+          )}
           <section className="finance-panel savings-history" aria-label="Historial de aportes de ahorro">
             <div className="panel-title">
               <div>
