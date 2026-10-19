@@ -67,6 +67,7 @@ export function categoryIcon(name: string, icon?: string): LucideIcon {
 
 type Props = {
   name: string;
+  headingLevel?: 3 | 4;
   icon?: string;
   planned: number;
   spent: number;
@@ -77,6 +78,7 @@ type Props = {
 };
 export default function BudgetCategoryProgress({
   name,
+  headingLevel = 4,
   icon,
   planned,
   spent,
@@ -87,6 +89,7 @@ export default function BudgetCategoryProgress({
 }: Props) {
   const data = unavailable ? null : budgetProgress(planned, spent),
     Icon = saving ? PiggyBank : categoryIcon(name, icon);
+  const Heading = headingLevel === 3 ? 'h3' : 'h4';
   const state = saving ? 'saving' : data?.state || 'unavailable';
   const status = !data
     ? 'No se pudo verificar este presupuesto.'
@@ -111,7 +114,7 @@ export default function BudgetCategoryProgress({
           <Icon size={22} aria-hidden="true" />
         </span>
         <div>
-          <h4>{name}</h4>
+          <Heading className="budget-rubric-title">{name}</Heading>
           <small>
             {saving ? 'Objetivo mensual guardado' : 'Presupuesto guardado'}
             {pending ? ' · Cambios sin guardar' : ''}

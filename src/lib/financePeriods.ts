@@ -1,3 +1,5 @@
+import {cycleBounds, type PayCycle} from './payCycles';
+import {countsInBudget, type BudgetTreatment} from './budgetTreatment';
 import {incomeAmount, type IncomePlan, type IncomeMember} from './monthlyIncome';
 
 export type FinancePeriod = 'month' | 'first' | 'second';
@@ -22,8 +24,13 @@ export const toCents = (value: number | string | null | undefined) => {
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
 };
 export const halfOf = (date: string): FinancePeriod => (Number(date.slice(8, 10)) <= 15 ? 'first' : 'second');
-export const inPeriod = (date: string, month: string, period: FinancePeriod) =>
-  date.slice(0, 7) === month.slice(0, 7) && (period === 'month' || halfOf(date) === period);
+export const inPeriod = (date: string, month: string, period: FinancePeriod, cycle?: PayCycle) => {
+  if (cycle) {
+    const bounds = cycleBounds(month, period, cycle);
+    return date >= bounds.start && date <= bounds.end;
+  }
+  return date.slice(0, 7) === month.slice(0, 7) && (period === 'month' || halfOf(date) === period);
+};
 export function periodAmount(total: number | string, halves: HalfAmounts, period: FinancePeriod) {
   return period === 'month'
     ? toCents(total) / 100
@@ -111,7 +118,7 @@ export function splitCents(amount: number, ratios: {user_id: string; ratio: numb
   return rows.map(r => ({user_id: r.user_id, amount: r.cents / 100}));
 }
 
-type Movement = {
+type Movement = BudgetTreatment & {
   id: string;
   amount: number | string;
   type: string;
@@ -133,11 +140,12 @@ export function financePeriodSummary(
   movements: Movement[],
   savings: Saving[],
   splits: StoredSplit[],
-  shares: ShareContext
+  shares: ShareContext,
+  cycle?: PayCycle
 ) {
   const savedPlans = new Map(plans.filter(p => p.month === month).map(p => [p.user_id, p]));
-  const txs = movements.filter(t => inPeriod(t.transaction_date, month, period)),
-    savingRows = savings.filter(s => inPeriod(s.contribution_date, month, period));
+  const txs = movements.filter(t => inPeriod(t.transaction_date, month, period, cycle)),
+    savingRows = savings.filter(s => inPeriod(s.contribution_date, month, period, cycle));
   const personIncome = members.map(m => {
     const p = savedPlans.get(m.user_id),
       total = Number(p?.expected_amount ?? references[m.user_id] ?? 0);
@@ -156,7 +164,7 @@ export function financePeriodSummary(
           group === 'saving'
             ? 0
             : txs
-                .filter(t => t.type === 'expense' && t.category_id === a.category_id)
+                .filter(t => t.type === 'expense' && countsInBudget(t) && t.category_id === a.category_id)
                 .reduce((s, t) => s + toCents(t.amount), 0) / 100;
       return {...a, group, planned, actual};
     });
@@ -174,12 +182,12 @@ export function financePeriodSummary(
   const expected = personIncome.reduce((s, r) => s + toCents(r.expected), 0) / 100,
     budget = rows.filter(r => r.group !== 'saving').reduce((s, r) => s + toCents(r.planned), 0) / 100,
     savingPlan = rows.filter(r => r.group === 'saving').reduce((s, r) => s + toCents(r.planned), 0) / 100;
-  const firstTx = movements.filter(t => inPeriod(t.transaction_date, month, 'first'));
+  const firstTx = movements.filter(t => inPeriod(t.transaction_date, month, 'first', cycle));
   const carry =
     period === 'second'
       ? (firstTx.reduce((s, t) => s + (t.type === 'income' ? 1 : -1) * toCents(t.amount), 0) -
           savings
-            .filter(s => inPeriod(s.contribution_date, month, 'first'))
+            .filter(s => inPeriod(s.contribution_date, month, 'first', cycle))
             .reduce((s, r) => s + toCents(r.amount), 0)) /
         100
       : 0;
@@ -223,6 +231,12 @@ export function financePeriodSummary(
   return {
     income,
     expense,
+    budgetExpense:
+      txs
+        .filter(t => t.type === 'expense' && !savedAsExpense(t) && countsInBudget(t))
+        .reduce((sum, t) => sum + toCents(t.amount), 0) / 100,
+    excludedExpense:
+      txs.filter(t => t.type === 'expense' && !countsInBudget(t)).reduce((sum, t) => sum + toCents(t.amount), 0) / 100,
     saving,
     expected,
     budget,

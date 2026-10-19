@@ -1,3 +1,5 @@
+import type {PayCycle} from '../lib/payCycles';
+import {countsInBudget} from '../lib/budgetTreatment';
 // Finance workspace: all data, derived values and actions of the Finance module, shared with its sections by context.
 import {type GoalLink} from '../lib/connectedFinance';
 import {buildCashFlow} from '../lib/cashFlow';
@@ -155,6 +157,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
   const [categoryGroupDraft, setCategoryGroupDraft] = useState<Record<string, BudgetGroup>>({});
   const [splitMethod, setSplitMethod] = useState<SplitMethod>('equal');
   const [memberFinance, setMemberFinance] = useState<Record<string, MemberFinanceDraft>>({});
+  const [cycleDefaults, setCycleDefaults] = useState<Record<string, PayCycle>>({});
   const [incomePlans, setIncomePlans] = useState<IncomePlan[]>([]),
     [incomePlanError, setIncomePlanError] = useState(false);
   const [payDays, setPayDays] = useState<Record<string, PayDays>>({}),
@@ -347,6 +350,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       historyContR,
       historyAllocR,
       incomePlanR,
+      cyclesR,
       userR
     ] = await Promise.all([
       supabase
@@ -359,7 +363,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
           supabase
             .from('transactions')
             .select(
-              'id,description,amount,type,transaction_date,category_id,paid_by,account_id,is_shared,notes,recurring_transaction_id,original_currency,original_amount,exchange_rate'
+              'id,description,amount,type,transaction_date,category_id,paid_by,account_id,is_shared,notes,recurring_transaction_id,original_currency,original_amount,exchange_rate,budget_included'
             )
             .eq('household_id', household.id)
             .gte('transaction_date', bounds.start)
@@ -470,7 +474,9 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
         fetchAllRows((from, to) =>
           supabase
             .from('transactions')
-            .select('amount,type,transaction_date,category_id,description,original_currency,original_amount')
+            .select(
+              'amount,type,transaction_date,category_id,description,original_currency,original_amount,budget_included'
+            )
             .eq('household_id', household.id)
             .gte('transaction_date', historyStart)
             .lte('transaction_date', bounds.end)
@@ -504,9 +510,10 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       ),
       supabase
         .from('finance_income_plans')
-        .select('user_id,month,expected_amount,first_half_amount,second_half_amount')
+        .select('user_id,month,expected_amount,first_half_amount,second_half_amount,cycle_first_day,cycle_second_day')
         .eq('household_id', household.id)
         .eq('month', m),
+      supabase.rpc('get_finance_cycle_defaults', {p_household_id: household.id, p_month: m}),
       userPromise
     ]);
     if (sequence !== loadSequence.current) return;
@@ -596,7 +603,10 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       );
     if (sequence !== loadSequence.current) return;
     setIncomePlans((incomePlanR.data || []) as IncomePlan[]);
-    setIncomePlanError(Boolean(incomePlanR.error));
+    setCycleDefaults(
+      Object.fromEntries((Array.isArray(cyclesR.data) ? cyclesR.data : []).map((row: any) => [row.user_id, row]))
+    );
+    setIncomePlanError(Boolean(incomePlanR.error || cyclesR.error));
     setCategories((catR.data || []) as Category[]);
     setTxs(txData);
     setAllocations((allocR.data || []) as unknown as Allocation[]);
@@ -746,13 +756,15 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       saving,
       planned,
       plannedExpense,
+      budgetExpense: sum(actualTxs.filter(t => t.type === 'expense' && !savedAsExpense(t) && countsInBudget(t))),
+      excludedExpense: sum(actualTxs.filter(t => t.type === 'expense' && !countsInBudget(t))),
       available: (toCents(income) - toCents(expense) - toCents(saving)) / 100
     };
   }, [actualTxs, actualContributions, allocations, categories, month]);
   const actualByCategory = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of actualTxs) {
-      if (t.type === 'expense' && t.category_id)
+      if (t.type === 'expense' && countsInBudget(t) && t.category_id)
         map.set(t.category_id, (toCents(map.get(t.category_id)) + toCents(t.amount)) / 100);
     }
     return map;
@@ -926,9 +938,10 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
         members,
         incomePlans,
         actualTxs,
-        Object.fromEntries(members.map(m => [m.user_id, Number(memberFinance[m.user_id]?.monthly_income || 0)]))
+        Object.fromEntries(members.map(m => [m.user_id, Number(memberFinance[m.user_id]?.monthly_income || 0)])),
+        cycleDefaults
       ),
-    [month, members, incomePlans, actualTxs, memberFinance]
+    [month, members, incomePlans, actualTxs, memberFinance, cycleDefaults]
   );
   const smartBudget = useMemo(() => {
     const flow = buildCashFlow({
@@ -1350,6 +1363,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       is_shared: String(f.get('share_mode') || 'shared') === 'shared',
       notes: String(f.get('notes') || '').trim() || null,
       recurring: f.get('recurring') === 'on',
+      ...(f.get('budget_included') === 'false' && f.get('type') === 'expense' ? {budget_included: false} : {}),
       due_day: String(f.get('due_day') || '') || null,
       ...(entry.original.original_currency ? entry.original : {})
     };
@@ -1533,6 +1547,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
         account_id: String(f.get('account_id') || '') || null,
         paid_by: paidBy || null,
         is_shared: shareMode === 'shared',
+        budget_included: type !== 'expense' || f.get('budget_included') !== 'false',
         notes: String(f.get('notes') || '') || null,
         ...entry.original
       };

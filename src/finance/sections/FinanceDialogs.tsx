@@ -116,6 +116,12 @@ export default function FinanceDialogs() {
               <div>
                 <dt>Tipo</dt>
                 <dd>{detailTx.is_shared ? 'Compartido' : 'Personal'}</dd>
+                {detailTx.type === 'expense' && (
+                  <>
+                    <dt>Presupuesto</dt>
+                    <dd>{detailTx.budget_included === false ? 'Fuera del presupuesto' : 'Incluido'}</dd>
+                  </>
+                )}
               </div>
             </dl>
             {detailTx.notes && <p>{detailTx.notes}</p>}
@@ -235,6 +241,17 @@ export default function FinanceDialogs() {
               <small>Define el reparto. Los integrantes con acceso a Finanzas pueden consultar este registro.</small>
             </label>
             <label>
+              Tratamiento del gasto
+              <select name="budget_included" defaultValue="true">
+                <option value="true">Incluir en el presupuesto</option>
+                <option value="false">Fuera del presupuesto · ahorro o pago especial</option>
+              </select>
+              <small>
+                Solo aplica a gastos. Siempre descuenta de la cuenta y se conserva en el historial. Si lo repites, esta
+                elección corresponde a este pago.
+              </small>
+            </label>
+            <label>
               Notas
               <input name="notes" placeholder="Opcional" />
             </label>
@@ -313,6 +330,14 @@ export default function FinanceDialogs() {
                 <option value="personal">Personal de quien pagó</option>
               </select>
               <small>Define el reparto. Los integrantes con acceso a Finanzas pueden consultar este registro.</small>
+            </label>
+            <label>
+              Tratamiento del gasto
+              <select name="budget_included" defaultValue={editingTx.budget_included === false ? 'false' : 'true'}>
+                <option value="true">Incluir en el presupuesto</option>
+                <option value="false">Fuera del presupuesto · ahorro o pago especial</option>
+              </select>
+              <small>Solo aplica a este gasto. El saldo de la cuenta y el historial siempre lo incluyen.</small>
             </label>
             <label>
               Notas

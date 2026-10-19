@@ -1,3 +1,4 @@
+import {cycleRangeLabel, type PayCycle} from './lib/payCycles';
 import BudgetCategoryProgress from './BudgetCategoryProgress';
 import {categorySpending} from './lib/budgetProgress';
 import {useState} from 'react';
@@ -40,6 +41,7 @@ type Props = {
   onBudget: () => void;
   onRules: () => void;
   payDays?: Record<string, PayDays>;
+  cycle?: PayCycle;
 };
 
 export default function FortnightBudget({
@@ -60,7 +62,8 @@ export default function FortnightBudget({
   onIncome,
   onBudget,
   onRules,
-  payDays
+  payDays,
+  cycle
 }: Props) {
   const [period, setPeriod] = useState<FinancePeriod>('month'),
     [reviewHalf, setReviewHalf] = useState<ReviewHalf | null>(null);
@@ -78,13 +81,21 @@ export default function FortnightBudget({
         movements,
         savings,
         splits,
-        context
+        context,
+        cycle
       )
     ])
   ) as Record<FinancePeriod, ReturnType<typeof financePeriodSummary>>;
   const data = summaries[period],
     lastDay = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
-  const range = period === 'month' ? `1–${lastDay}` : period === 'first' ? '1–15' : `16–${lastDay}`;
+  const range = cycle
+    ? cycleRangeLabel(month, period, cycle)
+    : period === 'month'
+      ? `1–${lastDay}`
+      : period === 'first'
+        ? '1–15'
+        : `16–${lastDay}`;
+  const firstRange = cycle ? cycleRangeLabel(month, 'first', cycle) : '1–15';
   const fallback =
     period !== 'month' &&
     (periodShares(context, period).fallback || categories.some(c => periodShares(context, period, c.id).fallback));
@@ -119,8 +130,8 @@ export default function FortnightBudget({
             <CalendarRange size={23} />
           </span>
           <p className="eyebrow">Tu mes, con más claridad</p>
-          <h3>Presupuesto por quincena</h3>
-          <p>Los ingresos de ambos se suman. Compara lo planeado con lo que realmente entra y sale.</p>
+          <h1 className="fortnight-title">Presupuesto por quincena</h1>
+          <p>Los ingresos del hogar se suman. Compara lo planeado con lo que realmente entra y sale.</p>
         </div>
         <div className="fortnight-actions">
           <button onClick={onIncome}>
@@ -137,46 +148,57 @@ export default function FortnightBudget({
         </p>
       ) : (
         <>
-          <section className="fortnight-review-launch">
-            <div>
-              <strong>Cierre guiado de quincena</strong>
-              <p>Revisen ingresos, pagos y aportes. Guarden el resumen y dejen claro lo que sigue pendiente.</p>
-            </div>
-            <div>
-              {period === 'month' ? (
-                <>
-                  <button onClick={() => setReviewHalf('first')}>
-                    Revisar primera <ArrowRight size={15} />
+          {!cycle && (
+            <section className="fortnight-review-launch">
+              <div>
+                <strong>Cierre guiado de quincena</strong>
+                <p>Revisen ingresos, pagos y aportes. Guarden el resumen y dejen claro lo que sigue pendiente.</p>
+              </div>
+              <div>
+                {period === 'month' ? (
+                  <>
+                    <button onClick={() => setReviewHalf('first')}>
+                      Revisar primera <ArrowRight size={15} />
+                    </button>
+                    <button onClick={() => setReviewHalf('second')}>
+                      Revisar segunda <ArrowRight size={15} />
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => setReviewHalf(period)}>
+                    Revisar y cerrar quincena <ArrowRight size={15} />
                   </button>
-                  <button onClick={() => setReviewHalf('second')}>
-                    Revisar segunda <ArrowRight size={15} />
-                  </button>
-                </>
-              ) : (
-                <button onClick={() => setReviewHalf(period)}>
-                  Revisar y cerrar quincena <ArrowRight size={15} />
-                </button>
-              )}
-            </div>
-          </section>
+                )}
+              </div>
+            </section>
+          )}
           <div className="fortnight-selector" role="group" aria-label="Período del presupuesto">
             {(['month', 'first', 'second'] as FinancePeriod[]).map(p => (
               <button key={p} aria-pressed={period === p} onClick={() => setPeriod(p)}>
-                <strong>{titles[p]}</strong>
-                <small>{p === 'month' ? `1–${lastDay}` : p === 'first' ? '1–15' : `16–${lastDay}`}</small>
+                <strong>{cycle && p === 'month' ? 'Ciclo completo' : titles[p]}</strong>
+                <small>
+                  {cycle
+                    ? cycleRangeLabel(month, p, cycle)
+                    : p === 'month'
+                      ? `1–${lastDay}`
+                      : p === 'first'
+                        ? '1–15'
+                        : `16–${lastDay}`}
+                </small>
               </button>
             ))}
           </div>
           <section className="fortnight-balance" aria-live="polite">
             <div>
               <p className="eyebrow">
-                {titles[period]} · {range} de {label}
+                {cycle && period === 'month' ? 'Ciclo completo' : titles[period]} · {range}
+                {!cycle && ' de ' + label}
               </p>
               <small>Saldo real {period === 'second' ? 'con arrastre' : ''}</small>
               <strong className={data.balance < 0 ? 'negative' : ''}>{money(data.balance)}</strong>
               <p>
                 Ingresos recibidos menos gastos y ahorro registrado
-                {period === 'second' ? '; incluye el saldo real del 1–15' : ''}.
+                {period === 'second' ? '; incluye el saldo real de ' + firstRange : ''}.
               </p>
             </div>
             <div className="fortnight-plan-margin">
@@ -200,8 +222,8 @@ export default function FortnightBudget({
               <strong>{money(data.budget)}</strong>
             </div>
             <div>
-              <small>Gastos registrados</small>
-              <strong>{money(data.expense)}</strong>
+              <small>Gastos del presupuesto</small>
+              <strong>{money(data.budgetExpense)}</strong>
             </div>
             <div>
               <small>Ahorro planeado / real</small>
@@ -210,20 +232,36 @@ export default function FortnightBudget({
               </strong>
             </div>
           </div>
+          {data.excludedExpense > 0 && (
+            <p className="fortnight-note">
+              <Info size={18} />
+              <span>
+                Fuera del presupuesto: <b>{money(data.excludedExpense)}</b>. No llena las barras; sí está descontado del
+                saldo real. Total de gastos: {money(data.expense)}.
+              </span>
+            </p>
+          )}
+          {cycle && (
+            <p className="fortnight-caption">
+              La revisión guiada y Salud del hogar usan el mes calendario; aquí consultas las fechas del ciclo elegido.
+              Los días de cobro se configuran por separado.
+            </p>
+          )}
           {period === 'second' && (
             <p className="fortnight-note">
               <Info size={18} />
               <span>
-                Arrastre del 1–15: <b>{money(data.carry)} real</b> y <b>{money(data.planCarry)} planeado</b>. Un saldo
-                negativo también pasa a la segunda quincena. El mes completo cuenta cada ingreso y gasto una sola vez.
+                Arrastre de {firstRange}: <b>{money(data.carry)} real</b> y <b>{money(data.planCarry)} planeado</b>. Un
+                saldo negativo también pasa a la segunda quincena. El período completo cuenta cada ingreso y gasto una
+                sola vez.
               </span>
             </p>
           )}
           {(data.unallocatedIncome > 0 || data.unallocatedBudget > 0) && (
             <p className="monthly-income-alert">
               Por distribuir en las quincenas: <b>{money(data.unallocatedIncome)} de ingresos</b> y{' '}
-              <b>{money(data.unallocatedBudget)} de presupuesto</b>. El mes completo sí los incluye. Las quincenas solo
-              muestran lo que asignaste.
+              <b>{money(data.unallocatedBudget)} de presupuesto</b>. El período completo sí los incluye. Las quincenas
+              solo muestran lo que asignaste.
             </p>
           )}
           {fallback && (
@@ -236,9 +274,9 @@ export default function FortnightBudget({
           <section className="finance-panel">
             <div className="panel-title">
               <div>
-                <h3>Ingresos de cada persona</h3>
+                <h2>Ingresos de cada persona</h2>
                 <small>
-                  {titles[period]} · {label}
+                  {titles[period]} · {cycle ? range : label}
                 </small>
               </div>
             </div>
@@ -282,7 +320,7 @@ export default function FortnightBudget({
           <section className="finance-panel">
             <div className="panel-title">
               <div>
-                <h3>Aportes y reglas</h3>
+                <h2>Aportes y reglas</h2>
                 <small>{ruleText} · las reglas por categoría tienen prioridad</small>
               </div>
               <button onClick={onRules}>
@@ -333,7 +371,7 @@ export default function FortnightBudget({
           <section className="finance-panel">
             <div className="panel-title">
               <div>
-                <h3>Presupuesto por categoría</h3>
+                <h2>Presupuesto por categoría</h2>
                 <small>Planeado y gastado · {titles[period].toLowerCase()}</small>
               </div>
               <button onClick={onBudget}>
@@ -348,10 +386,11 @@ export default function FortnightBudget({
                   return (
                     <BudgetCategoryProgress
                       key={c.id}
+                      headingLevel={3}
                       name={c.name}
                       icon={c.icon}
                       planned={row?.planned || 0}
-                      spent={categorySpending(movements, c.id, month, period, cutoff)}
+                      spent={categorySpending(movements, c.id, month, period, cutoff, cycle)}
                     />
                   );
                 })}

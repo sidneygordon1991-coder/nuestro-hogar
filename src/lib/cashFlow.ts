@@ -1,8 +1,9 @@
+import {countsInBudget, type BudgetTreatment} from './budgetTreatment';
 import {monthlyIncomeSummary, type IncomeMember, type IncomePlan} from './monthlyIncome';
 import {inPeriod, toCents, type FinancePeriod, type PeriodAllocation} from './financePeriods';
 import {occurrenceDetails, type RecurringTerms} from './recurringDetails';
 
-export type CashMovement = {
+export type CashMovement = BudgetTreatment & {
   id: string;
   type: string;
   amount: number | string;
@@ -99,7 +100,8 @@ export function buildCashFlow(s: CashFlowSource) {
   const spent = new Map<string, number>(),
     commitments = new Map<string, number>();
   for (const t of transactions)
-    if (t.type === 'expense') spent.set(t.category_id || '', (spent.get(t.category_id || '') || 0) + toCents(t.amount));
+    if (t.type === 'expense' && countsInBudget(t))
+      spent.set(t.category_id || '', (spent.get(t.category_id || '') || 0) + toCents(t.amount));
   for (const o of pending)
     commitments.set(
       o.terms.category_id || '',
@@ -151,6 +153,16 @@ export function buildCashFlow(s: CashFlowSource) {
   return {
     income: income / 100,
     expense: expense / 100,
+    budgetExpense:
+      sum(
+        transactions.filter(t => t.type === 'expense' && !savedAsExpense(t) && countsInBudget(t)),
+        t => t.amount
+      ) / 100,
+    excludedExpense:
+      sum(
+        transactions.filter(t => t.type === 'expense' && !countsInBudget(t)),
+        t => t.amount
+      ) / 100,
     saving: saving / 100,
     available: available / 100,
     plannedFixed: plannedFixed / 100,

@@ -1,4 +1,5 @@
-export type IncomePlan = {
+import type {PayCycle} from './payCycles';
+export type IncomePlan = PayCycle & {
   user_id: string;
   month: string;
   expected_amount: number | string;
@@ -25,7 +26,8 @@ export function monthlyIncomeSummary(
   members: IncomeMember[],
   plans: IncomePlan[],
   movements: IncomeMovement[],
-  references: Record<string, number> = {}
+  references: Record<string, number> = {},
+  cycleDefaults: Record<string, PayCycle> = {}
 ) {
   const saved = new Map(plans.filter(p => p.month === month).map(p => [p.user_id, p]));
   const received = new Map<string, number>();
@@ -43,6 +45,8 @@ export function monthlyIncomeSummary(
     return {
       ...member,
       hasPlan: Boolean(plan),
+      cycle_first_day: plan?.cycle_first_day ?? cycleDefaults[member.user_id]?.cycle_first_day ?? 1,
+      cycle_second_day: plan?.cycle_second_day ?? cycleDefaults[member.user_id]?.cycle_second_day ?? 16,
       first_half_amount: plan?.first_half_amount ?? null,
       second_half_amount: plan?.second_half_amount ?? null,
       expected: expected / 100,
