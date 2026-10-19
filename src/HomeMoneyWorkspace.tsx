@@ -51,6 +51,8 @@ import {creditCardStatus, type CardAccount} from './lib/creditCards';
 import type {InstallmentPlan} from './lib/installments';
 import type {DailyAgendaItem} from './lib/dailyAgenda';
 import {budgetAvailability, accountLiquidity} from './lib/budgetAvailability';
+import {payWindowLabel} from './lib/householdPayPeriod';
+import {useHouseholdPayBudget} from './useHouseholdPayBudget';
 import './styles/modules/home-budget-liquidity.css';
 
 const shortDate = (date: string) =>
@@ -123,7 +125,7 @@ export default function HomeMoneyWorkspace({
     () => scopeSource(fullSource, scope, userId, finance.privateEntries || [], finance.splits || []),
     [fullSource, scope, userId, finance.privateEntries, finance.splits]
   );
-  const [period, setPeriod] = useState<FinancePeriod>(() => halfOf(fullSource.today));
+  const [period, setPeriod] = useState<FinancePeriod>('month');
   const [accountState, setAccountState] = useState<{data: AccountData | null; loading: boolean; error: string}>({
     data: null,
     loading: true,
@@ -227,14 +229,15 @@ export default function HomeMoneyWorkspace({
   );
   const liquidRows = accountRows.filter(a => a.liquid);
   const liquidity = accountLiquidity(accountRows);
+  const pay = useHouseholdPayBudget({householdId, userId, scope, finance});
   const monthly = useMemo(() => overviewPeriod(source, 'month'), [source]);
-  const fortnight = useMemo(() => overviewPeriod(source, halfOf(source.today)), [source]);
-  const selected = period === 'month' ? monthly : overviewPeriod(source, period);
-  const budget = budgetAvailability(selected.flow);
   const monthBudget = budgetAvailability(monthly.flow);
-  const fortnightBudget = budgetAvailability(fortnight.flow);
-  // The chart follows budget movements, never a bank statement.
-  const timeline = useMemo(() => balanceTimeline(source, period, null), [source, period]);
+  const fortnightBudget = pay.source ? budgetAvailability(overviewPeriod(pay.source, pay.window.period).flow) : null;
+  const missingPeriod = period !== 'month' && !fortnightBudget;
+  const budget = period === 'month' ? monthBudget : fortnightBudget || monthBudget;
+  // The chart stays calendar-based for custom cuts that span months.
+  const chartPeriod = pay.customized ? 'month' : period;
+  const timeline = useMemo(() => balanceTimeline(source, chartPeriod, null), [source, chartPeriod]);
   const cards = useMemo(
     () =>
       accountState.data
@@ -249,12 +252,14 @@ export default function HomeMoneyWorkspace({
     [accounts, accountState.data, source.today]
   );
   // Card purchases affect the budget, but the bank changes only on settlement.
-  const allowance = dailyAllowance(budget.available, timeline);
+  const allowance = period !== 'month' && pay.customized
+    ? {perDay: Math.max(0, Math.floor(budget.available / Math.max(1, dayDiff(source.today, pay.window.end) + 1))), until: pay.window.end}
+    : dailyAllowance(budget.available, timeline);
   const dayOfMonth = Number(fullSource.today.slice(8)),
     monthEnd = Number(periodBounds(fullSource.month, 'second').end.slice(8));
   // Near the end of a fortnight (or right after the first one closes) the recap is offered as today's action.
   const recapPeriod: 'first' | 'second' | null =
-    dayOfMonth >= 13 && dayOfMonth <= 15
+    pay.customized ? null : dayOfMonth >= 13 && dayOfMonth <= 15
       ? 'first'
       : dayOfMonth === 16 || dayOfMonth === 17
         ? 'first'
@@ -309,9 +314,8 @@ export default function HomeMoneyWorkspace({
     const latest = liquidRows.map(a => rec.find(r => r.account_id === a.id)?.cutoff || '');
     return latest.every(Boolean) ? latest.sort()[0] : null;
   }, [accountState.data, liquidRows]);
-  const half = halfOf(source.today),
-    bounds = periodBounds(source.month, half);
-  const fortnightLabel = Number(bounds.start.slice(8)) + '–' + shortDate(bounds.end);
+  const half = pay.customized ? pay.window.period : halfOf(source.today);
+  const fortnightLabel = payWindowLabel(pay.window);
   // The budget card always shows the month: plans are saved monthly and the image of each rubro stays stable.
   const budgets = monthly.budgets,
     visibleBudgets = showBudgets ? budgets : budgets.slice(0, 3);
@@ -338,7 +342,7 @@ export default function HomeMoneyWorkspace({
             tone="accent"
             icon={<Wallet />}
             label="Ingresos del período"
-            value={budget.income}
+            value={missingPeriod ? null : budget.income}
             hint={budget.estimated ? 'Incluye ingresos planificados por recibir' : 'Ingresos ya registrados'}
             onClick={() => onNavigate('presupuesto:income')}
           />
@@ -346,7 +350,7 @@ export default function HomeMoneyWorkspace({
             tone="warning"
             icon={<FileText />}
             label="Gastos registrados"
-            value={budget.expenses}
+            value={missingPeriod ? null : budget.expenses}
             hint="Incluye compras con tarjeta, débito y efectivo"
             onClick={() => onNavigate('presupuesto:transactions')}
           />
@@ -354,7 +358,7 @@ export default function HomeMoneyWorkspace({
             tone="success"
             icon={<PiggyBank />}
             label="Fijos y ahorro pendientes"
-            value={budget.commitments + budget.savingsPending}
+            value={missingPeriod ? null : budget.commitments + budget.savingsPending}
             hint="Compromisos aún por pagar o apartar"
             onClick={() => onNavigate('presupuesto:fortnight')}
           />
@@ -385,16 +389,20 @@ export default function HomeMoneyWorkspace({
               Disponible para gastar · {period === 'month' ? 'Mes' : 'Quincena'}
             </p>
             <h2 className={budget.available < 0 ? 'is-negative' : ''}>
-              <Amount value={budget.available} animate />
+              {missingPeriod ? <span className="home-skeleton-text">Q —</span> : <Amount value={budget.available} animate />}
             </h2>
+            {missingPeriod && <p className="home-budget-estimate" role={pay.error ? 'alert' : 'status'}>
+              <Info size={15} aria-hidden="true" />
+              {pay.error || 'Consultando los movimientos de la quincena…'}
+            </p>}
             <p className="home-hero-sub">Ingresos del presupuesto menos gastos, pagos fijos y ahorro comprometido.</p>
-            {budget.incomePending > 0 && (
+            {!missingPeriod && budget.incomePending > 0 && (
               <p className="home-budget-estimate">
                 <Info size={15} aria-hidden="true" />
                 Incluye {money(budget.incomePending)} de ingresos previstos que aún no se han recibido.
               </p>
             )}
-            <p className="home-hero-daily">
+            {!missingPeriod && <p className="home-hero-daily">
               {allowance.perDay >= 1 ? (
                 <>
                   Margen orientativo: <b>{money(Math.floor(allowance.perDay))}</b> diarios hasta el{' '}
@@ -403,7 +411,7 @@ export default function HomeMoneyWorkspace({
               ) : (
                 <>Sin margen para gastos adicionales hasta el {shortDate(allowance.until)}</>
               )}
-            </p>
+            </p>}
             <button
               type="button"
               className="home-hero-calc-toggle"
@@ -414,7 +422,7 @@ export default function HomeMoneyWorkspace({
               <ArrowUpRight size={14} aria-hidden="true" />
             </button>
           </div>
-          {calculation && (
+          {calculation && !missingPeriod && (
             <div className="home-hero-calc">
               <div>
                 <span>{budget.estimated ? 'Ingresos presupuestados' : 'Ingresos registrados'}</span>
@@ -451,11 +459,11 @@ export default function HomeMoneyWorkspace({
             </div>
           )}
           <div className="home-hero-minis home-hero-periods" role="group" aria-label="Presupuesto por período">
-            <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(halfOf(source.today))}>
+            <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(half)}>
               <CalendarDays aria-hidden="true" />
               <span>
                 <small>Quincena · {fortnightLabel}</small>
-                <strong>{money(fortnightBudget.available)}</strong>
+                <strong>{fortnightBudget ? money(fortnightBudget.available) : 'Q —'}</strong>
               </span>
             </button>
             <button type="button" aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>
@@ -518,11 +526,11 @@ export default function HomeMoneyWorkspace({
 
         <section className="home-card home-fortnight" aria-labelledby="home-fortnight-title">
           <div className="home-card-head">
-            <h3 id="home-fortnight-title">{period === 'month' ? 'Tu mes, día a día' : 'Tu quincena'}</h3>
+            <h3 id="home-fortnight-title">{pay.customized ? 'Flujo del mes calendario' : period === 'month' ? 'Tu mes, día a día' : 'Tu quincena'}</h3>
             <div className="home-segmented home-segmented--small" role="group" aria-label="Período de la gráfica">
-              <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(half)}>
+              {!pay.customized && <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(half)}>
                 {fortnightLabel}
-              </button>
+              </button>}
               <button type="button" aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>
                 Mes
               </button>
@@ -554,7 +562,9 @@ export default function HomeMoneyWorkspace({
           <BalanceChart timeline={timeline} />
           <TimelineStatus timeline={timeline} onNavigate={onNavigate} />
           <p className="home-liquidity-note">
-            La gráfica muestra ingresos y gastos registrados y proyectados del período, no saldos bancarios.
+            {pay.customized
+              ? 'La gráfica es mensual. El presupuesto quincenal superior utiliza los cortes de tu hogar.'
+              : 'La gráfica muestra ingresos y gastos registrados y proyectados del período, no saldos bancarios.'}
           </p>
         </section>
 
