@@ -334,23 +334,39 @@ export default function HomeMoneyWorkspace({
           </p>
         )}
         <section className="home-kpis" aria-label="Resumen del presupuesto">
-          <Kpi tone="accent" icon={<Wallet />} label="Ingresos del período" value={budget.income}
+          <Kpi
+            tone="accent"
+            icon={<Wallet />}
+            label="Ingresos del período"
+            value={budget.income}
             hint={budget.estimated ? 'Incluye ingresos planificados por recibir' : 'Ingresos ya registrados'}
-            onClick={() => onNavigate('presupuesto:income')} />
-          <Kpi tone="warning" icon={<FileText />} label="Gastos registrados" value={budget.expenses}
+            onClick={() => onNavigate('presupuesto:income')}
+          />
+          <Kpi
+            tone="warning"
+            icon={<FileText />}
+            label="Gastos registrados"
+            value={budget.expenses}
             hint="Incluye compras con tarjeta, débito y efectivo"
-            onClick={() => onNavigate('presupuesto:transactions')} />
-          <Kpi tone="success" icon={<PiggyBank />} label="Fijos y ahorro pendientes"
+            onClick={() => onNavigate('presupuesto:transactions')}
+          />
+          <Kpi
+            tone="success"
+            icon={<PiggyBank />}
+            label="Fijos y ahorro pendientes"
             value={budget.commitments + budget.savingsPending}
             hint="Compromisos aún por pagar o apartar"
-            onClick={() => onNavigate('presupuesto:fortnight')} />
+            onClick={() => onNavigate('presupuesto:fortnight')}
+          />
         </section>
 
         <section className="home-hero" aria-labelledby="home-margin-label">
           {cover && <img src={cover} alt="" className="home-hero-cover" />}
           <Leaves />
           <div className="home-hero-top">
-            <span className="home-hero-icon" aria-hidden="true"><Coins /></span>
+            <span className="home-hero-icon" aria-hidden="true">
+              <Coins />
+            </span>
             <span className="home-hero-chip">{chip}</span>
             <MoreMenu
               label="Opciones del presupuesto"
@@ -371,9 +387,7 @@ export default function HomeMoneyWorkspace({
             <h2 className={budget.available < 0 ? 'is-negative' : ''}>
               <Amount value={budget.available} animate />
             </h2>
-            <p className="home-hero-sub">
-              Ingresos del presupuesto menos gastos, pagos fijos y ahorro comprometido.
-            </p>
+            <p className="home-hero-sub">Ingresos del presupuesto menos gastos, pagos fijos y ahorro comprometido.</p>
             {budget.incomePending > 0 && (
               <p className="home-budget-estimate">
                 <Info size={15} aria-hidden="true" />
@@ -382,13 +396,20 @@ export default function HomeMoneyWorkspace({
             )}
             <p className="home-hero-daily">
               {allowance.perDay >= 1 ? (
-                <>Margen orientativo: <b>{money(Math.floor(allowance.perDay))}</b> diarios hasta el {shortDate(allowance.until)}</>
+                <>
+                  Margen orientativo: <b>{money(Math.floor(allowance.perDay))}</b> diarios hasta el{' '}
+                  {shortDate(allowance.until)}
+                </>
               ) : (
                 <>Sin margen para gastos adicionales hasta el {shortDate(allowance.until)}</>
               )}
             </p>
-            <button type="button" className="home-hero-calc-toggle"
-              aria-expanded={calculation} onClick={() => setCalculation(v => !v)}>
+            <button
+              type="button"
+              className="home-hero-calc-toggle"
+              aria-expanded={calculation}
+              onClick={() => setCalculation(v => !v)}
+            >
               {calculation ? 'Ocultar cálculo' : 'Ver cálculo'}
               <ArrowUpRight size={14} aria-hidden="true" />
             </button>
@@ -399,33 +420,50 @@ export default function HomeMoneyWorkspace({
                 <span>{budget.estimated ? 'Ingresos presupuestados' : 'Ingresos registrados'}</span>
                 <b>{money(budget.income)}</b>
               </div>
-              <div><span>Gastos registrados</span><b>− {money(budget.expenses)}</b></div>
+              <div>
+                <span>Gastos registrados</span>
+                <b>− {money(budget.expenses)}</b>
+              </div>
               {budget.savings !== 0 && (
                 <div>
                   <span>{budget.savings > 0 ? 'Ahorro ya apartado' : 'Ahorro retirado'}</span>
-                  <b>{budget.savings > 0 ? '−' : '+'} {money(Math.abs(budget.savings))}</b>
+                  <b>
+                    {budget.savings > 0 ? '−' : '+'} {money(Math.abs(budget.savings))}
+                  </b>
                 </div>
               )}
-              <div><span>Pagos y gastos fijos pendientes</span><b>− {money(budget.commitments)}</b></div>
-              <div><span>Ahorro del plan aún por apartar</span><b>− {money(budget.savingsPending)}</b></div>
+              <div>
+                <span>Pagos y gastos fijos pendientes</span>
+                <b>− {money(budget.commitments)}</b>
+              </div>
+              <div>
+                <span>Ahorro del plan aún por apartar</span>
+                <b>− {money(budget.savingsPending)}</b>
+              </div>
               <div className="home-hero-calc-total">
-                <span>Presupuesto disponible</span><b>{money(budget.available)}</b>
+                <span>Presupuesto disponible</span>
+                <b>{money(budget.available)}</b>
               </div>
               <p>
-                Es una estimación presupuestaria, no el saldo del banco. Las compras con tarjeta cuentan
-                como gasto al registrarlas; pagar después esa deuda mediante una transferencia no vuelve a descontarlas.
+                Es una estimación presupuestaria, no el saldo del banco. Las compras con tarjeta cuentan como gasto al
+                registrarlas; pagar después esa deuda mediante una transferencia no vuelve a descontarlas.
               </p>
             </div>
           )}
           <div className="home-hero-minis home-hero-periods" role="group" aria-label="Presupuesto por período">
-            <button type="button" aria-pressed={period !== 'month'}
-              onClick={() => setPeriod(halfOf(source.today))}>
+            <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(halfOf(source.today))}>
               <CalendarDays aria-hidden="true" />
-              <span><small>Quincena · {fortnightLabel}</small><strong>{money(fortnightBudget.available)}</strong></span>
+              <span>
+                <small>Quincena · {fortnightLabel}</small>
+                <strong>{money(fortnightBudget.available)}</strong>
+              </span>
             </button>
             <button type="button" aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>
               <Wallet aria-hidden="true" />
-              <span><small>Mes completo</small><strong>{money(monthBudget.available)}</strong></span>
+              <span>
+                <small>Mes completo</small>
+                <strong>{money(monthBudget.available)}</strong>
+              </span>
             </button>
           </div>
         </section>
@@ -444,9 +482,13 @@ export default function HomeMoneyWorkspace({
             </button>
           </div>
           {accountState.loading ? (
-            <p className="home-caption" role="status">Consultando saldos de tus cuentas…</p>
+            <p className="home-caption" role="status">
+              Consultando saldos de tus cuentas…
+            </p>
           ) : accountState.error ? (
-            <p className="home-caption" role="alert">{accountState.error} El presupuesto sigue disponible.</p>
+            <p className="home-caption" role="alert">
+              {accountState.error} El presupuesto sigue disponible.
+            </p>
           ) : (
             <>
               <div className="home-liquidity-totals">
@@ -467,9 +509,8 @@ export default function HomeMoneyWorkspace({
                 </div>
               </div>
               <p className="home-liquidity-note">
-                Los saldos cambian solo con movimientos vinculados a las cuentas o transferencias.
-                Una compra con crédito aumenta la deuda y afecta el presupuesto,
-                pero no descuenta dinero del banco hasta pagarla.
+                Los saldos cambian solo con movimientos vinculados a las cuentas o transferencias. Una compra con
+                crédito aumenta la deuda y afecta el presupuesto, pero no descuenta dinero del banco hasta pagarla.
               </p>
             </>
           )}

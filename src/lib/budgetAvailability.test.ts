@@ -17,17 +17,64 @@ const source: CashFlowSource = {
     {month: '2026-10-01', category_id: 'reserve', planned_amount: 500, first_half_amount: 0, second_half_amount: 500}
   ],
   members: [{user_id: 'member', full_name: 'Persona'}],
-  plans: [{
-    month: '2026-10-01', user_id: 'member', expected_amount: 10000,
-    first_half_amount: 4000, second_half_amount: 6000
-  }],
+  plans: [
+    {
+      month: '2026-10-01',
+      user_id: 'member',
+      expected_amount: 10000,
+      first_half_amount: 4000,
+      second_half_amount: 6000
+    }
+  ],
   transactions: [
-    {id: 'income-1', type: 'income', amount: 4000, transaction_date: '2026-10-02', category_id: null, paid_by: 'member'},
-    {id: 'expense-1', type: 'expense', amount: 1000, transaction_date: '2026-10-10', category_id: 'food', paid_by: 'member'},
-    {id: 'income-2', type: 'income', amount: 6000, transaction_date: '2026-10-16', category_id: null, paid_by: 'member'},
-    {id: 'card-purchase', type: 'expense', amount: 300, transaction_date: '2026-10-17', category_id: 'food', paid_by: 'member'},
-    {id: 'bank-purchase', type: 'expense', amount: 200, transaction_date: '2026-10-17', category_id: 'food', paid_by: 'member'},
-    {id: 'cash-purchase', type: 'expense', amount: 100, transaction_date: '2026-10-17', category_id: 'food', paid_by: 'member'}
+    {
+      id: 'income-1',
+      type: 'income',
+      amount: 4000,
+      transaction_date: '2026-10-02',
+      category_id: null,
+      paid_by: 'member'
+    },
+    {
+      id: 'expense-1',
+      type: 'expense',
+      amount: 1000,
+      transaction_date: '2026-10-10',
+      category_id: 'food',
+      paid_by: 'member'
+    },
+    {
+      id: 'income-2',
+      type: 'income',
+      amount: 6000,
+      transaction_date: '2026-10-16',
+      category_id: null,
+      paid_by: 'member'
+    },
+    {
+      id: 'card-purchase',
+      type: 'expense',
+      amount: 300,
+      transaction_date: '2026-10-17',
+      category_id: 'food',
+      paid_by: 'member'
+    },
+    {
+      id: 'bank-purchase',
+      type: 'expense',
+      amount: 200,
+      transaction_date: '2026-10-17',
+      category_id: 'food',
+      paid_by: 'member'
+    },
+    {
+      id: 'cash-purchase',
+      type: 'expense',
+      amount: 100,
+      transaction_date: '2026-10-17',
+      category_id: 'food',
+      paid_by: 'member'
+    }
   ],
   savings: [],
   recurring: [],
@@ -60,9 +107,23 @@ describe('independent budget and liquidity', () => {
 
   it('counts card purchases against the budget, without reducing bank or cash balances', () => {
     const accounts = [
-      {id: 'bank', name: 'Banco', opening_balance: 5000, active: true, account_type: 'checking', account_class: 'asset'},
+      {
+        id: 'bank',
+        name: 'Banco',
+        opening_balance: 5000,
+        active: true,
+        account_type: 'checking',
+        account_class: 'asset'
+      },
       {id: 'cash', name: 'Efectivo', opening_balance: 800, active: true, account_type: 'cash', account_class: 'asset'},
-      {id: 'card', name: 'Crédito', opening_balance: 0, active: true, account_type: 'credit', account_class: 'liability'}
+      {
+        id: 'card',
+        name: 'Crédito',
+        opening_balance: 0,
+        active: true,
+        account_type: 'credit',
+        account_class: 'liability'
+      }
     ];
     const movements = [
       {account_id: 'card', type: 'expense', amount: 300, transaction_date: '2026-10-17'},
@@ -88,7 +149,9 @@ describe('independent budget and liquidity', () => {
     ];
     const transfer = [{from_account_id: 'a', to_account_id: 'b', amount: 150, transfer_date: '2026-10-19'}];
     expect(accountLiquidity(overviewAccounts(accounts, [], transfer, '2026-10-19'))).toEqual({
-      banks: 800, cash: 0, total: 800
+      banks: 800,
+      cash: 0,
+      total: 800
     });
   });
 });
