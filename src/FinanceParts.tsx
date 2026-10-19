@@ -42,6 +42,7 @@ export type Household = {id: string; name: string; invite_code: string};
 export type BudgetGroup = 'fixed' | 'variable' | 'saving';
 export type Category = {id: string; name: string; icon: string; budget_group: BudgetGroup};
 export type Tx = {
+  budget_included?: boolean;
   id: string;
   description: string;
   amount: number;
@@ -147,6 +148,7 @@ export type MemberFinanceDraft = {monthly_income: string; custom_share_percent: 
 export type CategoryRuleMethod = 'inherit' | 'equal' | 'income' | 'custom' | 'personal';
 export type CategoryRuleDraft = {split_method: CategoryRuleMethod; responsible_user_id: string};
 export type HistoryTx = {
+  budget_included?: boolean;
   amount: number;
   type: 'income' | 'expense';
   transaction_date: string;
@@ -234,6 +236,7 @@ export function TransactionRows({
           <small>
             {category} · {memberName(t.paid_by)}
             {t.is_shared ? ' · Compartido' : ''}
+            {t.type === 'expense' && t.budget_included === false ? ' · Fuera del presupuesto' : ''}
             {t.recurring_transaction_id ? ' · Recurrente' : ''}
             {t.transaction_date > isoDate() ? ' · Fecha futura: excluido del balance real' : ''}
           </small>

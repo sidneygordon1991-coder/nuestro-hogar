@@ -1,3 +1,5 @@
+import {countsInBudget, type BudgetTreatment} from './budgetTreatment';
+import type {PayCycle} from './payCycles';
 import {inPeriod, toCents, type FinancePeriod} from './financePeriods';
 
 /** All comparisons use cents; a zero allocation has no meaningful percentage. */
@@ -29,20 +31,27 @@ export function budgetProgress(planned: number, spent: number) {
 }
 
 export function categorySpending(
-  rows: {type: string; category_id: string | null; transaction_date: string; amount: number | string}[],
+  rows: (BudgetTreatment & {
+    type: string;
+    category_id: string | null;
+    transaction_date: string;
+    amount: number | string;
+  })[],
   categoryId: string,
   month: string,
   period: FinancePeriod,
-  cutoff: string
+  cutoff: string,
+  cycle?: PayCycle
 ) {
   return (
     rows
       .filter(
         t =>
           t.type === 'expense' &&
+          countsInBudget(t) &&
           t.category_id === categoryId &&
           t.transaction_date <= cutoff &&
-          inPeriod(t.transaction_date, month, period)
+          inPeriod(t.transaction_date, month, period, cycle)
       )
       .reduce((sum, t) => sum + toCents(t.amount), 0) / 100
   );

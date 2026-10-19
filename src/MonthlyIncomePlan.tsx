@@ -1,3 +1,4 @@
+import {cycleRangeLabel, validateCycle} from './lib/payCycles';
 import {useEffect, useState, type FormEvent} from 'react';
 import {ArrowDownLeft, ArrowRight, CalendarClock, Check, RefreshCw, Target} from 'lucide-react';
 import {supabase} from './lib/supabase';
@@ -48,11 +49,20 @@ export default function MonthlyIncomePlan({
   onMovements: () => void;
 } & IncomeSettingsProps) {
   const [draft, setDraft] = useState<Record<string, string>>({}),
+    [cycles, setCycles] = useState<Record<string, {first: string; second: string}>>({}),
     [halves, setHalves] = useState<Record<string, {first: string; second: string}>>({}),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [saved, setSaved] = useState(false);
   useEffect(() => {
+    setCycles(
+      Object.fromEntries(
+        summary.rows.map(row => [
+          row.user_id,
+          {first: String(row.cycle_first_day), second: String(row.cycle_second_day)}
+        ])
+      )
+    );
     setDraft(Object.fromEntries(summary.rows.map(row => [row.user_id, String(row.expected)])));
     setHalves(
       Object.fromEntries(
@@ -68,6 +78,8 @@ export default function MonthlyIncomePlan({
   }, [summary]);
   const changed = summary.rows.some(
     row =>
+      (cycles[row.user_id]?.first ?? '1') !== String(row.cycle_first_day) ||
+      (cycles[row.user_id]?.second ?? '16') !== String(row.cycle_second_day) ||
       Number(draft[row.user_id]) !== row.expected ||
       draft[row.user_id] === '' ||
       (halves[row.user_id]?.first ?? '') !== (row.first_half_amount == null ? '' : String(row.first_half_amount)) ||
@@ -88,6 +100,7 @@ export default function MonthlyIncomePlan({
             user_id: row.user_id,
             month,
             expected_amount,
+            ...validateCycle(cycles[row.user_id]?.first ?? '1', cycles[row.user_id]?.second ?? '16'),
             ...validateHalves(expected_amount, halves[row.user_id]?.first ?? '', halves[row.user_id]?.second ?? ''),
             updated_at: new Date().toISOString()
           };
@@ -118,8 +131,8 @@ export default function MonthlyIncomePlan({
             <p className="eyebrow">Plan mensual · {label}</p>
             <h3 id="monthly-income-title">Lo que esperamos recibir</h3>
             <p>
-              Planifica el ingreso mensual de cada persona y distribúyelo entre el 1–15 y el 16 al cierre. Los ingresos
-              reales vienen de los movimientos.
+              Planifica los ingresos y define las quincenas de cada persona, incluso si cruzan al mes siguiente. El mes
+              calendario mantiene sus propios ingresos reales.
             </p>
           </div>
         </div>
@@ -196,9 +209,51 @@ export default function MonthlyIncomePlan({
                         </strong>
                       </div>
                     </div>
+                    <fieldset className="pay-cycle-fields">
+                      <legend>Quincenas de {row.full_name}</legend>
+                      <div className="tools-grid">
+                        {(['first', 'second'] as const).map(half => (
+                          <label key={half}>
+                            {half === 'first' ? 'Día de inicio de la primera' : 'Día de inicio de la segunda'}
+                            <input
+                              aria-label={
+                                (half === 'first' ? 'Inicio primera quincena de ' : 'Inicio segunda quincena de ') +
+                                row.full_name
+                              }
+                              type="number"
+                              min={half === 'first' ? 1 : 2}
+                              max={half === 'first' ? 28 : 31}
+                              step="1"
+                              required
+                              value={cycles[row.user_id]?.[half] ?? (half === 'first' ? '1' : '16')}
+                              disabled={readOnly || busy}
+                              onChange={e => {
+                                setCycles(current => ({
+                                  ...current,
+                                  [row.user_id]: {
+                                    ...(current[row.user_id] || {first: '1', second: '16'}),
+                                    [half]: e.target.value
+                                  }
+                                }));
+                                setSaved(false);
+                              }}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      <small>
+                        Ejemplo: inicios 14 y 29 = 14–28 y 29–13 del siguiente mes. Si el segundo inicio no existe en un
+                        mes corto, comienza el día 1 del siguiente. Se guarda por persona y por mes. Los meses nuevos
+                        proponen el último ciclo guardado; los anteriores conservan su configuración.
+                      </small>
+                    </fieldset>
                     <div className="fortnight-inputs">
                       <label>
-                        Primera quincena · 1–15
+                        Primera quincena ·{' '}
+                        {cycleRangeLabel(month, 'first', {
+                          cycle_first_day: Number(cycles[row.user_id]?.first) || 1,
+                          cycle_second_day: Number(cycles[row.user_id]?.second) || 16
+                        })}
                         <input
                           aria-label={'Ingreso primera quincena de ' + row.full_name}
                           type="number"
@@ -219,7 +274,11 @@ export default function MonthlyIncomePlan({
                         />
                       </label>
                       <label>
-                        Segunda quincena · 16 al cierre
+                        Segunda quincena ·{' '}
+                        {cycleRangeLabel(month, 'second', {
+                          cycle_first_day: Number(cycles[row.user_id]?.first) || 1,
+                          cycle_second_day: Number(cycles[row.user_id]?.second) || 16
+                        })}
                         <input
                           aria-label={'Ingreso segunda quincena de ' + row.full_name}
                           type="number"
@@ -264,7 +323,7 @@ export default function MonthlyIncomePlan({
                     <Check size={17} />
                     {busy ? 'Guardando…' : 'Guardar plan de ' + label}
                   </button>
-                  <small>Guarda este mes. No crea movimientos ni cambia el reparto de gastos.</small>
+                  <small>Guarda importes y ciclos de este mes. No crea movimientos ni cambia repartos guardados.</small>
                 </div>
               )}
             </form>

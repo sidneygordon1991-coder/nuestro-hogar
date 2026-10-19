@@ -211,22 +211,27 @@ export default function FinanceSummary() {
               label={monthLabel(month)}
             />
             <div className="finance-panel studio-budget-used">
+              {totals.excludedExpense > 0 && (
+                <p className="tools-note">
+                  Fuera del presupuesto: {currency(totals.excludedExpense)}. Incluidos en los saldos reales.
+                </p>
+              )}
               <div className="panel-heading">
                 <div>
                   <span>Presupuesto utilizado</span>
                   <strong>
                     {totals.plannedExpense
-                      ? Math.round((totals.expense / totals.plannedExpense) * 100) + '%'
+                      ? Math.round((totals.budgetExpense / totals.plannedExpense) * 100) + '%'
                       : 'Sin definir'}
                   </strong>
                 </div>
                 <small>
                   {totals.plannedExpense
-                    ? currency(totals.expense) + ' de ' + currency(totals.plannedExpense)
+                    ? currency(totals.budgetExpense) + ' de ' + currency(totals.plannedExpense)
                     : 'Dale un destino a tu dinero'}
                 </small>
               </div>
-              <Progress value={pct(totals.expense, totals.plannedExpense)} />
+              <Progress value={pct(totals.budgetExpense, totals.plannedExpense)} />
               <button className="studio-chart-open" onClick={() => setTab('budget')}>
                 Ver mi presupuesto <ArrowUpRight size={15} />
               </button>

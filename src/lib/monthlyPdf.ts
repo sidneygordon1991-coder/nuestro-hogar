@@ -28,7 +28,15 @@ export type MonthlyReport = {
   period_end?: string;
   score: number;
   status_label: string;
-  financial: {income: number; expense: number; saving: number; balance: number; budget: number; saving_rate: number};
+  financial: {
+    income: number;
+    expense: number;
+    saving: number;
+    balance: number;
+    budget: number;
+    saving_rate: number;
+    excluded_expense?: number;
+  };
   previous?: {income: number; expense: number; saving: number; balance: number};
   operations?: Record<string, number>;
   top_categories?: {name: string; amount: number; share: number}[];
@@ -158,6 +166,8 @@ export async function buildMonthlyPdf(
       '%',
     9
   );
+  if (snapshot.financial.excluded_expense)
+    text('Fuera del presupuesto: ' + money(snapshot.financial.excluded_expense) + ' (incluido en el balance real).', 9);
   text('Salud del hogar: ' + snapshot.score + '/100 - ' + snapshot.status_label, 10, true);
   text('El balance considera ingresos, gastos y ahorro registrado.', 8, false, [83, 109, 128]);
   if (snapshot.previous) {

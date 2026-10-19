@@ -232,6 +232,9 @@ export default function FinancialDiagnosis({
         <div>
           <small>Gastado</small>
           <b>{flowMoney(d.selected.expense)}</b>
+          {d.selected.excludedExpense > 0 && (
+            <small>Fuera del presupuesto: {flowMoney(d.selected.excludedExpense)}</small>
+          )}
         </div>
         <div>
           <small>Ahorrado en metas</small>

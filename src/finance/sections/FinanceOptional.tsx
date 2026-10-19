@@ -1,3 +1,4 @@
+import {countsInBudget} from '../../lib/budgetTreatment';
 // Optional finance features (turned on per person in Configuración). Everything is computed on the device.
 import {FormEvent, useMemo, useState} from 'react';
 import {MessageCircleQuestion, Plus, Repeat, TrendingDown} from 'lucide-react';
@@ -300,7 +301,7 @@ export function ZeroBasedPanel() {
     }
     for (const t of historyTxs) {
       const m = t.transaction_date.slice(0, 7);
-      if (t.type !== 'expense' || !t.category_id || m >= current) continue;
+      if (t.type !== 'expense' || !countsInBudget(t) || !t.category_id || m >= current) continue;
       const s = slot(m);
       s.spent[t.category_id] = (s.spent[t.category_id] || 0) + Number(t.amount);
     }

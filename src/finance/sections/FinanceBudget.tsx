@@ -33,6 +33,7 @@ export default function FinanceBudget() {
     actualByCategory,
     allocationByCategory,
     smartBudget,
+    totals,
     saveBudget,
     copyPreviousBudget,
     household,
@@ -43,6 +44,12 @@ export default function FinanceBudget() {
       {tab === 'budget' && (
         <>
           <ZeroBasedPanel />
+          {totals.excludedExpense > 0 && (
+            <p className="monthly-income-hint">
+              {currency(totals.excludedExpense)} fuera del presupuesto. Se conservan como gastos reales y descuentan de
+              su cuenta.
+            </p>
+          )}
           {connectedEnabled && (
             <GoalBudgetLinks
               householdId={household.id}

@@ -51,6 +51,8 @@ type CloseSnapshot = {
     balance: number;
     saving_rate: number;
     budget_usage: number;
+    budget_expense?: number;
+    excluded_expense?: number;
     net_worth: number | null;
   };
   previous: {
@@ -63,6 +65,8 @@ type CloseSnapshot = {
     balance: number;
     saving_rate: number;
     budget_usage: number;
+    budget_expense?: number;
+    excluded_expense?: number;
     net_worth: number | null;
   };
   changes: {
@@ -266,6 +270,7 @@ export default function MonthlyCloseCenter({
     const lines = [
       `Cierre de ${monthLabel(snapshot.month)} — ${snapshot.score}/100 (${snapshot.status_label})`,
       `Ingresos: ${currency(f.income)} | Gastos: ${currency(f.expense)} | Ahorro: ${currency(f.saving)} | Balance: ${currency(f.balance)}`,
+      `Fuera del presupuesto: ${currency(f.excluded_expense || 0)} (incluido en el saldo real)`,
       `Presupuesto utilizado: ${f.budget ? f.budget_usage + '%' : 'Sin presupuesto'} | Tasa de ahorro: ${f.saving_rate}%`,
       `Tareas completadas: ${o.tasks_completed} | Tareas vencidas: ${o.tasks_overdue} | Pagos pendientes: ${o.recurring_pending}`,
       ...snapshot.insights.slice(0, 4).map(i => `• ${i.title}: ${i.body}`),
@@ -430,10 +435,20 @@ export default function MonthlyCloseCenter({
           previous={p.budget ? Math.round(p.budget_usage) + '%' : '—'}
           change={null}
           kind="budget"
-          subtitle={f.budget ? currency(f.expense) + ' de ' + currency(f.budget) : 'Sin presupuesto asignado'}
+          subtitle={
+            f.budget
+              ? currency(f.budget_expense ?? f.expense) + ' de ' + currency(f.budget)
+              : 'Sin presupuesto asignado'
+          }
         />
       </div>
 
+      {Boolean(f.excluded_expense) && (
+        <p className="tools-note">
+          Gastos fuera del presupuesto: {currency(f.excluded_expense || 0)}. Se incluyen en el gasto total y el balance
+          real.
+        </p>
+      )}
       <div className="monthly-close-main-grid">
         <section className="monthly-close-panel">
           <div className="monthly-close-panel-head">

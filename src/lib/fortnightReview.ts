@@ -223,7 +223,7 @@ export function buildFortnightReview(month: string, period: ReviewHalf, source: 
       text: 'El saldo real es negativo; se necesita cubrir la diferencia.',
       action: null
     });
-  if (summary.expense > summary.budget)
+  if (summary.budgetExpense > summary.budget)
     issues.push({
       id: 'over-budget',
       text: 'El gasto registrado supera el presupuesto asignado a esta quincena.',

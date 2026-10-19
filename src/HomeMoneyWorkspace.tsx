@@ -570,6 +570,11 @@ export default function HomeMoneyWorkspace({
               Ver todos
             </button>
           </div>
+          {monthly.flow.excludedExpense > 0 && (
+            <p className="home-caption">
+              Fuera del presupuesto: {money(monthly.flow.excludedExpense)}. Incluido en el saldo real.
+            </p>
+          )}
           {budgets.length ? (
             <ul className="home-budget-list">
               {visibleBudgets.map((c, i) => (

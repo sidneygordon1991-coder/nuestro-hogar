@@ -1,3 +1,4 @@
+import {countsInBudget} from './budgetTreatment';
 import {buildCashFlow, type CashFlowSource} from './cashFlow';
 import {occurrenceDetails} from './recurringDetails';
 import {periodAmount, toCents, type FinancePeriod} from './financePeriods';
@@ -91,7 +92,7 @@ export function overviewPeriod(source: CashFlowSource, period: FinancePeriod) {
       const planned = allocation ? periodAmount(allocation.planned_amount, allocation, period) : 0;
       const spent =
         flow.transactions
-          .filter(t => t.type === 'expense' && t.category_id === c.id)
+          .filter(t => t.type === 'expense' && countsInBudget(t) && t.category_id === c.id)
           .reduce((n, t) => n + toCents(t.amount), 0) / 100;
       return {...c, name: c.name || 'Rubro', planned, spent, progress: budgetProgress(planned, spent)!};
     })
