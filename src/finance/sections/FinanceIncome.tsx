@@ -1,5 +1,6 @@
 // Finance section: income.
 import MonthlyIncomePlan from '../../MonthlyIncomePlan';
+import HouseholdCutoffSettings from '../../HouseholdCutoffSettings';
 import {monthDate, monthLabel} from '../shared';
 import {useFinance} from '../useFinanceWorkspace';
 import {useMemo} from 'react';
@@ -67,6 +68,9 @@ export default function FinanceIncome() {
             })}
           </div>
         </section>
+      )}
+      {tab === 'income' && (
+        <HouseholdCutoffSettings householdId={household.id} month={monthDate(month)} readOnly={readOnly} />
       )}
       {tab === 'income' && (
         <MonthlyIncomePlan
