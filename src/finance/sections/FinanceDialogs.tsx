@@ -1,3 +1,4 @@
+import PaymentBudgetField from '../../PaymentBudgetField';
 // Finance: every form and dialog of the module.
 import EntityComments from '../../EntityComments';
 import DraftForm from '../../DraftForm';
@@ -240,17 +241,11 @@ export default function FinanceDialogs() {
               </select>
               <small>Define el reparto. Los integrantes con acceso a Finanzas pueden consultar este registro.</small>
             </label>
-            <label>
-              Tratamiento del gasto
-              <select name="budget_included" defaultValue="true">
-                <option value="true">Incluir en el presupuesto</option>
-                <option value="false">Fuera del presupuesto · ahorro o pago especial</option>
-              </select>
-              <small>
-                Solo aplica a gastos. Siempre descuenta de la cuenta y se conserva en el historial. Si lo repites, esta
-                elección corresponde a este pago.
-              </small>
-            </label>
+            <PaymentBudgetField accounts={accounts} disabled={busy} />
+            <small className="tools-note">
+              Si repites este movimiento, los próximos pagos usarán la regla automática de su cuenta. Podrás editar cada
+              pago registrado.
+            </small>
             <label>
               Notas
               <input name="notes" placeholder="Opcional" />
@@ -331,14 +326,11 @@ export default function FinanceDialogs() {
               </select>
               <small>Define el reparto. Los integrantes con acceso a Finanzas pueden consultar este registro.</small>
             </label>
-            <label>
-              Tratamiento del gasto
-              <select name="budget_included" defaultValue={editingTx.budget_included === false ? 'false' : 'true'}>
-                <option value="true">Incluir en el presupuesto</option>
-                <option value="false">Fuera del presupuesto · ahorro o pago especial</option>
-              </select>
-              <small>Solo aplica a este gasto. El saldo de la cuenta y el historial siempre lo incluyen.</small>
-            </label>
+            <PaymentBudgetField
+              accounts={accounts}
+              disabled={busy}
+              initial={editingTx.budget_included === false ? 'false' : 'true'}
+            />
             <label>
               Notas
               <input name="notes" defaultValue={editingTx.notes || ''} placeholder="Opcional" />

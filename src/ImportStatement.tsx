@@ -1,3 +1,5 @@
+import {PaymentBudgetHint} from './PaymentBudgetField';
+import {resolvePaymentBudget, type PaymentAccount} from './lib/paymentBudget';
 import {useEffect, useMemo, useRef, useState, type ChangeEvent} from 'react';
 import {Check, FileSpreadsheet, Upload} from 'lucide-react';
 import {supabase} from './lib/supabase';
@@ -26,7 +28,7 @@ type Option = {id: string; name: string};
 type Props = {
   householdId: string;
   currentUser: string;
-  accounts: Option[];
+  accounts: PaymentAccount[];
   categories: Option[];
   memberCount: number;
   onImported: () => void;
@@ -63,6 +65,7 @@ export default function ImportStatement({
   onClose,
   onBusy
 }: Props) {
+  const [budgetMode, setBudgetMode] = useState('auto');
   const requests = useRef(new Map<string, string>());
   const [statement, setStatement] = useState<Statement | null>(null),
     [fileError, setFileError] = useState('');
@@ -134,6 +137,14 @@ export default function ImportStatement({
     [statement, headerIndex, mapping, positiveIsExpense, problem]
   );
   const range = useMemo(() => dateRange(preview), [preview]);
+  let budgetRuleError = '';
+  try {
+    const selectedAccount = accounts.find(a => a.id === accountId);
+    if (accountId && !selectedAccount) throw new Error('La cuenta ya no está disponible. Vuelve a seleccionarla.');
+    resolvePaymentBudget(budgetMode, selectedAccount);
+  } catch (e) {
+    budgetRuleError = (e as Error).message;
+  }
 
   useEffect(() => {
     if (!range) {
@@ -207,7 +218,7 @@ export default function ImportStatement({
       selected.filter(r => r.type === 'income').reduce((n, r) => n + Math.round(r.amount * 100), 0) / 100;
 
   async function runImport() {
-    if (importing || !selected.length || existing.status !== 'ready') return;
+    if (importing || !selected.length || existing.status !== 'ready' || budgetRuleError) return;
     const rows = selected,
       blocks = chunk(rows, CHUNK);
     setImporting(true);
@@ -225,7 +236,15 @@ export default function ImportStatement({
           category_id: rowCategory(r),
           paid_by: currentUser || null,
           is_shared: shareMode === 'shared',
-          recurring: false
+          recurring: false,
+          ...(r.type === 'expense'
+            ? {
+                budget_included: resolvePaymentBudget(
+                  budgetMode,
+                  accounts.find(a => a.id === accountId)
+                )
+              }
+            : {})
         };
         const key = JSON.stringify([r.line, r.date, r.amount, r.type, r.description, accountId, shareMode]); // stable while category suggestions load
         let requestId = requests.current.get(key);
@@ -339,6 +358,20 @@ export default function ImportStatement({
           </section>
           <section className="import-section" aria-label="Datos para los movimientos">
             <h4>Cómo se registran</h4>
+            <label className="tools-field">
+              Tratamiento de los gastos importados
+              <select value={budgetMode} disabled={importing} onChange={e => setBudgetMode(e.target.value)}>
+                <option value="auto">Automático según la cuenta de pago</option>
+                <option value="true">Incluir en el presupuesto</option>
+                <option value="false">Usar saldo existente · fuera del presupuesto</option>
+              </select>
+            </label>
+            <PaymentBudgetHint account={accounts.find(a => a.id === accountId)} mode={budgetMode} />
+            {budgetRuleError && (
+              <p role="alert" className="tools-error">
+                {budgetRuleError}
+              </p>
+            )}
             <div className="tools-grid">
               <label>
                 Cuenta
@@ -525,7 +558,7 @@ export default function ImportStatement({
         <button
           type="button"
           className="finance-primary"
-          disabled={importing || !selected.length || existing.status !== 'ready'}
+          disabled={importing || !selected.length || existing.status !== 'ready' || Boolean(budgetRuleError)}
           onClick={() => void runImport()}
         >
           {importing ? (

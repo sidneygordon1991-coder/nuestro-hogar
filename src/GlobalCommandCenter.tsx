@@ -1,3 +1,5 @@
+import PaymentBudgetField from './PaymentBudgetField';
+import {paymentBudgetIncluded} from './lib/paymentBudget';
 import DraftForm from './DraftForm';
 import {useFocusTrap} from './lib/useFocusTrap';
 import ModuleIcon from './ModuleIcon';
@@ -373,7 +375,7 @@ export default function GlobalCommandCenter({
             is_shared: visibility === 'shared',
             notes,
             recurring: false,
-            ...(type === 'expense' && f.get('budget_included') === 'false' ? {budget_included: false} : {}),
+            ...(type === 'expense' ? {budget_included: paymentBudgetIncluded(f, accounts)} : {}),
             ...(original || {})
           }
         });
@@ -1323,16 +1325,7 @@ function TransactionForm({
             <input name="notes" placeholder="Opcional" maxLength={visibility === 'private' ? 500 : 2000} />
           </label>
         </div>
-        {isExpense && visibility !== 'private' && (
-          <label>
-            Tratamiento del gasto
-            <select name="budget_included" defaultValue="true">
-              <option value="true">Incluir en el presupuesto</option>
-              <option value="false">Fuera del presupuesto · ahorro o pago especial</option>
-            </select>
-            <small>Siempre se conserva en el historial y descuenta de la cuenta.</small>
-          </label>
-        )}
+        {visibility !== 'private' && <PaymentBudgetField accounts={accounts} disabled={busy} />}
         <button className="finance-primary" disabled={busy}>
           <Check />
           {busy ? 'Guardando...' : 'Guardar ' + (isExpense ? 'gasto' : 'ingreso')}
