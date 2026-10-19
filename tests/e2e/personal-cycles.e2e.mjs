@@ -157,7 +157,7 @@ for (const theme of ['light', 'dark'])
         await s.page.setViewportSize({width, height: 840});
         await healthy(s);
       }
-      await s.page.screenshot({path: `/workspace/scratch/3c24fef2bcef/tmp/cycles-${theme}.png`, fullPage: true});
+      await s.page.screenshot({path: test.info().outputPath(`cycles-${theme}.png`), fullPage: true});
       expect((await new AxeBuilder({page: s.page}).analyze()).violations).toEqual([]);
     } finally {
       await s.context.close();
