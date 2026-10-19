@@ -6,11 +6,6 @@ import {scopeSource, type FinanceScope, type HomeFinance} from './lib/homeOvervi
 import type {CashFlowSource} from './lib/cashFlow';
 
 type CycleData = {scope: string; source: CashFlowSource; splits: {transaction_id: string; user_id: string; share_amount: number}[]};
-const relativeMonth = (month: string, offset: number) => {
-  const result = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1 + offset, 1));
-  return result.toISOString().slice(0, 10);
-};
-
 /** Read only; no changes to financial data. This hook never assumes an incomplete cycle is a zero balance. */
 export function useHouseholdPayBudget({
   householdId,
