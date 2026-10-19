@@ -118,22 +118,22 @@ export default function HouseholdCutoffSettings({
             <label>
               Primer corte del mes
               <input aria-label="Primer corte del presupuesto" type="number" min="1" max="27" step="1"
-                required value={draft.first} disabled={readOnly || saving || Boolean(error)}
-                onChange={e => {setDraft(d => ({...d, first: e.target.value})); setSaved(false);}} />
+                required value={draft.first} disabled={readOnly || saving}
+                onChange={e => {setDraft(d => ({...d, first: e.target.value})); setSaved(false); setError('');}} />
             </label>
             <label>
               Segundo corte del mes
               <input aria-label="Segundo corte del presupuesto" type="number" min="2" max="31" step="1"
-                required value={draft.second} disabled={readOnly || saving || Boolean(error)}
+                required value={draft.second} disabled={readOnly || saving}
                 onChange={e => {setDraft(d => ({...d, second: e.target.value})); setSaved(false);}} />
             </label>
           </div>
           <div className="monthly-income-actions">
-            <button type="button" className="secondary-action" disabled={readOnly || saving || Boolean(error)}
+            <button type="button" className="secondary-action" disabled={readOnly || saving}
               onClick={() => {setDraft({first: '13', second: '28'}); setSaved(false);}}>
               Usar 13 y 28
             </button>
-            <button type="button" className="secondary-action" disabled={readOnly || saving || Boolean(error)}
+            <button type="button" className="secondary-action" disabled={readOnly || saving}
               onClick={() => {setDraft(fromSaved(null)); setSaved(false);}}>
               Usar 15 y último día
             </button>
