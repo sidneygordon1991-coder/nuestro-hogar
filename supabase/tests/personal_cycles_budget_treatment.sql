@@ -37,7 +37,8 @@ begin
  update public.transactions set budget_included=false where id=t;
  -- A legacy client payload remains retry-compatible when it starts sending the explicit true default.
  request:=gen_random_uuid();payload:=payload-'budget_included';
- t:=public.save_transaction_once(h,request,payload);
+ t:=public.save_transaction_once(h,request,payload||'{"budget_included":true}');
+ if public.save_transaction_once(h,request,payload)<>t then raise exception 'Legacy default retry incompatible';end if;
  if public.save_transaction_once(h,request,payload||'{"budget_included":true}')<>t then raise exception 'Legacy request incompatible';end if;
  source:=public.build_monthly_household_close(h,m);
  if (source->'financial'->>'budget_usage')::numeric<>200 or (source->'financial'->>'expense')::numeric<>400 or (source->'financial'->>'excluded_expense')::numeric<>200 then raise exception 'Close confused budget and real spending: %',source->'financial';end if;

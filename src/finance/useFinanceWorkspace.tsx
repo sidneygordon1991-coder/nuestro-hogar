@@ -1,3 +1,4 @@
+import {paymentBudgetIncluded} from '../lib/paymentBudget';
 import type {PayCycle} from '../lib/payCycles';
 import {countsInBudget} from '../lib/budgetTreatment';
 // Finance workspace: all data, derived values and actions of the Finance module, shared with its sections by context.
@@ -1344,9 +1345,10 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
     setBusy(true);
     setMessage('');
     const f = new FormData(form);
-    let entry: ReturnType<typeof entryAmount>;
+    let entry: ReturnType<typeof entryAmount>, budgetIncluded: boolean;
     try {
       entry = entryAmount(f, usdRate(usdRateSetting));
+      budgetIncluded = paymentBudgetIncluded(f, accounts);
     } catch (err) {
       setBusy(false);
       setMessage((err as Error).message);
@@ -1363,7 +1365,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       is_shared: String(f.get('share_mode') || 'shared') === 'shared',
       notes: String(f.get('notes') || '').trim() || null,
       recurring: f.get('recurring') === 'on',
-      ...(f.get('budget_included') === 'false' && f.get('type') === 'expense' ? {budget_included: false} : {}),
+      ...(f.get('type') === 'expense' ? {budget_included: budgetIncluded} : {}),
       due_day: String(f.get('due_day') || '') || null,
       ...(entry.original.original_currency ? entry.original : {})
     };
@@ -1526,9 +1528,10 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       setBusy(true);
       setMessage('');
       const f = new FormData(e.currentTarget);
-      let entry: ReturnType<typeof entryAmount>;
+      let entry: ReturnType<typeof entryAmount>, budgetIncluded: boolean;
       try {
         entry = entryAmount(f, usdRate(usdRateSetting));
+        budgetIncluded = paymentBudgetIncluded(f, accounts);
       } catch (err) {
         setBusy(false);
         setMessage((err as Error).message);
@@ -1547,7 +1550,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
         account_id: String(f.get('account_id') || '') || null,
         paid_by: paidBy || null,
         is_shared: shareMode === 'shared',
-        budget_included: type !== 'expense' || f.get('budget_included') !== 'false',
+        budget_included: budgetIncluded,
         notes: String(f.get('notes') || '') || null,
         ...entry.original
       };

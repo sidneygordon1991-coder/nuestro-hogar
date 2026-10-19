@@ -29,6 +29,11 @@ export default function FinanceRecurring() {
       {tab === 'recurring' && (
         <>
           <SubscriptionsPanel />
+          <p className="tools-note">
+            Al registrar un nuevo pago: crédito consume presupuesto y genera deuda; efectivo, débito y ahorro usan saldo
+            existente. Sin cuenta se incluye en el presupuesto. Los pagos anteriores conservan su clasificación; puedes
+            editar cada pago en Movimientos.
+          </p>
           <section className="finance-panel recurring-management" aria-label="Programación de recurrentes">
             <div className="panel-title">
               <div>

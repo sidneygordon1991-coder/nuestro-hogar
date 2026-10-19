@@ -58,6 +58,7 @@ export function restoreFields(form: HTMLFormElement, fields: FormDraft['fields']
     if (el instanceof HTMLInputElement && el.type === 'checkbox') el.checked = value === true;
     else if (typeof value === 'string') el.value = value;
   }
+  form.dispatchEvent(new Event('nh:form-restored'));
 }
 export function clearLocalDrafts() {
   try {

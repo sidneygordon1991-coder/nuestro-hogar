@@ -1,3 +1,5 @@
+import {PaymentBudgetHint} from './PaymentBudgetField';
+import type {PaymentAccount} from './lib/paymentBudget';
 import {useEffect, useRef, useState, type FormEvent} from 'react';
 import {Check, ReceiptText, X} from 'lucide-react';
 import {supabase} from './lib/supabase';
@@ -27,7 +29,7 @@ export default function ShoppingCheckoutDialog({
     [payer, setPayer] = useState(''),
     [shared, setShared] = useState(true);
   const [categories, setCategories] = useState<{id: string; name: string}[]>([]),
-    [accounts, setAccounts] = useState<{id: string; name: string}[]>([]),
+    [accounts, setAccounts] = useState<PaymentAccount[]>([]),
     [members, setMembers] = useState<{id: string; name: string}[]>([]),
     [loading, setLoading] = useState(true),
     [verified, setVerified] = useState(false),
@@ -45,7 +47,11 @@ export default function ShoppingCheckoutDialog({
           .select('id,name')
           .eq('household_id', householdId)
           .neq('budget_group', 'saving'),
-        supabase.from('finance_accounts').select('id,name').eq('household_id', householdId).eq('active', true),
+        supabase
+          .from('finance_accounts')
+          .select('id,name,account_type,account_class')
+          .eq('household_id', householdId)
+          .eq('active', true),
         supabase.from('household_members').select('user_id').eq('household_id', householdId),
         supabase.auth.getUser()
       ]);
@@ -229,6 +235,8 @@ export default function ShoppingCheckoutDialog({
                 ))}
               </select>
             </label>
+            <PaymentBudgetHint account={accounts.find(a => a.id === account)} />
+            <small className="tools-note">Podrás modificar la clasificación de esta compra desde Movimientos.</small>
             <label>
               Pagado por
               <select
