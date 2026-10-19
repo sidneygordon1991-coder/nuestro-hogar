@@ -50,9 +50,9 @@ export default function PaymentBudgetField({
         <label>
           Tratamiento del gasto
           <select name="budget_included" defaultValue={initial} disabled={disabled}>
-            <option value="auto">Automático según la cuenta de pago</option>
+            <option value="auto">Automático · todo gasto descuenta del presupuesto</option>
             <option value="true">Incluir en el presupuesto</option>
-            <option value="false">Usar saldo existente · fuera del presupuesto</option>
+            <option value="false">Excepción · dejar fuera del presupuesto</option>
           </select>
         </label>
       )}
