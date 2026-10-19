@@ -49,7 +49,9 @@ export function buildCashFlow(s: CashFlowSource) {
     period !== 'month' && s.periodRange
       ? date >= s.periodRange.start && date <= s.periodRange.end
       : inPeriod(date, s.month, period);
-  const transactions = s.transactions.filter(t => t.transaction_date <= s.today && inSelectedPeriod(t.transaction_date));
+  const transactions = s.transactions.filter(
+    t => t.transaction_date <= s.today && inSelectedPeriod(t.transaction_date)
+  );
   const savings = s.savings.filter(t => t.contribution_date <= s.today && inSelectedPeriod(t.contribution_date));
   const sum = <T>(rows: T[], get: (r: T) => number | string) => rows.reduce((n, r) => n + toCents(get(r)), 0);
   const groups = new Map(s.categories.map(c => [c.id, c.budget_group || 'variable']));
@@ -89,9 +91,7 @@ export function buildCashFlow(s: CashFlowSource) {
   const pending = s.occurrences.flatMap(o => {
     const r = recurring.get(o.recurring_transaction_id);
     // A payment still pending from an earlier month stays overdue in the period that contains today.
-    const due =
-      inSelectedPeriod(o.due_date) ||
-      (o.due_date < s.month.slice(0, 7) + '-01' && inSelectedPeriod(s.today));
+    const due = inSelectedPeriod(o.due_date) || (o.due_date < s.month.slice(0, 7) + '-01' && inSelectedPeriod(s.today));
     if (
       !r ||
       r.active === false ||

@@ -252,14 +252,19 @@ export default function HomeMoneyWorkspace({
     [accounts, accountState.data, source.today]
   );
   // Card purchases affect the budget, but the bank changes only on settlement.
-  const allowance = period !== 'month' && pay.customized
-    ? {perDay: Math.max(0, Math.floor(budget.available / Math.max(1, dayDiff(source.today, pay.window.end) + 1))), until: pay.window.end}
-    : dailyAllowance(budget.available, timeline);
+  const allowance =
+    period !== 'month' && pay.customized
+      ? {
+          perDay: Math.max(0, Math.floor(budget.available / Math.max(1, dayDiff(source.today, pay.window.end) + 1))),
+          until: pay.window.end
+        }
+      : dailyAllowance(budget.available, timeline);
   const dayOfMonth = Number(fullSource.today.slice(8)),
     monthEnd = Number(periodBounds(fullSource.month, 'second').end.slice(8));
   // Near the end of a fortnight (or right after the first one closes) the recap is offered as today's action.
-  const recapPeriod: 'first' | 'second' | null =
-    pay.customized ? null : dayOfMonth >= 13 && dayOfMonth <= 15
+  const recapPeriod: 'first' | 'second' | null = pay.customized
+    ? null
+    : dayOfMonth >= 13 && dayOfMonth <= 15
       ? 'first'
       : dayOfMonth === 16 || dayOfMonth === 17
         ? 'first'
@@ -389,12 +394,18 @@ export default function HomeMoneyWorkspace({
               Disponible para gastar · {period === 'month' ? 'Mes' : 'Quincena'}
             </p>
             <h2 className={budget.available < 0 ? 'is-negative' : ''}>
-              {missingPeriod ? <span className="home-skeleton-text">Q —</span> : <Amount value={budget.available} animate />}
+              {missingPeriod ? (
+                <span className="home-skeleton-text">Q —</span>
+              ) : (
+                <Amount value={budget.available} animate />
+              )}
             </h2>
-            {missingPeriod && <p className="home-budget-estimate" role={pay.error ? 'alert' : 'status'}>
-              <Info size={15} aria-hidden="true" />
-              {pay.error || 'Consultando los movimientos de la quincena…'}
-            </p>}
+            {missingPeriod && (
+              <p className="home-budget-estimate" role={pay.error ? 'alert' : 'status'}>
+                <Info size={15} aria-hidden="true" />
+                {pay.error || 'Consultando los movimientos de la quincena…'}
+              </p>
+            )}
             <p className="home-hero-sub">Ingresos del presupuesto menos gastos, pagos fijos y ahorro comprometido.</p>
             {!missingPeriod && budget.incomePending > 0 && (
               <p className="home-budget-estimate">
@@ -402,16 +413,18 @@ export default function HomeMoneyWorkspace({
                 Incluye {money(budget.incomePending)} de ingresos previstos que aún no se han recibido.
               </p>
             )}
-            {!missingPeriod && <p className="home-hero-daily">
-              {allowance.perDay >= 1 ? (
-                <>
-                  Margen orientativo: <b>{money(Math.floor(allowance.perDay))}</b> diarios hasta el{' '}
-                  {shortDate(allowance.until)}
-                </>
-              ) : (
-                <>Sin margen para gastos adicionales hasta el {shortDate(allowance.until)}</>
-              )}
-            </p>}
+            {!missingPeriod && (
+              <p className="home-hero-daily">
+                {allowance.perDay >= 1 ? (
+                  <>
+                    Margen orientativo: <b>{money(Math.floor(allowance.perDay))}</b> diarios hasta el{' '}
+                    {shortDate(allowance.until)}
+                  </>
+                ) : (
+                  <>Sin margen para gastos adicionales hasta el {shortDate(allowance.until)}</>
+                )}
+              </p>
+            )}
             <button
               type="button"
               className="home-hero-calc-toggle"
@@ -526,11 +539,15 @@ export default function HomeMoneyWorkspace({
 
         <section className="home-card home-fortnight" aria-labelledby="home-fortnight-title">
           <div className="home-card-head">
-            <h3 id="home-fortnight-title">{pay.customized ? 'Flujo del mes calendario' : period === 'month' ? 'Tu mes, día a día' : 'Tu quincena'}</h3>
+            <h3 id="home-fortnight-title">
+              {pay.customized ? 'Flujo del mes calendario' : period === 'month' ? 'Tu mes, día a día' : 'Tu quincena'}
+            </h3>
             <div className="home-segmented home-segmented--small" role="group" aria-label="Período de la gráfica">
-              {!pay.customized && <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(half)}>
-                {fortnightLabel}
-              </button>}
+              {!pay.customized && (
+                <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(half)}>
+                  {fortnightLabel}
+                </button>
+              )}
               <button type="button" aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>
                 Mes
               </button>
@@ -552,10 +569,14 @@ export default function HomeMoneyWorkspace({
               items={[
                 {label: 'Abrir quincenas', onSelect: () => onNavigate('presupuesto:fortnight')},
                 {label: 'Ver pagos recurrentes', onSelect: () => onNavigate('presupuesto:recurring')},
-                ...(!pay.customized ? [{
-                  label: 'Resumen de la quincena',
-                  onSelect: () => setRecap(halfOf(fullSource.today) as 'first' | 'second')
-                }] : [])
+                ...(!pay.customized
+                  ? [
+                      {
+                        label: 'Resumen de la quincena',
+                        onSelect: () => setRecap(halfOf(fullSource.today) as 'first' | 'second')
+                      }
+                    ]
+                  : [])
               ]}
             />
           </div>

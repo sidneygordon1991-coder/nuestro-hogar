@@ -11,16 +11,21 @@ describe('configurable household pay cutoffs', () => {
   const dates = {first_cutoff_day: 13, second_cutoff_day: 28};
   it('treats the 29th through next 13th as the same paycheck window', () => {
     expect(payWindow('2026-11-01', 'first', dates)).toMatchObject({
-      start: '2026-10-29', end: '2026-11-13'
+      start: '2026-10-29',
+      end: '2026-11-13'
     });
     expect(payWindowAt('2026-10-29', dates)).toEqual(payWindow('2026-11-01', 'first', dates));
     expect(payWindowAt('2026-11-13', dates)).toEqual(payWindow('2026-11-01', 'first', dates));
     expect(payWindowAt('2026-11-14', dates)).toEqual(payWindow('2026-11-01', 'second', dates));
     expect(payWindowAt('2026-10-19', dates)).toMatchObject({
-      start: '2026-10-14', end: '2026-10-28', period: 'second'
+      start: '2026-10-14',
+      end: '2026-10-28',
+      period: 'second'
     });
     expect(payWindowAt('2027-01-01', dates)).toMatchObject({
-      start: '2026-12-29', end: '2027-01-13', period: 'first'
+      start: '2026-12-29',
+      end: '2027-01-13',
+      period: 'first'
     });
   });
   it('preserves the calendar default for households without a saved preference', () => {
@@ -42,7 +47,13 @@ describe('configurable household pay cutoffs', () => {
   it('validates each household independently', () => {
     expect(validateHouseholdCutoffs(13, 28)).toEqual(dates);
     expect(validateHouseholdCutoffs(10, 25)).toEqual({first_cutoff_day: 10, second_cutoff_day: 25});
-    for (const [first, second] of [[0, 28], [28, 31], [13, 13], [13, 32], [13.5, 28]])
+    for (const [first, second] of [
+      [0, 28],
+      [28, 31],
+      [13, 13],
+      [13, 32],
+      [13.5, 28]
+    ])
       expect(() => validateHouseholdCutoffs(first, second)).toThrow();
   });
 });

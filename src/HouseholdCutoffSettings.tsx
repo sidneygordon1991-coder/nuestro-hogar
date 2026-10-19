@@ -10,11 +10,17 @@ import {
 } from './lib/householdPayPeriod';
 
 type CutoffValue = {first: string; second: string};
-const fromSaved = (settings: {first_cutoff_day?: number | null; second_cutoff_day?: number | null} | null): CutoffValue => {
-  const parsed = normalizedHouseholdCutoffs(settings ? {
-    first_cutoff_day: settings.first_cutoff_day ?? undefined,
-    second_cutoff_day: settings.second_cutoff_day ?? undefined
-  } : null);
+const fromSaved = (
+  settings: {first_cutoff_day?: number | null; second_cutoff_day?: number | null} | null
+): CutoffValue => {
+  const parsed = normalizedHouseholdCutoffs(
+    settings
+      ? {
+          first_cutoff_day: settings.first_cutoff_day ?? undefined,
+          second_cutoff_day: settings.second_cutoff_day ?? undefined
+        }
+      : null
+  );
   return {first: String(parsed.first_cutoff_day), second: String(parsed.second_cutoff_day)};
 };
 
@@ -46,19 +52,28 @@ export default function HouseholdCutoffSettings({
       .then(({data, error: readError}) => {
         if (!active) return;
         if (readError) {
-          setError('No fue posible cargar los cortes del hogar. Es posible que falte la actualización de la base de datos.');
+          setError(
+            'No fue posible cargar los cortes del hogar. Es posible que falte la actualización de la base de datos.'
+          );
         } else {
           setDraft(fromSaved(data));
         }
         setLoading(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [householdId, retry]);
 
   const numberFirst = Number(draft.first);
   const numberSecond = Number(draft.second);
-  const preview = Number.isInteger(numberFirst) && Number.isInteger(numberSecond)
-    && numberFirst >= 1 && numberFirst <= 27 && numberSecond > numberFirst && numberSecond <= 31
+  const preview =
+    Number.isInteger(numberFirst) &&
+    Number.isInteger(numberSecond) &&
+    numberFirst >= 1 &&
+    numberFirst <= 27 &&
+    numberSecond > numberFirst &&
+    numberSecond <= 31
       ? {first_cutoff_day: numberFirst, second_cutoff_day: numberSecond}
       : DEFAULT_HOUSEHOLD_CUTOFFS;
 
@@ -102,39 +117,80 @@ export default function HouseholdCutoffSettings({
   return (
     <section className="monthly-income-plan finance-panel" aria-labelledby="household-cutoffs-title">
       <div className="monthly-income-heading">
-        <span><CalendarRange size={23} /></span>
+        <span>
+          <CalendarRange size={23} />
+        </span>
         <div>
           <p className="eyebrow">Cortes del presupuesto del hogar</p>
           <h3 id="household-cutoffs-title">¿Cuándo cierran tus quincenas?</h3>
           <p>
-            Independiente del banco y de los días individuales de salario. Se guarda para este hogar
-            y funciona en cualquier dispositivo. Los otros hogares conservan sus propias fechas.
+            Independiente del banco y de los días individuales de salario. Se guarda para este hogar y funciona en
+            cualquier dispositivo. Los otros hogares conservan sus propias fechas.
           </p>
         </div>
       </div>
-      {loading ? <p role="status">Cargando fechas del hogar…</p> : (
+      {loading ? (
+        <p role="status">Cargando fechas del hogar…</p>
+      ) : (
         <form onSubmit={save}>
           <div className="tools-grid">
             <label>
               Primer corte del mes
-              <input aria-label="Primer corte del presupuesto" type="number" min="1" max="27" step="1"
-                required value={draft.first} disabled={readOnly || saving}
-                onChange={e => {setDraft(d => ({...d, first: e.target.value})); setSaved(false); setError('');}} />
+              <input
+                aria-label="Primer corte del presupuesto"
+                type="number"
+                min="1"
+                max="27"
+                step="1"
+                required
+                value={draft.first}
+                disabled={readOnly || saving}
+                onChange={e => {
+                  setDraft(d => ({...d, first: e.target.value}));
+                  setSaved(false);
+                  setError('');
+                }}
+              />
             </label>
             <label>
               Segundo corte del mes
-              <input aria-label="Segundo corte del presupuesto" type="number" min="2" max="31" step="1"
-                required value={draft.second} disabled={readOnly || saving}
-                onChange={e => {setDraft(d => ({...d, second: e.target.value})); setSaved(false);}} />
+              <input
+                aria-label="Segundo corte del presupuesto"
+                type="number"
+                min="2"
+                max="31"
+                step="1"
+                required
+                value={draft.second}
+                disabled={readOnly || saving}
+                onChange={e => {
+                  setDraft(d => ({...d, second: e.target.value}));
+                  setSaved(false);
+                }}
+              />
             </label>
           </div>
           <div className="monthly-income-actions">
-            <button type="button" className="secondary-action" disabled={readOnly || saving}
-              onClick={() => {setDraft({first: '13', second: '28'}); setSaved(false);}}>
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={readOnly || saving}
+              onClick={() => {
+                setDraft({first: '13', second: '28'});
+                setSaved(false);
+              }}
+            >
               Usar 13 y 28
             </button>
-            <button type="button" className="secondary-action" disabled={readOnly || saving}
-              onClick={() => {setDraft(fromSaved(null)); setSaved(false);}}>
+            <button
+              type="button"
+              className="secondary-action"
+              disabled={readOnly || saving}
+              onClick={() => {
+                setDraft(fromSaved(null));
+                setSaved(false);
+              }}
+            >
               Usar 15 y último día
             </button>
             {!readOnly && (
@@ -144,11 +200,14 @@ export default function HouseholdCutoffSettings({
             )}
           </div>
           <p className="monthly-income-hint">
-            Primera: {payWindowLabel(example[0])}. Segunda: {payWindowLabel(example[1])}.
-            Siguiente primera: {payWindowLabel(example[2])}.
-            El presupuesto mensual continúa siendo el mes calendario.
+            Primera: {payWindowLabel(example[0])}. Segunda: {payWindowLabel(example[1])}. Siguiente primera:{' '}
+            {payWindowLabel(example[2])}. El presupuesto mensual continúa siendo el mes calendario.
           </p>
-          {saved && <p role="status" className="monthly-income-hint">Cortes guardados para este hogar. Verás el cambio al regresar a Inicio.</p>}
+          {saved && (
+            <p role="status" className="monthly-income-hint">
+              Cortes guardados para este hogar. Verás el cambio al regresar a Inicio.
+            </p>
+          )}
           {error && (
             <p role="alert" className="monthly-income-alert">
               {error}

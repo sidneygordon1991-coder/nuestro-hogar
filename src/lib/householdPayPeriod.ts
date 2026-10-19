@@ -44,9 +44,7 @@ export function payWindow(closingMonth: string, period: CyclePeriod, saved?: Par
   const month = Number(closingMonth.slice(5, 7)) - 1;
   const firstEnd = cutoff(year, month, conf.first_cutoff_day);
   const secondEnd = cutoff(year, month, conf.second_cutoff_day);
-  const start = period === 'first'
-    ? shift(cutoff(year, month - 1, conf.second_cutoff_day), 1)
-    : shift(firstEnd, 1);
+  const start = period === 'first' ? shift(cutoff(year, month - 1, conf.second_cutoff_day), 1) : shift(firstEnd, 1);
   return {
     period,
     month: `${year}-${pad(month + 1)}-01`,
@@ -69,10 +67,12 @@ export function payWindowAt(date: string, saved?: Partial<HouseholdCutoffs> | nu
 }
 export function payWindowLabel(window: {start: string; end: string}) {
   const fmt = (date: string) =>
-    new Date(date + 'T12:00:00Z').toLocaleDateString('es-GT', {
-      day: 'numeric',
-      month: 'short',
-      timeZone: 'UTC'
-    }).replace('.', '');
+    new Date(date + 'T12:00:00Z')
+      .toLocaleDateString('es-GT', {
+        day: 'numeric',
+        month: 'short',
+        timeZone: 'UTC'
+      })
+      .replace('.', '');
   return fmt(window.start) + ' – ' + fmt(window.end);
 }
