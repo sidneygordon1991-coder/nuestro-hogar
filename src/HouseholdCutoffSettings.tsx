@@ -11,7 +11,10 @@ import {
 
 type CutoffValue = {first: string; second: string};
 const fromSaved = (settings: {first_cutoff_day?: number | null; second_cutoff_day?: number | null} | null): CutoffValue => {
-  const parsed = normalizedHouseholdCutoffs(settings);
+  const parsed = normalizedHouseholdCutoffs(settings ? {
+    first_cutoff_day: settings.first_cutoff_day ?? undefined,
+    second_cutoff_day: settings.second_cutoff_day ?? undefined
+  } : null);
   return {first: String(parsed.first_cutoff_day), second: String(parsed.second_cutoff_day)};
 };
 
