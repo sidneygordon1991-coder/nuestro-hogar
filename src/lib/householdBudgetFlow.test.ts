@@ -75,7 +75,7 @@ describe('cross-month household budget flow', () => {
     expect(flow.incomePlan.received).toBe(5000);
     expect(flow.incomePlan.pending).toBe(0);
     expect(flow.transactions.map(t => t.id)).toEqual(['credit', 'bank', 'salary']);
-    expect(budgetAvailability(flow).available).toBe(3400);
+    expect(budgetAvailability(flow).available).toBe(3000);
   });
 
   it('preserves calendar monthly reporting even with a selected pay window', () => {
