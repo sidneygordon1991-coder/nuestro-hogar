@@ -26,6 +26,8 @@ export type CashFlowSource = {
   month: string;
   today: string;
   period?: FinancePeriod;
+  /** A household pay cycle may cross months; it is not a calendar-month rollup. */
+  periodRange?: {start: string; end: string};
   transactions: CashMovement[];
   savings: CashSaving[];
   categories: {id: string; budget_group?: string}[];
@@ -43,12 +45,14 @@ export type Payday = {first: number; second: number};
 /** One budget and one recurrence describe the same commitment, not two expenses. */
 export function buildCashFlow(s: CashFlowSource) {
   const period = s.period || 'month';
+  const inSelectedPeriod = (date: string) =>
+    period !== 'month' && s.periodRange
+      ? date >= s.periodRange.start && date <= s.periodRange.end
+      : inPeriod(date, s.month, period);
   const transactions = s.transactions.filter(
-    t => t.transaction_date <= s.today && inPeriod(t.transaction_date, s.month, period)
+    t => t.transaction_date <= s.today && inSelectedPeriod(t.transaction_date)
   );
-  const savings = s.savings.filter(
-    t => t.contribution_date <= s.today && inPeriod(t.contribution_date, s.month, period)
-  );
+  const savings = s.savings.filter(t => t.contribution_date <= s.today && inSelectedPeriod(t.contribution_date));
   const sum = <T>(rows: T[], get: (r: T) => number | string) => rows.reduce((n, r) => n + toCents(get(r)), 0);
   const groups = new Map(s.categories.map(c => [c.id, c.budget_group || 'variable']));
   // Money registered as an expense in a savings category ("Ahorro") is saving, never spending: counting it as both
@@ -75,7 +79,11 @@ export function buildCashFlow(s: CashFlowSource) {
     s.month,
     s.members,
     periodPlans,
-    transactions,
+    // Keep the income summary keyed to the selected closing month even when a
+    // configured quincena starts at the end of the previous calendar month.
+    period !== 'month' && s.periodRange
+      ? transactions.map(t => ({...t, transaction_date: s.month.slice(0, 7) + t.transaction_date.slice(7)}))
+      : transactions,
     period === 'month' ? s.references : {}
   );
   const recurring = new Map(s.recurring.map(r => [r.id, r]));
@@ -83,9 +91,7 @@ export function buildCashFlow(s: CashFlowSource) {
   const pending = s.occurrences.flatMap(o => {
     const r = recurring.get(o.recurring_transaction_id);
     // A payment still pending from an earlier month stays overdue in the period that contains today.
-    const due =
-      inPeriod(o.due_date, s.month, period) ||
-      (o.due_date < s.month.slice(0, 7) + '-01' && inPeriod(s.today, s.month, period));
+    const due = inSelectedPeriod(o.due_date) || (o.due_date < s.month.slice(0, 7) + '-01' && inSelectedPeriod(s.today));
     if (
       !r ||
       r.active === false ||
@@ -181,8 +187,8 @@ export function buildCashFlow(s: CashFlowSource) {
     overdue: pending.filter(o => o.due_date < s.today).length,
     nextPayment: pending.slice().sort((a, b) => a.due_date.localeCompare(b.due_date))[0] || null,
     futureCount:
-      s.transactions.filter(t => t.transaction_date > s.today && inPeriod(t.transaction_date, s.month, period)).length +
-      s.savings.filter(t => t.contribution_date > s.today && inPeriod(t.contribution_date, s.month, period)).length,
+      s.transactions.filter(t => t.transaction_date > s.today && inSelectedPeriod(t.transaction_date)).length +
+      s.savings.filter(t => t.contribution_date > s.today && inSelectedPeriod(t.contribution_date)).length,
     incomePlan,
     transactions,
     savings

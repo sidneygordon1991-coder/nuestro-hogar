@@ -22,15 +22,13 @@ import {
 import {supabase} from './lib/supabase';
 import {Amount, Illustration} from './ui';
 import {fetchAllRows} from './lib/paging';
-import {halfOf, toCents, type FinancePeriod} from './lib/financePeriods';
+import {halfOf, type FinancePeriod} from './lib/financePeriods';
 import {
   balanceTimeline,
   dailyAllowance,
   dayDiff,
-  goalBalance,
   goalPace,
   homeActions,
-  homeMargin,
   overviewAccounts,
   overviewGoal,
   overviewPeriod,
@@ -49,9 +47,13 @@ import {categoryIcon} from './BudgetCategoryProgress';
 import HomeToday, {type Attention} from './HomeToday';
 import FortnightRecap from './FortnightRecap';
 import {HomeCards, HomePrivate, HomeSettlements} from './HomeExtras';
-import {creditCardStatus, unreservedCardPayments, type CardAccount} from './lib/creditCards';
+import {creditCardStatus, type CardAccount} from './lib/creditCards';
 import type {InstallmentPlan} from './lib/installments';
 import type {DailyAgendaItem} from './lib/dailyAgenda';
+import {budgetAvailability, accountLiquidity} from './lib/budgetAvailability';
+import {payWindowLabel} from './lib/householdPayPeriod';
+import {useHouseholdPayBudget} from './useHouseholdPayBudget';
+import './styles/modules/home-budget-liquidity.css';
 
 const shortDate = (date: string) =>
   new Date(date + 'T12:00').toLocaleDateString('es-GT', {day: 'numeric', month: 'short'}).replace('.', '');
@@ -123,7 +125,7 @@ export default function HomeMoneyWorkspace({
     () => scopeSource(fullSource, scope, userId, finance.privateEntries || [], finance.splits || []),
     [fullSource, scope, userId, finance.privateEntries, finance.splits]
   );
-  const [period, setPeriod] = useState<FinancePeriod>(() => halfOf(fullSource.today));
+  const [period, setPeriod] = useState<FinancePeriod>('month');
   const [accountState, setAccountState] = useState<{data: AccountData | null; loading: boolean; error: string}>({
     data: null,
     loading: true,
@@ -226,19 +228,16 @@ export default function HomeMoneyWorkspace({
     [accounts, accountState.data, source.today]
   );
   const liquidRows = accountRows.filter(a => a.liquid);
-  const liquid = liquidRows.length ? liquidRows.reduce((n, a) => n + toCents(a.balance), 0) / 100 : null;
+  const liquidity = accountLiquidity(accountRows);
+  const pay = useHouseholdPayBudget({householdId, userId, scope, finance});
   const monthly = useMemo(() => overviewPeriod(source, 'month'), [source]);
-  const timeline = useMemo(
-    () =>
-      balanceTimeline(
-        source,
-        period,
-        accountState.data
-          ? {accounts, movements: accountState.data.movements, transfers: accountState.data.transfers}
-          : null
-      ),
-    [source, period, accounts, accountState.data]
-  );
+  const monthBudget = budgetAvailability(monthly.flow);
+  const fortnightBudget = pay.source ? budgetAvailability(overviewPeriod(pay.source, pay.window.period).flow) : null;
+  const missingPeriod = period !== 'month' && !fortnightBudget;
+  const budget = period === 'month' ? monthBudget : fortnightBudget || monthBudget;
+  // The chart stays calendar-based for custom cuts that span months.
+  const chartPeriod = pay.customized ? 'month' : period;
+  const timeline = useMemo(() => balanceTimeline(source, chartPeriod, null), [source, chartPeriod]);
   const cards = useMemo(
     () =>
       accountState.data
@@ -252,23 +251,20 @@ export default function HomeMoneyWorkspace({
         : [],
     [accounts, accountState.data, source.today]
   );
-  // Cards due this month (or with no due day configured) are paid from the same liquid money.
-  const monthEndDate = periodBounds(fullSource.month, 'month').end;
-  // A card already planned as a pending recurring payment ("Pago Visa", "Tarjeta …") is counted there, not twice.
-  const cardsDue = unreservedCardPayments(cards, source, monthEndDate);
-  // Goals belong to the household: the personal lens does not reserve them from personal accounts.
-  const goalSaved =
-    scope === 'household' ? goalBalance(finance.goals || [], finance.goalEntries || [], source.today) : 0;
-  const margin = homeMargin(monthly.flow, accountState.loading ? null : liquid, {goalSaved, cardsDue});
-  // The three figures always add up: registered − pending (payments and cards) − reserved (goals and plan) = margin.
-  const dueTotal = (toCents(margin.pending) + toCents(margin.cards)) / 100,
-    reservedTotal = (toCents(margin.reserved) + toCents(margin.goals)) / 100;
-  const allowance = dailyAllowance(margin.margin, timeline);
+  // Card purchases affect the budget, but the bank changes only on settlement.
+  const allowance =
+    period !== 'month' && pay.customized
+      ? {
+          perDay: Math.max(0, Math.floor(budget.available / Math.max(1, dayDiff(source.today, pay.window.end) + 1))),
+          until: pay.window.end
+        }
+      : dailyAllowance(budget.available, timeline);
   const dayOfMonth = Number(fullSource.today.slice(8)),
     monthEnd = Number(periodBounds(fullSource.month, 'second').end.slice(8));
   // Near the end of a fortnight (or right after the first one closes) the recap is offered as today's action.
-  const recapPeriod: 'first' | 'second' | null =
-    dayOfMonth >= 13 && dayOfMonth <= 15
+  const recapPeriod: 'first' | 'second' | null = pay.customized
+    ? null
+    : dayOfMonth >= 13 && dayOfMonth <= 15
       ? 'first'
       : dayOfMonth === 16 || dayOfMonth === 17
         ? 'first'
@@ -323,27 +319,12 @@ export default function HomeMoneyWorkspace({
     const latest = liquidRows.map(a => rec.find(r => r.account_id === a.id)?.cutoff || '');
     return latest.every(Boolean) ? latest.sort()[0] : null;
   }, [accountState.data, liquidRows]);
-  const half = halfOf(source.today),
-    bounds = periodBounds(source.month, half);
-  const fortnightLabel = Number(bounds.start.slice(8)) + '–' + shortDate(bounds.end);
+  const half = pay.customized ? pay.window.period : halfOf(source.today);
+  const fortnightLabel = payWindowLabel(pay.window);
   // The budget card always shows the month: plans are saved monthly and the image of each rubro stays stable.
   const budgets = monthly.budgets,
     visibleBudgets = showBudgets ? budgets : budgets.slice(0, 3);
-  const pendingLoading = accountState.loading || Boolean(accountState.error);
-  const chip = accountState.error
-    ? 'No pudimos verificar tus cuentas'
-    : pendingLoading
-      ? 'Verificando saldos…'
-      : margin.basis === 'accounts'
-        ? reconciledCutoff
-          ? 'Saldos conciliados al ' + shortDate(reconciledCutoff)
-          : 'Saldos registrados al ' + shortDate(source.today)
-        : 'Balance del mes al ' + shortDate(source.today);
-  const baseLabel = accountState.error
-    ? 'Dinero por verificar'
-    : margin.basis === 'accounts'
-      ? 'Dinero registrado'
-      : 'Balance del mes';
+  const chip = period === 'month' ? 'Plan del mes' : 'Plan de quincena';
   const personalEmpty = scope === 'personal' && !source.transactions.length && !source.plans.length && !accounts.length;
 
   return (
@@ -361,36 +342,30 @@ export default function HomeMoneyWorkspace({
             registrar, elige <b>Personal</b> para verlos aquí.
           </p>
         )}
-        <section className="home-kpis" aria-label="Resumen de tu dinero">
+        <section className="home-kpis" aria-label="Resumen del presupuesto">
           <Kpi
             tone="accent"
             icon={<Wallet />}
-            label={baseLabel}
-            value={pendingLoading ? null : margin.base}
-            hint={
-              margin.basis === 'accounts' ? 'Efectivo y cuentas líquidas' : 'Ingresos menos gastos y ahorro del mes'
-            }
-            onClick={() =>
-              onNavigate(margin.basis === 'accounts' ? 'presupuesto:accounts' : 'presupuesto:transactions')
-            }
+            label="Ingresos del período"
+            value={missingPeriod ? null : budget.income}
+            hint={budget.estimated ? 'Incluye ingresos planificados por recibir' : 'Ingresos ya registrados'}
+            onClick={() => onNavigate('presupuesto:income')}
           />
           <Kpi
             tone="warning"
             icon={<FileText />}
-            label="Pagos pendientes"
-            value={dueTotal}
-            hint={
-              margin.cards > 0 ? 'Pagos, fijos y tarjetas por cubrir este mes' : 'Pagos y fijos por cubrir este mes'
-            }
-            onClick={() => onNavigate('presupuesto:recurring')}
+            label="Gastos registrados"
+            value={missingPeriod ? null : budget.expenses}
+            hint="Incluye compras con tarjeta, débito y efectivo"
+            onClick={() => onNavigate('presupuesto:transactions')}
           />
           <Kpi
             tone="success"
             icon={<PiggyBank />}
-            label="Ahorro reservado"
-            value={reservedTotal}
-            hint={margin.goals > 0 ? 'Lo apartado en metas y el ahorro del plan' : 'Ahorro del plan aún por apartar'}
-            onClick={() => onNavigate('presupuesto:goals')}
+            label="Fijos y ahorro pendientes"
+            value={missingPeriod ? null : budget.commitments + budget.savingsPending}
+            hint="Compromisos aún por pagar o apartar"
+            onClick={() => onNavigate('presupuesto:fortnight')}
           />
         </section>
 
@@ -403,124 +378,176 @@ export default function HomeMoneyWorkspace({
             </span>
             <span className="home-hero-chip">{chip}</span>
             <MoreMenu
-              label="Opciones del margen"
+              label="Opciones del presupuesto"
               className="home-hero-more"
               icon={<Ellipsis />}
               items={[
-                ...(!pendingLoading
-                  ? [{label: calculation ? 'Ocultar cálculo' : 'Ver cálculo', onSelect: () => setCalculation(v => !v)}]
-                  : []),
-                {label: 'Ver cuentas', onSelect: () => onNavigate('presupuesto:accounts')},
-                {label: 'Ver movimientos', onSelect: () => onNavigate('presupuesto:transactions')}
+                {label: calculation ? 'Ocultar cálculo' : 'Ver cálculo', onSelect: () => setCalculation(v => !v)},
+                {label: 'Ingresos', onSelect: () => onNavigate('presupuesto:income')},
+                {label: 'Gastos', onSelect: () => onNavigate('presupuesto:transactions')},
+                {label: 'Bancos y efectivo', onSelect: () => onNavigate('presupuesto:accounts')}
               ]}
             />
           </div>
           <div className="home-hero-body">
             <p id="home-margin-label" className="home-hero-label">
-              Margen disponible
+              Disponible para gastar · {period === 'month' ? 'Mes' : 'Quincena'}
             </p>
-            <h2 className={margin.margin < 0 ? 'is-negative' : ''}>
-              {pendingLoading ? (
+            <h2 className={budget.available < 0 ? 'is-negative' : ''}>
+              {missingPeriod ? (
                 <span className="home-skeleton-text">Q —</span>
               ) : (
-                <Amount value={margin.margin} animate />
+                <Amount value={budget.available} animate />
               )}
             </h2>
-            <p className="home-hero-sub">
-              {margin.basis === 'accounts'
-                ? 'Después de pagos, tarjetas y lo apartado para metas'
-                : 'Después de pagos y ahorro reservado'}
-            </p>
-            {!pendingLoading && (
+            {missingPeriod && (
+              <p className="home-budget-estimate" role={pay.error ? 'alert' : 'status'}>
+                <Info size={15} aria-hidden="true" />
+                {pay.error || 'Consultando los movimientos de la quincena…'}
+              </p>
+            )}
+            <p className="home-hero-sub">Ingresos del presupuesto menos gastos, pagos fijos y ahorro comprometido.</p>
+            {!missingPeriod && budget.incomePending > 0 && (
+              <p className="home-budget-estimate">
+                <Info size={15} aria-hidden="true" />
+                Incluye {money(budget.incomePending)} de ingresos previstos que aún no se han recibido.
+              </p>
+            )}
+            {!missingPeriod && (
               <p className="home-hero-daily">
                 {allowance.perDay >= 1 ? (
                   <>
-                    Puedes gastar <b>{money(Math.floor(allowance.perDay))}</b> por día hasta el{' '}
+                    Margen orientativo: <b>{money(Math.floor(allowance.perDay))}</b> diarios hasta el{' '}
                     {shortDate(allowance.until)}
                   </>
                 ) : (
-                  <>Sin margen para gastos variables hasta el {shortDate(allowance.until)}</>
+                  <>Sin margen para gastos adicionales hasta el {shortDate(allowance.until)}</>
                 )}
               </p>
             )}
-            {!pendingLoading && (
-              <button
-                type="button"
-                className="home-hero-calc-toggle"
-                aria-expanded={calculation}
-                onClick={() => setCalculation(v => !v)}
-              >
-                {calculation ? 'Ocultar cálculo' : 'Ver cálculo'} <ArrowUpRight size={14} aria-hidden="true" />
-              </button>
-            )}
+            <button
+              type="button"
+              className="home-hero-calc-toggle"
+              aria-expanded={calculation}
+              onClick={() => setCalculation(v => !v)}
+            >
+              {calculation ? 'Ocultar cálculo' : 'Ver cálculo'}
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </button>
           </div>
-          {calculation && !pendingLoading && (
+          {calculation && !missingPeriod && (
             <div className="home-hero-calc">
               <div>
-                <span>
-                  {margin.basis === 'accounts'
-                    ? 'Dinero registrado en efectivo y cuentas'
-                    : 'Ingresos − gastos − ahorro del mes'}
-                </span>
-                <b>{money(margin.base)}</b>
+                <span>{budget.estimated ? 'Ingresos presupuestados' : 'Ingresos registrados'}</span>
+                <b>{money(budget.income)}</b>
               </div>
-              {margin.goals > 0 && (
+              <div>
+                <span>Gastos registrados</span>
+                <b>− {money(budget.expenses)}</b>
+              </div>
+              {budget.savings !== 0 && (
                 <div>
-                  <span>Apartado en tus metas de ahorro</span>
-                  <b>− {money(margin.goals)}</b>
-                </div>
-              )}
-              {margin.cards > 0 && (
-                <div>
-                  <span>Tarjetas por pagar este mes</span>
-                  <b>− {money(margin.cards)}</b>
+                  <span>{budget.savings > 0 ? 'Ahorro ya apartado' : 'Ahorro retirado'}</span>
+                  <b>
+                    {budget.savings > 0 ? '−' : '+'} {money(Math.abs(budget.savings))}
+                  </b>
                 </div>
               )}
               <div>
-                <span>Pagos y fijos pendientes del mes</span>
-                <b>− {money(margin.pending)}</b>
+                <span>Pagos y gastos fijos pendientes</span>
+                <b>− {money(budget.commitments)}</b>
               </div>
               <div>
                 <span>Ahorro del plan aún por apartar</span>
-                <b>− {money(margin.reserved)}</b>
+                <b>− {money(budget.savingsPending)}</b>
               </div>
               <div className="home-hero-calc-total">
-                <span>Margen disponible</span>
-                <b>{money(margin.margin)}</b>
+                <span>Presupuesto disponible</span>
+                <b>{money(budget.available)}</b>
               </div>
               <p>
-                {margin.basis === 'accounts'
-                  ? 'Usa los saldos registrados de tus cuentas líquidas (efectivo, bancos y ahorro), descuenta lo que ya apartaste para metas y lo que debes pagar de tus tarjetas este mes. No incluye inversiones.'
-                  : 'Aún no hay cuentas registradas: se usa el resultado registrado del mes.'}{' '}
-                No descuenta el presupuesto variable que todavía podrías usar ni suma ingresos esperados.
+                Es una estimación presupuestaria, no el saldo del banco. Las compras con tarjeta cuentan como gasto al
+                registrarlas; pagar después esa deuda mediante una transferencia no vuelve a descontarlas.
               </p>
             </div>
           )}
-          <div className="home-hero-minis" aria-label="Detalle del margen">
-            <button type="button" onClick={() => onNavigate('presupuesto:accounts')}>
-              <Wallet aria-hidden="true" />
+          <div className="home-hero-minis home-hero-periods" role="group" aria-label="Presupuesto por período">
+            <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(half)}>
+              <CalendarDays aria-hidden="true" />
               <span>
-                <small>Registrado</small>
-                <strong>{pendingLoading ? 'Q —' : money(margin.base)}</strong>
+                <small>Quincena · {fortnightLabel}</small>
+                <strong>{fortnightBudget ? money(fortnightBudget.available) : 'Q —'}</strong>
               </span>
             </button>
-            <button type="button" onClick={() => onNavigate('presupuesto:recurring')}>
-              <FileText aria-hidden="true" />
+            <button type="button" aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>
+              <Wallet aria-hidden="true" />
               <span>
-                <small>Pendiente</small>
-                <strong>{money(dueTotal)}</strong>
+                <small>Mes completo</small>
+                <strong>{money(monthBudget.available)}</strong>
               </span>
             </button>
           </div>
         </section>
 
+        <section className="home-card home-liquidity" aria-labelledby="home-liquidity-title">
+          <div className="home-card-head">
+            <div>
+              <h3 id="home-liquidity-title">Dinero en bancos y efectivo</h3>
+              <p className="home-liquidity-subtitle">
+                Saldos registrados, independientes del presupuesto
+                {reconciledCutoff ? ' · Última conciliación: ' + shortDate(reconciledCutoff) : ''}
+              </p>
+            </div>
+            <button type="button" className="home-link" onClick={() => onNavigate('presupuesto:accounts')}>
+              Ver cuentas <ArrowRight size={15} aria-hidden="true" />
+            </button>
+          </div>
+          {accountState.loading ? (
+            <p className="home-caption" role="status">
+              Consultando saldos de tus cuentas…
+            </p>
+          ) : accountState.error ? (
+            <p className="home-caption" role="alert">
+              {accountState.error} El presupuesto sigue disponible.
+            </p>
+          ) : (
+            <>
+              <div className="home-liquidity-totals">
+                <div>
+                  <Landmark size={18} aria-hidden="true" />
+                  <span>Total bancos</span>
+                  <strong>{money(liquidity.banks)}</strong>
+                </div>
+                <div>
+                  <Wallet size={18} aria-hidden="true" />
+                  <span>Total efectivo</span>
+                  <strong>{money(liquidity.cash)}</strong>
+                </div>
+                <div className="home-liquidity-total">
+                  <Coins size={18} aria-hidden="true" />
+                  <span>Total registrado</span>
+                  <strong>{money(liquidity.total)}</strong>
+                </div>
+              </div>
+              <p className="home-liquidity-note">
+                Los saldos cambian solo con movimientos vinculados a las cuentas o transferencias. Una compra con
+                crédito aumenta la deuda y afecta el presupuesto, pero no descuenta dinero del banco hasta pagarla.
+              </p>
+            </>
+          )}
+        </section>
+
         <section className="home-card home-fortnight" aria-labelledby="home-fortnight-title">
           <div className="home-card-head">
-            <h3 id="home-fortnight-title">{period === 'month' ? 'Tu mes, día a día' : 'Tu quincena'}</h3>
+            <h3 id="home-fortnight-title">
+              {pay.customized ? 'Flujo del mes calendario' : period === 'month' ? 'Tu mes, día a día' : 'Tu quincena'}
+            </h3>
             <div className="home-segmented home-segmented--small" role="group" aria-label="Período de la gráfica">
-              <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(half)}>
-                {fortnightLabel}
-              </button>
+              {!pay.customized && (
+                <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(half)}>
+                  {fortnightLabel}
+                </button>
+              )}
               <button type="button" aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>
                 Mes
               </button>
@@ -542,25 +569,24 @@ export default function HomeMoneyWorkspace({
               items={[
                 {label: 'Abrir quincenas', onSelect: () => onNavigate('presupuesto:fortnight')},
                 {label: 'Ver pagos recurrentes', onSelect: () => onNavigate('presupuesto:recurring')},
-                {
-                  label: 'Resumen de la quincena',
-                  onSelect: () => setRecap(halfOf(fullSource.today) as 'first' | 'second')
-                }
+                ...(!pay.customized
+                  ? [
+                      {
+                        label: 'Resumen de la quincena',
+                        onSelect: () => setRecap(halfOf(fullSource.today) as 'first' | 'second')
+                      }
+                    ]
+                  : [])
               ]}
             />
           </div>
-          {pendingLoading ? (
-            <p className="home-caption" role="status">
-              {accountState.error
-                ? 'Reintenta la consulta de Tus cuentas para verificar la gráfica y el margen.'
-                : 'Verificando saldos para la gráfica…'}
-            </p>
-          ) : (
-            <>
-              <BalanceChart timeline={timeline} />
-              <TimelineStatus timeline={timeline} onNavigate={onNavigate} />
-            </>
-          )}
+          <BalanceChart timeline={timeline} />
+          <TimelineStatus timeline={timeline} onNavigate={onNavigate} />
+          <p className="home-liquidity-note">
+            {pay.customized
+              ? 'La gráfica es mensual. El presupuesto quincenal superior utiliza los cortes de tu hogar.'
+              : 'La gráfica muestra ingresos y gastos registrados y proyectados del período, no saldos bancarios.'}
+          </p>
         </section>
 
         <section className="home-card home-budget" aria-labelledby="home-budget-title">
@@ -625,9 +651,9 @@ export default function HomeMoneyWorkspace({
           agendaError={today.agendaError}
           onOpenNotification={today.onOpenNotification}
           onNavigate={route =>
-            route === 'nh:recap'
+            route === 'nh:recap' && !pay.customized
               ? setRecap(recapPeriod || (halfOf(fullSource.today) as 'first' | 'second'))
-              : onNavigate(route)
+              : onNavigate(route === 'nh:recap' ? 'presupuesto:fortnight' : route)
           }
         />
 
