@@ -552,10 +552,10 @@ export default function HomeMoneyWorkspace({
               items={[
                 {label: 'Abrir quincenas', onSelect: () => onNavigate('presupuesto:fortnight')},
                 {label: 'Ver pagos recurrentes', onSelect: () => onNavigate('presupuesto:recurring')},
-                {
+                ...(!pay.customized ? [{
                   label: 'Resumen de la quincena',
                   onSelect: () => setRecap(halfOf(fullSource.today) as 'first' | 'second')
-                }
+                }] : [])
               ]}
             />
           </div>
@@ -630,9 +630,9 @@ export default function HomeMoneyWorkspace({
           agendaError={today.agendaError}
           onOpenNotification={today.onOpenNotification}
           onNavigate={route =>
-            route === 'nh:recap'
+            route === 'nh:recap' && !pay.customized
               ? setRecap(recapPeriod || (halfOf(fullSource.today) as 'first' | 'second'))
-              : onNavigate(route)
+              : onNavigate(route === 'nh:recap' ? 'presupuesto:fortnight' : route)
           }
         />
 
