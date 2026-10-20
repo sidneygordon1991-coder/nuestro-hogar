@@ -1,5 +1,19 @@
 # Pagos con crédito o dinero existente — v0.35.0
 
+## Corrección de guardado — v0.35.1
+
+El error `permission denied for schema household_integrity` impedía guardar movimientos con usuarios normales. La función pública de guardado y el trigger de inserción consultaban un helper en el esquema privado. Aunque el helper tenía EXECUTE, el usuario no tenía USAGE en ese esquema. El entorno anterior de pruebas otorgaba ese USAGE y por eso no detectó el fallo. Las respuestas simuladas del navegador tampoco ejecutaban PostgreSQL.
+
+La migración `20261020085406_fix_payment_private_schema_permissions.sql` elimina esas llamadas privadas desde código SECURITY INVOKER: clasifica la cuenta mediante una consulta directa a `public.finance_accounts`, sometida a RLS. No otorga USAGE ni cambia los escritores a SECURITY DEFINER. Se retira el EXECUTE innecesario del helper para authenticated. La clasificación, idempotencia, reparto y registros históricos conservan su comportamiento.
+
+`src/lib/paymentPermissions.integration.test.ts` se ejecuta en cada `npm test` y en CI usando PostgreSQL embebido, las definiciones reales de los escritores y una fixture mínima de permisos. Primero reproduce el fallo con v35, luego aplica la corrección dos veces y comprueba guardados, excepciones, reintentos, inserciones directas, RLS y denegación a anónimos. No concede acceso al esquema privado. Las funciones de reparto y patrimonio se sustituyen solamente en esta fixture; sus reglas completas se verifican por separado en los escenarios SQL.
+
+`supabase/tests/payment_budget_schema_permissions.sql` verifica las mismas rutas con las políticas y funciones completas, identidades sintéticas y ROLLBACK. Se ejecutó también contra el servidor con su ACL real, sin la instrucción REVOKE reservada para el entorno aislado; no quedaron identidades de prueba ni cambios en las huellas de las filas financieras existentes.
+
+`src/GlobalCommandCenter.tsx` y `src/styles/components/quick-entry.css` distinguen errores y confirmaciones. Los errores de movimientos se muestran una sola vez dentro del borrador, sin un aviso verde con una marca de éxito. `tests/e2e/payment-budget.e2e.mjs` comprueba que el error conserve importe, descripción y solicitud, y que el reintento use la misma identidad.
+
+El arreglo del servidor permite reintentar los borradores existentes sin esperar la actualización de la PWA. La versión 0.35.1 / caché v35.1 incluye el ajuste del aviso. La verificación de publicación y los resultados finales están en el PR de esta corrección.
+
 ## Comportamiento
 
 Regla elegida por el propietario: efectivo, débito, ahorro y transferencias a un comercio usan saldo existente, sin consumir presupuesto por defecto. Una compra con crédito consume presupuesto y aumenta la deuda. Todo desembolso sigue apareciendo en los gastos reales, incluso si queda fuera del presupuesto.

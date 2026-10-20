@@ -19,6 +19,7 @@ import {
   ReceiptText,
   Search,
   ShoppingCart,
+  TriangleAlert,
   User,
   Users,
   X
@@ -93,7 +94,12 @@ export default function GlobalCommandCenter({
     [members, setMembers] = useState<Member[]>([]),
     [userId, setUserId] = useState('');
   const [busy, setBusy] = useState(false),
-    [message, setMessage] = useState('');
+    [message, setMessageText] = useState(''),
+    [messageTone, setMessageTone] = useState<'error' | 'success' | 'info'>('error');
+  function setMessage(text: string) {
+    setMessageText(text);
+    setMessageTone('error');
+  }
   const [history, setHistory] = useState<QuickHistoryRow[]>([]),
     [rateValue, setRateValue] = useState<unknown>(null),
     [prefill, setPrefill] = useState<RepeatChip | null>(null),
@@ -270,6 +276,7 @@ export default function GlobalCommandCenter({
   function success(text: string) {
     setBusy(false);
     setMessage(text);
+    setMessageTone('success');
     setAction(null);
     onChanged?.();
   }
@@ -490,6 +497,7 @@ export default function GlobalCommandCenter({
       if (existing?.id) {
         setBusy(false);
         setMessage(text + ' ya está pendiente en Supermercado.');
+        setMessageTone('info');
         return;
       }
       const {error} = await supabase.from('list_items').insert({
@@ -709,15 +717,19 @@ export default function GlobalCommandCenter({
               </button>
             </div>
 
-            {message && (
-              <div className="global-command-message">
-                <Check />
-                {message}
-                <button onClick={() => setMessage('')}>
-                  <X />
-                </button>
-              </div>
-            )}
+            {message &&
+              !(messageTone === 'error' && mode === 'quick' && (action === 'expense' || action === 'income')) && (
+                <div
+                  className={'global-command-message is-' + messageTone}
+                  role={messageTone === 'error' ? 'alert' : 'status'}
+                >
+                  {messageTone === 'success' ? <Check aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
+                  <span>{message}</span>
+                  <button onClick={() => setMessage('')} aria-label="Cerrar aviso">
+                    <X />
+                  </button>
+                </div>
+              )}
 
             {mode === 'search' && (
               <>

@@ -1,5 +1,7 @@
 /* Registro en 3 toques: amount first, repeat chips, currency and audience toggles, success state. */
 .quick-entry{min-width:0}
+.global-command-message.is-error{border-color:var(--nh-danger);background:var(--nh-danger-soft);color:var(--nh-danger)}
+.global-command-message.is-info{border-color:var(--nh-border);background:var(--nh-accent-soft);color:var(--nh-text)}
 .quick-entry-form .quick-form-title{flex-wrap:wrap}
 .quick-entry-form .quick-form-title>div{flex:1 1 auto;min-width:0}
 
