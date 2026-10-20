@@ -65,7 +65,7 @@ for (const theme of ['light', 'dark'])
     await accountFixture(s);
     try {
       await ready(s, '');
-      await expect(s.page.locator('.home-hero-minis')).toContainText('1,800');
+      await expect(s.page.locator('.home-liquid-total')).toContainText('1,800');
       await expect(s.page.locator('.home-hero')).not.toContainText('99,999');
       await expect(s.page.locator('.home-hero-chip')).toContainText('Saldos registrados');
       await s.page.locator('.home-hero-calc-toggle').click();
@@ -203,14 +203,14 @@ test('accounts fail independently and retry without replacing missing balances w
     const accounts = s.page.getByRole('region', {name: 'Tus cuentas'});
     await expect(accounts.getByRole('alert')).toContainText('No pudimos verificar');
     await expect(accounts.locator('.home-account-list')).toHaveCount(0);
-    await expect(s.page.getByRole('region', {name: 'Margen disponible'})).toBeVisible();
+    await expect(s.page.getByRole('region', {name: 'Cuentas y efectivo'})).toBeVisible();
     await expect(s.page.locator('.home-hero-chip')).toContainText('No pudimos verificar');
     await expect(s.page.locator('.home-hero h2')).toHaveText('Q —');
     await expect(s.page.locator('.home-chart')).toHaveCount(0);
     fail = false;
     await accounts.getByRole('button', {name: 'Reintentar cuentas', exact: true}).click();
     await expect(accounts).toContainText('Cuenta recuperada');
-    await expect(s.page.locator('.home-hero-minis')).toContainText('800');
+    await expect(s.page.locator('.home-liquid-total')).toContainText('800');
     await healthy(s);
   } finally {
     await s.context.close();

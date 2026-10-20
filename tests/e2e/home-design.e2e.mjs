@@ -58,13 +58,14 @@ for (const theme of ['light', 'dark']) {
         await expect(s.page.locator('.workspace-header .home-title-desktop')).toHaveText('Tu dinero, en perspectiva.');
         await expect(s.page.locator('.desktop-rail')).toBeVisible();
         await expect(s.page.locator('.desktop-rail .rail-item.active')).toHaveText('Hoy');
-        // The margin shown in the hero is exactly registered money − pending payments − savings still to set aside.
+        // The hero shows the same registered cash total as the first KPI; budget remaining is a separate figure.
         const kpis = await s.page.locator('.home-kpi strong').allInnerTexts();
         expect(kpis).toHaveLength(3);
         const hero = await s.page.locator('.home-hero h2').innerText();
-        expect(amount(hero)).toBe(amount(kpis[0]) - amount(kpis[1]) - amount(kpis[2]));
+        expect(amount(hero)).toBe(amount(kpis[0]));
         await s.page.locator('.home-hero-calc-toggle').click();
-        await expect(s.page.locator('.home-hero-calc-total')).toContainText(hero);
+        await expect(s.page.locator('.home-hero-calc')).toContainText('Margen después de compromisos');
+        await expect(s.page.getByRole('region', {name: 'Presupuesto disponible', exact: true})).toBeVisible();
         await expect(s.page.getByRole('region', {name: 'Tu quincena'})).toBeVisible();
         await expect(s.page.locator('.home-legend')).toContainText('Proyectado');
         await expect(s.page.getByRole('region', {name: 'Así va tu presupuesto'})).toBeVisible();
@@ -120,7 +121,7 @@ for (const theme of ['light', 'dark']) {
       if (
         path.startsWith('/rest/') &&
         ['POST', 'PATCH', 'DELETE'].includes(r.method()) &&
-        !/\/rpc\/(get_my_household_access|get_home_finance_source|get_my_household_storage|get_my_platform_access|refresh_my_notifications)$/.test(
+        !/\/rpc\/(get_my_household_access|get_home_finance_source|get_my_household_storage|get_my_platform_access|get_finance_cycle_defaults|refresh_my_notifications)$/.test(
           path
         )
       )

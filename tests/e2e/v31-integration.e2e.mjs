@@ -46,7 +46,12 @@ test('the v31 summary uses its complete server read and never substitutes legacy
   });
   try {
     await ready(s, '');
-    await expect(s.page.locator('.home-hero-minis')).toContainText('1,234.56');
+    await s.page
+      .getByRole('group', {name: 'Período del presupuesto disponible'})
+      .getByRole('button', {name: 'Mes', exact: true})
+      .click();
+    await expect(s.page.locator('.home-budget-remaining')).toContainText('1,234.56');
+    await expect(s.page.locator('.home-liquid-total')).toContainText('Q 0');
     mode = 'failed';
     await s.page.getByRole('button', {name: 'Actualizar resumen', exact: true}).click();
     await expect(s.page.getByRole('alert')).toContainText('No pudimos verificar el resumen');
@@ -57,7 +62,12 @@ test('the v31 summary uses its complete server read and never substitutes legacy
     await expect(s.page.locator('.home-hero')).toHaveCount(0);
     mode = 'valid';
     await s.page.getByRole('alert').getByRole('button', {name: 'Reintentar', exact: true}).click();
-    await expect(s.page.locator('.home-hero-minis')).toContainText('1,234.56');
+    await s.page
+      .getByRole('group', {name: 'Período del presupuesto disponible'})
+      .getByRole('button', {name: 'Mes', exact: true})
+      .click();
+    await expect(s.page.locator('.home-budget-remaining')).toContainText('1,234.56');
+    await expect(s.page.locator('.home-liquid-total')).toContainText('Q 0');
     await healthy(s);
   } finally {
     await s.context.close();

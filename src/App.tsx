@@ -144,7 +144,7 @@ async function readFinanceSeparately(
       fetchAllRows((from, to) =>
         supabase
           .from('transactions')
-          .select('id,description,amount,type,transaction_date,category_id,paid_by,is_shared')
+          .select('id,description,amount,type,transaction_date,category_id,paid_by,is_shared,budget_included')
           .eq('household_id', id)
           .gte('transaction_date', period.start)
           .lte('transaction_date', period.end)
@@ -200,7 +200,7 @@ async function readFinanceSeparately(
     ),
     supabase
       .from('finance_income_plans')
-      .select('user_id,month,expected_amount,first_half_amount,second_half_amount')
+      .select('user_id,month,expected_amount,first_half_amount,second_half_amount,cycle_first_day,cycle_second_day')
       .eq('household_id', id)
       .eq('month', period.month),
     supabase.from('household_members').select('user_id').eq('household_id', id)

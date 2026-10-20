@@ -53,9 +53,11 @@ test('home and Finance agree; future movements remain visible without becoming a
   const s = await setup(browser, {rich: true, futureMovement: true});
   try {
     await ready(s, '');
-    await expect(s.page.locator('.home-kpi').first()).toContainText('Balance del mes');
+    await expect(s.page.locator('.home-kpi').first()).toContainText('Dinero en cuentas');
     await expect(s.page.locator('.home-kpi strong').first()).toHaveText(/\d/);
-    const balance = await s.page.locator('.home-kpi strong').first().innerText();
+    // Finance's real monthly balance also deducts savings, so compare the retained monthly calculation.
+    await s.page.locator('.home-hero-calc-toggle').click();
+    const balance = await s.page.locator('.home-hero-calc > div').first().locator('b').innerText();
     await ready(s, 'presupuesto');
     await expect(s.page.locator('.studio-finance-hero h3')).toHaveText(balance);
     await expect(s.page.locator('.finance-cutoff-note')).toContainText('fecha futura');
@@ -211,17 +213,16 @@ test('a delayed response from another household cannot overwrite the active bala
     });
     await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/');
     await s.page.getByLabel('Cambiar de familia', {exact: true}).selectOption(rid);
-    await expect(s.page.locator('.home-kpi').first()).toContainText('Balance del mes');
+    await expect(s.page.locator('.home-kpi').first()).toContainText('Dinero en cuentas');
     await expect(s.page.locator('.home-kpi strong').first()).toHaveText(/\d/);
-    const current = await s.page.locator('.home-kpi strong').first().innerText();
+    const current = await s.page.locator('.home-budget-remaining').innerText();
+    expect(current).toContain('2,222');
     release();
     await s.page.waitForResponse(
       r => r.url().includes('/transactions?') && r.url().includes(encodeURIComponent('eq.' + hh))
     );
     await expect(s.page.getByLabel('Cambiar de familia', {exact: true})).toHaveValue(rid);
-    await expect(s.page.locator('.home-kpi strong').first()).toHaveText(current);
-    await s.page.locator('.home-hero-calc-toggle').click();
-    await expect(s.page.locator('.home-hero-calc')).toContainText(current);
+    await expect(s.page.locator('.home-budget-remaining')).toHaveText(current);
   } finally {
     release();
     await s.context.close();

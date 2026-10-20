@@ -52,6 +52,8 @@ import {HomeCards, HomePrivate, HomeSettlements} from './HomeExtras';
 import {creditCardStatus, unreservedCardPayments, type CardAccount} from './lib/creditCards';
 import type {InstallmentPlan} from './lib/installments';
 import type {DailyAgendaItem} from './lib/dailyAgenda';
+import HomeBudgetAvailability from './HomeBudgetAvailability';
+import {accountAvailability} from './lib/homeAvailability';
 
 const shortDate = (date: string) =>
   new Date(date + 'T12:00').toLocaleDateString('es-GT', {day: 'numeric', month: 'short'}).replace('.', '');
@@ -226,6 +228,7 @@ export default function HomeMoneyWorkspace({
     [accounts, accountState.data, source.today]
   );
   const liquidRows = accountRows.filter(a => a.liquid);
+  const recorded = accountAvailability(accountRows);
   const liquid = liquidRows.length ? liquidRows.reduce((n, a) => n + toCents(a.balance), 0) / 100 : null;
   const monthly = useMemo(() => overviewPeriod(source, 'month'), [source]);
   const timeline = useMemo(
@@ -338,12 +341,12 @@ export default function HomeMoneyWorkspace({
         ? reconciledCutoff
           ? 'Saldos conciliados al ' + shortDate(reconciledCutoff)
           : 'Saldos registrados al ' + shortDate(source.today)
-        : 'Balance del mes al ' + shortDate(source.today);
+        : 'Sin cuentas líquidas registradas';
   const baseLabel = accountState.error
     ? 'Dinero por verificar'
     : margin.basis === 'accounts'
-      ? 'Dinero registrado'
-      : 'Balance del mes';
+      ? 'Dinero en cuentas'
+      : 'Dinero en cuentas';
   const personalEmpty = scope === 'personal' && !source.transactions.length && !source.plans.length && !accounts.length;
 
   return (
@@ -366,13 +369,9 @@ export default function HomeMoneyWorkspace({
             tone="accent"
             icon={<Wallet />}
             label={baseLabel}
-            value={pendingLoading ? null : margin.base}
-            hint={
-              margin.basis === 'accounts' ? 'Efectivo y cuentas líquidas' : 'Ingresos menos gastos y ahorro del mes'
-            }
-            onClick={() =>
-              onNavigate(margin.basis === 'accounts' ? 'presupuesto:accounts' : 'presupuesto:transactions')
-            }
+            value={pendingLoading ? null : recorded.total}
+            hint="Saldos de bancos, ahorro y efectivo registrados"
+            onClick={() => onNavigate('presupuesto:accounts')}
           />
           <Kpi
             tone="warning"
@@ -408,7 +407,12 @@ export default function HomeMoneyWorkspace({
               icon={<Ellipsis />}
               items={[
                 ...(!pendingLoading
-                  ? [{label: calculation ? 'Ocultar cálculo' : 'Ver cálculo', onSelect: () => setCalculation(v => !v)}]
+                  ? [
+                      {
+                        label: calculation ? 'Ocultar compromisos' : 'Ver compromisos y metas',
+                        onSelect: () => setCalculation(v => !v)
+                      }
+                    ]
                   : []),
                 {label: 'Ver cuentas', onSelect: () => onNavigate('presupuesto:accounts')},
                 {label: 'Ver movimientos', onSelect: () => onNavigate('presupuesto:transactions')}
@@ -417,32 +421,20 @@ export default function HomeMoneyWorkspace({
           </div>
           <div className="home-hero-body">
             <p id="home-margin-label" className="home-hero-label">
-              Margen disponible
+              Cuentas y efectivo
             </p>
-            <h2 className={margin.margin < 0 ? 'is-negative' : ''}>
+            <h2 className={'home-liquid-total ' + (recorded.total < 0 ? 'is-negative' : '')}>
               {pendingLoading ? (
                 <span className="home-skeleton-text">Q —</span>
               ) : (
-                <Amount value={margin.margin} animate />
+                <Amount value={recorded.total} animate />
               )}
             </h2>
             <p className="home-hero-sub">
-              {margin.basis === 'accounts'
-                ? 'Después de pagos, tarjetas y lo apartado para metas'
-                : 'Después de pagos y ahorro reservado'}
+              {recorded.count
+                ? 'Saldo registrado hoy, independiente del presupuesto'
+                : 'Agrega tus cuentas y su saldo inicial para ubicar tu dinero'}
             </p>
-            {!pendingLoading && (
-              <p className="home-hero-daily">
-                {allowance.perDay >= 1 ? (
-                  <>
-                    Puedes gastar <b>{money(Math.floor(allowance.perDay))}</b> por día hasta el{' '}
-                    {shortDate(allowance.until)}
-                  </>
-                ) : (
-                  <>Sin margen para gastos variables hasta el {shortDate(allowance.until)}</>
-                )}
-              </p>
-            )}
             {!pendingLoading && (
               <button
                 type="button"
@@ -450,7 +442,8 @@ export default function HomeMoneyWorkspace({
                 aria-expanded={calculation}
                 onClick={() => setCalculation(v => !v)}
               >
-                {calculation ? 'Ocultar cálculo' : 'Ver cálculo'} <ArrowUpRight size={14} aria-hidden="true" />
+                {calculation ? 'Ocultar compromisos' : 'Ver compromisos y metas'}{' '}
+                <ArrowUpRight size={14} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -485,7 +478,7 @@ export default function HomeMoneyWorkspace({
                 <b>− {money(margin.reserved)}</b>
               </div>
               <div className="home-hero-calc-total">
-                <span>Margen disponible</span>
+                <span>Margen después de compromisos</span>
                 <b>{money(margin.margin)}</b>
               </div>
               <p>
@@ -494,24 +487,41 @@ export default function HomeMoneyWorkspace({
                   : 'Aún no hay cuentas registradas: se usa el resultado registrado del mes.'}{' '}
                 No descuenta el presupuesto variable que todavía podrías usar ni suma ingresos esperados.
               </p>
+              <p>
+                Este margen adicional es {money(margin.margin)}.{' '}
+                {allowance.perDay >= 1
+                  ? `${money(Math.floor(allowance.perDay))} por día hasta el ${shortDate(allowance.until)}.`
+                  : 'Sin margen para gastos variables.'}{' '}
+                No es el presupuesto restante del período.
+              </p>
             </div>
           )}
-          <div className="home-hero-minis" aria-label="Detalle del margen">
+          <div className="home-hero-minis" aria-label="Distribución del dinero registrado">
+            <button type="button" onClick={() => onNavigate('presupuesto:accounts')}>
+              <Landmark aria-hidden="true" />
+              <span>
+                <small>Bancos y ahorro</small>
+                <strong>{pendingLoading ? 'Q —' : money(recorded.bank)}</strong>
+              </span>
+            </button>
             <button type="button" onClick={() => onNavigate('presupuesto:accounts')}>
               <Wallet aria-hidden="true" />
               <span>
-                <small>Registrado</small>
-                <strong>{pendingLoading ? 'Q —' : money(margin.base)}</strong>
-              </span>
-            </button>
-            <button type="button" onClick={() => onNavigate('presupuesto:recurring')}>
-              <FileText aria-hidden="true" />
-              <span>
-                <small>Pendiente</small>
-                <strong>{money(dueTotal)}</strong>
+                <small>Efectivo</small>
+                <strong>{pendingLoading ? 'Q —' : money(recorded.cash)}</strong>
               </span>
             </button>
           </div>
+          <HomeBudgetAvailability
+            key={[householdId, userId, scope, fullSource.month].join(':')}
+            householdId={householdId}
+            userId={userId}
+            members={members}
+            finance={finance}
+            scope={scope}
+            demo={Boolean(demoAccounts)}
+            onNavigate={onNavigate}
+          />
         </section>
 
         <section className="home-card home-fortnight" aria-labelledby="home-fortnight-title">
