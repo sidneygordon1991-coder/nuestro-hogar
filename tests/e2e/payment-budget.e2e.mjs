@@ -57,6 +57,44 @@ async function newExpense(s) {
   await d.locator('[name=amount]').fill('100');
   return d;
 }
+test('a permission failure preserves the draft and retries once without a green success notice', async ({browser}) => {
+  const s = await fixture(browser);
+  const attempts = [];
+  let fail = true;
+  await s.page.route('**/rest/v1/rpc/save_transaction_once', r => {
+    attempts.push(r.request().postDataJSON());
+    return fail
+      ? r.fulfill({status: 403, json: {code: '42501', message: 'permission denied for schema household_integrity'}})
+      : r.fulfill({json: rid});
+  });
+  try {
+    await ready(s, '');
+    await s.page.setViewportSize({width: 390, height: 844});
+    await s.page.evaluate(() => window.dispatchEvent(new CustomEvent('nh:quick-add')));
+    const d = s.page.getByRole('dialog');
+    await d
+      .getByRole('button', {name: /^Gasto/})
+      .first()
+      .click();
+    await d.getByLabel('Monto', {exact: true}).fill('391');
+    await d.getByLabel('Descripción (opcional)', {exact: true}).fill('Electricidad QA');
+    await d.getByLabel(/^Cuenta/).selectOption(bank);
+    await d.getByRole('button', {name: 'Guardar gasto'}).click();
+    await expect(d.getByRole('alert')).toContainText('permission denied');
+    await expect(d.locator('.global-command-message')).toHaveCount(0);
+    await expect(d.locator('.quick-entry-success')).toHaveCount(0);
+    await expect(d.getByLabel('Monto', {exact: true})).toHaveValue('391');
+    await expect(d.getByLabel('Descripción (opcional)', {exact: true})).toHaveValue('Electricidad QA');
+    fail = false;
+    await d.getByRole('button', {name: 'Guardar gasto'}).click();
+    await expect(d.locator('.quick-entry-success')).toContainText('Registrado');
+    expect(attempts).toHaveLength(2);
+    expect(attempts[0]).toEqual(attempts[1]);
+    await healthy(s);
+  } finally {
+    await s.context.close();
+  }
+});
 for (const theme of ['light', 'dark'])
   test(`payment rule: credit, existing money and manual override (${theme})`, async ({browser}) => {
     const s = await fixture(browser, theme);
