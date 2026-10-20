@@ -1,0 +1,31 @@
+/* Registered money and the income budget share a card, never a calculation. */
+.home-hero .home-hero-minis{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.home-hero .home-hero-minis>button{display:flex;align-items:center;gap:9px;min-width:0;padding:10px 12px;border:1px solid color-mix(in srgb,var(--nh-hero-text) 18%,transparent);border-radius:var(--ds-radius-md);background:color-mix(in srgb,var(--nh-hero-text) 5%,transparent);color:var(--nh-hero-text);text-align:left}
+.home-hero .home-hero-minis>button>svg{width:19px;height:19px;flex:none}
+.home-hero .home-hero-minis span{display:grid;min-width:0;gap:3px}
+.home-hero .home-hero-minis small{font-size:var(--ds-fs-xs);line-height:1.3;opacity:.9}
+.home-hero .home-hero-minis strong{font-size:var(--ds-fs-lg);line-height:1.25;overflow-wrap:anywhere;white-space:normal}
+.home-budget-available{grid-column:1/-1;min-width:0;margin-top:18px;padding-top:18px;border-top:1px solid color-mix(in srgb,var(--nh-hero-text) 25%,transparent)}
+.home-available-period{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border:1px solid color-mix(in srgb,var(--nh-hero-text) 20%,transparent);border-radius:var(--ds-radius-md);background:color-mix(in srgb,var(--nh-hero-start) 38%,transparent)}
+.home-available-period>button{min-height:38px;padding:5px 7px;border:0;border-radius:var(--ds-radius-sm);color:var(--nh-hero-text);background:transparent;font:inherit;font-size:var(--ds-fs-sm);cursor:pointer}
+.home-available-period>button[aria-pressed=true]{background:var(--nh-hero-text);color:var(--nh-hero-start);font-weight:700}
+.home-budget-available button:focus-visible,.home-budget-available select:focus-visible{outline:2px solid var(--nh-hero-text);outline-offset:2px}
+.home-available-context,.home-available-title{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.home-available-context{margin:8px 0 13px;font-size:var(--ds-fs-xs)}
+.home-available-context>span{display:inline-flex;align-items:center;gap:6px;line-height:1.5}
+.home-budget-available label{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:var(--ds-fs-xs)}
+.app.app-studio .home-budget-available select{max-width:170px;min-width:0;min-height:34px;padding:4px 7px;border:1px solid color-mix(in srgb,var(--nh-hero-text) 30%,transparent);border-radius:var(--ds-radius-sm);background:var(--nh-raised);color:var(--nh-text);font:inherit;text-overflow:ellipsis}
+.home-budget-available option{background:var(--nh-surface);color:var(--nh-text)}
+.home-available-title h3{margin:0;font-size:var(--ds-fs-md);font-weight:600;line-height:1.4}
+.home-budget-remaining{display:block;margin:7px 0 9px;font-size:clamp(30px,3.2vw,42px);font-weight:700;line-height:1.15;letter-spacing:-1px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.home-budget-remaining.is-deficit::after{content:' · déficit';font-size:var(--ds-fs-sm);letter-spacing:0;font-weight:500}
+.home-budget-equation{display:grid;gap:4px;margin:0;font-size:var(--ds-fs-sm);line-height:1.5}
+.home-budget-equation>span{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.home-budget-equation b{font-weight:600}
+.home-budget-note,.home-budget-detail,.home-budget-available>p{font-size:var(--ds-fs-xs);line-height:1.6;overflow-wrap:anywhere}
+.home-budget-note{margin:9px 0 0;opacity:.95}
+.home-budget-available p>button,.home-available-details{border:0;background:none;color:inherit;font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.home-available-details{display:inline-flex;gap:5px;align-items:center;padding:7px 0 0;font-size:var(--ds-fs-xs)}
+.home-budget-detail{margin-top:10px;padding:10px 12px;border-radius:var(--ds-radius-md);background:color-mix(in srgb,var(--nh-hero-start) 50%,transparent)}
+.home-budget-detail p{margin:0}.home-budget-detail p+p{margin-top:8px}
+@media(max-width:380px){.app.app-studio .home-budget-available select{max-width:146px}.home-available-period>button{font-size:var(--ds-fs-xs)}.home-available-title{align-items:flex-start}.home-hero .home-hero-minis>button{padding:9px;gap:6px}.home-hero .home-hero-minis strong{font-size:var(--ds-fs-md)}}

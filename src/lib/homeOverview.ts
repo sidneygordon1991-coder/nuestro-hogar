@@ -212,6 +212,7 @@ export function scopeSource(
       amount: myShare.get(t.id)!,
       transaction_date: t.transaction_date,
       category_id: t.category_id,
+      budget_included: t.budget_included,
       paid_by: userId,
       is_shared: false
     }));

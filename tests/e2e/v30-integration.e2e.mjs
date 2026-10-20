@@ -27,7 +27,7 @@ test('refreshing the home source refreshes account balances and a failed read hi
   );
   try {
     await ready(s, '');
-    await expect(s.page.locator('.home-hero-minis')).toContainText('2,000.01');
+    await expect(s.page.locator('.home-liquid-total')).toContainText('2,000.01');
     for (const width of [320, 390, 1024, 1440]) {
       await s.page.setViewportSize({width, height: 844});
       await healthy(s);
@@ -40,7 +40,7 @@ test('refreshing the home source refreshes account balances and a failed read hi
     }
     balance = 3000.25;
     await s.page.getByRole('button', {name: 'Actualizar resumen', exact: true}).click();
-    await expect(s.page.locator('.home-hero-minis')).toContainText('3,000.25');
+    await expect(s.page.locator('.home-liquid-total')).toContainText('3,000.25');
     fail = true;
     await s.page.getByRole('button', {name: 'Actualizar resumen', exact: true}).click();
     await expect(s.page.locator('.home-hero-chip')).toContainText('No pudimos verificar');
@@ -53,7 +53,7 @@ test('refreshing the home source refreshes account balances and a failed read hi
       .getByRole('region', {name: 'Tus cuentas', exact: true})
       .getByRole('button', {name: 'Reintentar cuentas', exact: true})
       .click();
-    await expect(s.page.locator('.home-hero-minis')).toContainText('4,000.75');
+    await expect(s.page.locator('.home-liquid-total')).toContainText('4,000.75');
     await expect(s.page.locator('.home-chart svg')).toBeVisible();
     await healthy(s);
   } finally {
@@ -159,7 +159,12 @@ test('home and Finance include every monthly page and never show a partial resul
   });
   try {
     await ready(s, '');
-    await expect(s.page.locator('.home-hero-minis')).toContainText('3,999');
+    await s.page
+      .getByRole('group', {name: 'Período del presupuesto disponible'})
+      .getByRole('button', {name: 'Mes', exact: true})
+      .click();
+    await expect(s.page.locator('.home-budget-remaining')).toContainText('3,999');
+    await expect(s.page.locator('.home-liquid-total')).toContainText('Q 0');
     expect(offsets).toContain(1000);
     await ready(s, 'presupuesto');
     await expect(s.page.locator('.studio-finance-hero h3')).toContainText('3,999');
@@ -172,7 +177,12 @@ test('home and Finance include every monthly page and never show a partial resul
     await expect(s.page.locator('.home-hero')).toHaveCount(0);
     failLater = false;
     await s.page.getByRole('alert').getByRole('button', {name: 'Reintentar', exact: true}).click();
-    await expect(s.page.locator('.home-hero-minis')).toContainText('3,999');
+    await s.page
+      .getByRole('group', {name: 'Período del presupuesto disponible'})
+      .getByRole('button', {name: 'Mes', exact: true})
+      .click();
+    await expect(s.page.locator('.home-budget-remaining')).toContainText('3,999');
+    await expect(s.page.locator('.home-liquid-total')).toContainText('Q 0');
     await healthy(s);
   } finally {
     await s.context.close();
