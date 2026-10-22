@@ -13,17 +13,37 @@ import './styles/layers/workspace-header.css';
 import './styles/layers/connected-finance.css';
 import './styles/layers/shell.css';
 import './styles/layers/home.css';
-// Global styles load first; App (and the stylesheets its modules import) comes after, and v32 refinements last.
-import App from './App';
+// Keep the shell styles eager so loading App later cannot override the final refinements.
+import './styles/components/sharing.css';
+import './styles/components/master.css';
+import './styles/modules/payment-budget.css';
+import './styles/components/quick-entry.css';
+import './styles/components/notifications.css';
+import {getAppConfig} from './lib/appConfig';
+import {AppEnvironment, ConfigurationError} from './AppEnvironment';
+// Validate before loading App: its modules initialize the Supabase client at import time.
+const App = React.lazy(() => import('./App'));
 import './styles/components/ui.css';
 import './styles/components/optional.css';
 import './styles/refinements.css';
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-if ('serviceWorker' in navigator) {
+let content: React.ReactNode;
+let configured = false;
+try {
+  const config = getAppConfig(import.meta.env);
+  configured = true;
+  content = (
+    <>
+      <AppEnvironment environment={config.environment} />
+      <React.Suspense fallback={<p role="status">Cargando Nuestro Hogar…</p>}>
+        <App />
+      </React.Suspense>
+    </>
+  );
+} catch (error) {
+  content = <ConfigurationError message={(error as Error).message} />;
+}
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode>{content}</React.StrictMode>);
+if (configured && import.meta.env.VITE_APP_ENV === 'production' && 'serviceWorker' in navigator) {
   // A background tab that is still on the previous version reloads when another tab activates the update.
   const hadController = Boolean(navigator.serviceWorker.controller);
   let refreshing = false;

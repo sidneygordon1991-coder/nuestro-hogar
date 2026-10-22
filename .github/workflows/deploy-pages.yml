@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,8 +29,23 @@ jobs:
         run: npm ci
       - name: Run tests
         run: npm run test
+      - name: Check formatting
+        run: npm run format:check
       - name: Build
         run: npm run build
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Test browser workflows
+        run: npm run test:e2e
+      - name: Save browser results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-deploy-review
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:

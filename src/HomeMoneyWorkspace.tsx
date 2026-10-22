@@ -435,6 +435,7 @@ export default function HomeMoneyWorkspace({
                 ? 'Saldo registrado hoy, independiente del presupuesto'
                 : 'Agrega tus cuentas y su saldo inicial para ubicar tu dinero'}
             </p>
+            <p className="home-hero-sub">No suma ingresos por recibir ni límites de tarjetas.</p>
             {!pendingLoading && (
               <button
                 type="button"

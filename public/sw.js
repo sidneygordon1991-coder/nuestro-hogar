@@ -1,4 +1,4 @@
-const CACHE = 'nuestro-hogar-v36';
+const CACHE = 'nuestro-hogar-v37';
 const BASE = '/nuestro-hogar/';
 const SHELL = [
   BASE,

@@ -1,11 +1,12 @@
 {
   "name": "nuestro-hogar",
   "private": true,
-  "version": "0.36.0",
+  "version": "0.37.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:e2e": "tsc -b && vite build --mode test --outDir dist-e2e",
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",

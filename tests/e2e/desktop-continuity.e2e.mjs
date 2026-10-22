@@ -27,7 +27,7 @@ async function authEvent(s, event, userId = uid) {
   const before = await s.page.evaluate(() => window.__handledAuth.length);
   await s.page.evaluate(
     ({event, userId}) => {
-      const key = 'sb-dchihxrjtngwabbvsqap-auth-token';
+      const key = 'sb-nuestro-hogar-e2e-auth-token';
       const session = JSON.parse(localStorage.getItem(key));
       const channel = new BroadcastChannel(key);
       channel.postMessage({
@@ -81,7 +81,7 @@ test('a real visibility recovery preserves the current module instead of reloadi
     const count = membershipCalls(s);
     await s.page.evaluate(() => {
       window.__resumed = 0;
-      window.__resumeChannel = new BroadcastChannel('sb-dchihxrjtngwabbvsqap-auth-token');
+      window.__resumeChannel = new BroadcastChannel('sb-nuestro-hogar-e2e-auth-token');
       window.__resumeChannel.addEventListener('message', () => {
         window.__resumed++;
       });

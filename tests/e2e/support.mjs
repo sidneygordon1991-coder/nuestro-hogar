@@ -227,7 +227,7 @@ async function setup(
   await context.addInitScript(
     ({loggedIn, theme, session}) => {
       localStorage.setItem('nh-theme', theme);
-      if (loggedIn) localStorage.setItem('sb-dchihxrjtngwabbvsqap-auth-token', JSON.stringify(session));
+      if (loggedIn) localStorage.setItem('sb-nuestro-hogar-e2e-auth-token', JSON.stringify(session));
     },
     {loggedIn, theme, session: session(aal)}
   );
@@ -317,7 +317,7 @@ async function setup(
   page.setDefaultTimeout(10000);
   page.on('pageerror', e => errors.push(e.message));
   await page.routeWebSocket(/supabase.co/, ws => ws.close());
-  await page.route('https://dchihxrjtngwabbvsqap.supabase.co/**', async route => {
+  await page.route('https://nuestro-hogar-e2e.supabase.co/**', async route => {
     const request = route.request(),
       url = new URL(request.url()),
       path = url.pathname;

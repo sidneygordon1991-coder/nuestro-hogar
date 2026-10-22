@@ -19,8 +19,9 @@ export default function Amount({
   tone?: 'income' | 'expense' | 'negative' | 'muted';
   className?: string;
 }) {
-  const [shown, setShown] = useState(animate ? 0 : value);
-  const from = useRef(animate ? 0 : value);
+  // Mount with the real value: a temporary zero can be mistaken for an actual financial result.
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
   useEffect(() => {
     const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (!animate || reduce || amountsHidden()) {

@@ -248,6 +248,11 @@ export default function HomeBudgetAvailability({
       >
         {loading || error || value == null ? 'Q —' : <Amount value={value} animate />}
       </strong>
+      <p className="home-budget-note">
+        {incomeBasis === 'received'
+          ? 'Lo que queda de los ingresos recibidos tras los gastos del período. No es el saldo de tus cuentas.'
+          : 'Estimación con los ingresos que planeas recibir. Ese dinero aún puede no estar en tus cuentas.'}
+      </p>
       {loading ? (
         <p role="status">Verificando el período…</p>
       ) : error ? (

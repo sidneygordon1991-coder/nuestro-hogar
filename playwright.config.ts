@@ -17,7 +17,8 @@ export default defineConfig({
       : {}
   },
   webServer: {
-    command: 'npm run preview -- --host 127.0.0.1 --port 4173 --strictPort',
+    command: 'npm run build:e2e && npm run preview -- --outDir dist-e2e --host 127.0.0.1 --port 4173 --strictPort',
+    timeout: 120000,
     url: 'http://127.0.0.1:4173/nuestro-hogar/',
     reuseExistingServer: false
   }

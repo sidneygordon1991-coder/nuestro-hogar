@@ -18,13 +18,23 @@ La aplicación reúne Inicio, Finanzas (once secciones), Agenda, Familia, Listas
 
 ## Ejecutar localmente
 1. `npm ci`
-2. Copia `.env.example` a `.env.local` si deseas manejar las variables localmente.
+2. Copia `.env.example` a `.env.local` y configura la URL y la clave publicable de **un proyecto de pruebas**. Sin configuración válida se muestra un aviso y no se crea el cliente de Supabase. El proyecto de producción se rechaza en modo de pruebas.
 3. `npm run dev`
+
+El entorno de pruebas se identifica con una banda visible. `npm run test:e2e` compila un artefacto separado en `dist-e2e`, usa un proyecto ficticio y simula las respuestas: no requiere cuentas ni datos de producción. Para pruebas unitarias ejecuta `npm test`.
 
 ## Build
 `npm run build`
 
 El proyecto usa únicamente la publishable key en el frontend. La autorización real está protegida por Row Level Security en Supabase.
+
+La configuración pública del despliegue existente está en `.env.production`; Vite la carga al ejecutar `npm run build`. Las variables del proceso tienen prioridad. La compilación rechaza configuraciones incompletas o inseguras. Las claves administrativas nunca deben usar el prefijo `VITE_`.
+
+### Mejoras v37
+
+Los importes se muestran con su valor real desde el primer render; una animación no los inicia en cero. Inicio distingue el saldo registrado del presupuesto y de los ingresos por recibir, y ofrece un único siguiente paso pendiente de preparación. La prueba de cambio de hogar espera el importe final y registra la respuesta anterior antes de liberarla.
+
+El backend completo de pruebas sigue pendiente de una exportación revisada del esquema real: el historial actual no contiene las tablas iniciales. Consulta [Entornos y base de datos](docs/ENTORNOS_Y_BASE_DE_DATOS.md). Las pruebas simuladas y los escenarios SQL aislados no sustituyen esa restauración.
 
 ### Diagnóstico financiero en Salud del hogar
 

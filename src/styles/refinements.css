@@ -72,6 +72,14 @@
 /* ---------- Loaders announce themselves; layout stays centered ---------- */
 .center[role=status]{display:grid;place-items:center}
 
+/* Test environments remain identifiable even before signing in. */
+.app-environment{padding:8px 16px;text-align:center;font-size:var(--ds-fs-sm);font-weight:600;color:var(--nh-text);background:var(--nh-surface);border-bottom:1px solid var(--nh-border)}
+.home-next-step{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.home-next-step h3{margin:0 0 6px}
+.home-next-step p:last-child{margin:0;color:var(--nh-muted)}
+.home-next-step .home-register{display:inline-flex;justify-content:center}
+@media(max-width:480px){.home-next-step{align-items:stretch;flex-direction:column}}
+
 /* "Octubre de 2026": the label is capitalized in code; CSS capitalize turned it into "Octubre De 2026". */
 .app .month-switch strong{text-transform:none}
 /* Spanish sentence case for dates and counters: "Octubre de 2026", "4 elementos en agenda" (not "De", "En"). */

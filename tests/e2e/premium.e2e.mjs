@@ -215,12 +215,13 @@ test('a delayed response from another household cannot overwrite the active bala
     await s.page.getByLabel('Cambiar de familia', {exact: true}).selectOption(rid);
     await expect(s.page.locator('.home-kpi').first()).toContainText('Dinero en cuentas');
     await expect(s.page.locator('.home-kpi strong').first()).toHaveText(/\d/);
+    await expect(s.page.locator('.home-budget-remaining')).toContainText('2,222');
     const current = await s.page.locator('.home-budget-remaining').innerText();
-    expect(current).toContain('2,222');
-    release();
-    await s.page.waitForResponse(
+    const oldFinished = s.page.waitForResponse(
       r => r.url().includes('/transactions?') && r.url().includes(encodeURIComponent('eq.' + hh))
     );
+    release();
+    await oldFinished;
     await expect(s.page.getByLabel('Cambiar de familia', {exact: true})).toHaveValue(rid);
     await expect(s.page.locator('.home-budget-remaining')).toHaveText(current);
   } finally {

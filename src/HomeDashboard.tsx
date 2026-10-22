@@ -469,6 +469,7 @@ export default function HomeDashboard({
   ].filter(x => x.show);
   const setupCompleted = setupSteps.filter(x => x.done).length,
     showSetup = setupSteps.length > 0 && setupCompleted < setupSteps.length;
+  const nextStep = setupSteps.find(step => !step.done);
 
   const availableModules = moduleCatalog.filter(m => !('module' in m) || can(m.module));
   const favorites = appearance.favorites
@@ -692,6 +693,18 @@ export default function HomeDashboard({
           ))}
         </div>
       </details>
+      {showSetup && nextStep && (
+        <section className="control-section home-next-step" aria-label="Tu próximo paso">
+          <div>
+            <p className="eyebrow">Un paso a la vez</p>
+            <h3>{nextStep.title}</h3>
+            <p>{nextStep.detail}</p>
+          </div>
+          <button type="button" className="home-register" onClick={() => onNavigate(nextStep.tab)}>
+            Continuar <ChevronRight size={16} aria-hidden="true" />
+          </button>
+        </section>
+      )}
       {showSetup && (
         <details className="control-section home-setup-section">
           <summary>
