@@ -51,6 +51,12 @@ El backend completo de pruebas sigue pendiente de una exportación revisada del 
 
 Esta versión cambia la presentación y los accesos sin alterar las reglas de cálculo financiero ni requerir migraciones de base de datos.
 
+### Corrección de quincenas v38.1
+
+Ingresos permite guardar la primera quincena con inicio 29 y la segunda con inicio 14: los rangos son 29–13 y 14–28, sin intercambiar sus importes. Solo se introducen los dos días de inicio; los finales se calculan automáticamente. El mes seleccionado indica el inicio del ciclo completo. Inicio elige la quincena actual con esas mismas fechas, incluidos los comienzos diferidos por febrero.
+
+La migración `20261022220000_allow_wrapping_fortnight_cycles.sql` amplía las restricciones de los días, conserva los planes guardados y no modifica movimientos, importes ni permisos. Es necesaria antes de publicar el formulario actualizado. Las pruebas PostgreSQL aisladas ejecutan esa migración exacta y verifican la persistencia del nuevo orden, los límites válidos y la conservación de los registros existentes.
+
 ### Diagnóstico financiero en Salud del hogar
 
 La vista integra el mes y ambas quincenas, un margen proyectado con fórmula visible, liquidez registrada, reserva de emergencia declarada, cuotas mínimas frente al ingreso mensual esperado y hasta tres acciones priorizadas. La segunda quincena proyecta el cierre del mes conservando pendientes de la primera. Se respetan las reglas de aportes existentes.

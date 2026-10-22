@@ -1,6 +1,6 @@
 import {countsInBudget} from './budgetTreatment';
 import {toCents, periodAmount, type FinancePeriod} from './financePeriods';
-import {cycleBounds, effectiveCycle, type PayCycle} from './payCycles';
+import {cycleBounds, currentCycleMonth, type PayCycle} from './payCycles';
 import type {CashFlowSource} from './cashFlow';
 import type {overviewAccounts} from './homeOverview';
 
@@ -18,15 +18,7 @@ export function accountAvailability(rows: ReturnType<typeof overviewAccounts>) {
 export function availabilityWindow(month: string, today: string, period: FinancePeriod, cycle?: PayCycle) {
   // Mes always means the calendar month. Personal fortnight cycles may cross its boundary.
   let anchor = month;
-  if (
-    period !== 'month' &&
-    cycle &&
-    today.slice(0, 7) === month.slice(0, 7) &&
-    Number(today.slice(8)) < effectiveCycle(cycle).first
-  ) {
-    const d = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 2, 1));
-    anchor = d.toISOString().slice(0, 10);
-  }
+  if (period !== 'month' && cycle && today.slice(0, 7) === month.slice(0, 7)) anchor = currentCycleMonth(today, cycle);
   const bounds = cycleBounds(anchor, period, period === 'month' ? undefined : cycle);
   return {...bounds, planMonth: period === 'month' ? month : anchor};
 }

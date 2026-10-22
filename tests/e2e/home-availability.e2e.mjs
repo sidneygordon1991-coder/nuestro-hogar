@@ -6,7 +6,7 @@ const partner = '55555555-5555-4555-8555-555555555555',
   cash = '90000000-0000-4000-8000-000000000002',
   card = '90000000-0000-4000-8000-000000000003';
 const month = '2026-10-01';
-async function fixture(browser, {theme = 'light', cross = false, partial = false} = {}) {
+async function fixture(browser, {theme = 'light', cross = false, partial = false, reversed = false} = {}) {
   const s = await setup(browser, {rich: true, theme});
   let failAccounts = false,
     failCycle = false;
@@ -41,8 +41,8 @@ async function fixture(browser, {theme = 'light', cross = false, partial = false
       expected_amount: 6000,
       first_half_amount: 3000,
       second_half_amount: 3000,
-      cycle_first_day: cross ? 20 : 14,
-      cycle_second_day: cross ? 30 : 29
+      cycle_first_day: reversed ? 29 : cross ? 20 : 14,
+      cycle_second_day: reversed ? 14 : cross ? 30 : 29
     },
     {
       user_id: partner,
@@ -196,6 +196,30 @@ for (const theme of ['light', 'dark'])
       await s.context.close();
     }
   });
+test('home automatically selects 14–28 as the second half when the first starts on 29', async ({browser}) => {
+  const s = await fixture(browser, {reversed: true});
+  try {
+    await ready(s, '');
+    const budget = s.page.getByRole('region', {name: 'Presupuesto restante', exact: true});
+    await expect(budget.getByRole('button', {name: '2.ª quincena', exact: true})).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await expect(budget).toContainText('14 oct');
+    await expect(budget).toContainText('28 oct');
+    await expect(budget.locator('.home-budget-remaining')).toContainText('3,400');
+    await budget.getByRole('button', {name: '1.ª quincena', exact: true}).click();
+    await expect(budget).toContainText('29 sept');
+    await expect(budget).toContainText('13 oct');
+    await expect(budget.locator('.home-budget-remaining')).toContainText('1,000');
+    await budget.getByRole('button', {name: 'Mes', exact: true}).click();
+    await expect(budget.locator('.home-budget-remaining')).toContainText('4,400');
+    await expect(s.page.locator('.home-liquid-total')).toContainText('5,800');
+    await healthy(s);
+  } finally {
+    await s.context.close();
+  }
+});
 test('an account read failure hides cash only; incomplete expected income never becomes a zero plan', async ({
   browser
 }) => {

@@ -221,8 +221,8 @@ export default function MonthlyIncomePlan({
                                 row.full_name
                               }
                               type="number"
-                              min={half === 'first' ? 1 : 2}
-                              max={half === 'first' ? 28 : 31}
+                              min="1"
+                              max="31"
                               step="1"
                               required
                               value={cycles[row.user_id]?.[half] ?? (half === 'first' ? '1' : '16')}
@@ -242,9 +242,10 @@ export default function MonthlyIncomePlan({
                         ))}
                       </div>
                       <small>
-                        Ejemplo: inicios 14 y 29 = 14–28 y 29–13 del siguiente mes. Si el segundo inicio no existe en un
-                        mes corto, comienza el día 1 del siguiente. Se guarda por persona y por mes. Los meses nuevos
-                        proponen el último ciclo guardado; los anteriores conservan su configuración.
+                        Ejemplo: primera del 29 al 13 y segunda del 14 al 28: escribe 29 y 14. El final se calcula
+                        automáticamente, un día antes del siguiente inicio. Si un inicio no existe en un mes corto,
+                        comienza el día 1 del siguiente. Se guarda por persona y por mes. Los meses nuevos proponen el
+                        último ciclo guardado; los anteriores conservan su configuración.
                       </small>
                     </fieldset>
                     <div className="fortnight-inputs">

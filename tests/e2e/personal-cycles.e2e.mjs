@@ -129,7 +129,7 @@ for (const theme of ['light', 'dark'])
       await expect(s.page.getByLabel('Inicio primera quincena de Carlos')).toHaveValue('5');
       await s.page.getByLabel('Inicio segunda quincena de Andrea').fill('14');
       await s.page.getByRole('button', {name: /Guardar plan de/}).click();
-      await expect(s.page.getByRole('alert')).toContainText('segundo debe ser posterior');
+      await expect(s.page.getByRole('alert')).toContainText('días distintos');
       await s.page.getByLabel('Inicio segunda quincena de Andrea').fill('29');
       await s.page.getByRole('button', {name: /Guardar plan de/}).click();
       await expect(s.page.getByRole('status')).toContainText('Plan mensual guardado');
@@ -159,6 +159,40 @@ for (const theme of ['light', 'dark'])
       }
       await s.page.screenshot({path: test.info().outputPath(`cycles-${theme}.png`), fullPage: true});
       expect((await new AxeBuilder({page: s.page}).analyze()).violations).toEqual([]);
+    } finally {
+      await s.context.close();
+    }
+  });
+for (const theme of ['light', 'dark'])
+  test(`saving and reopening a 29–13 then 14–28 cycle retains the chosen order: ${theme}`, async ({browser}) => {
+    const s = await fixture(browser, {theme});
+    try {
+      await ready(s, 'presupuesto');
+      await chooseFinance(s, 'Ingresos');
+      await s.page.getByLabel('Inicio primera quincena de Andrea').fill('29');
+      await s.page.getByLabel('Inicio segunda quincena de Andrea').fill('14');
+      await s.page.getByRole('button', {name: /Guardar plan de/}).click();
+      await expect(s.page.getByRole('status')).toContainText('Plan mensual guardado');
+      expect(s.writes.find(x => x.kind === 'plans').value.find(p => p.user_id === uid)).toMatchObject({
+        cycle_first_day: 29,
+        cycle_second_day: 14,
+        first_half_amount: 500,
+        second_half_amount: 500
+      });
+      await ready(s, 'presupuesto');
+      await chooseFinance(s, 'Ingresos');
+      await expect(s.page.getByLabel('Inicio primera quincena de Andrea')).toHaveValue('29');
+      await expect(s.page.getByLabel('Inicio segunda quincena de Andrea')).toHaveValue('14');
+      await chooseFinance(s, 'Quincenas');
+      await s.page.getByLabel('Fechas del presupuesto').selectOption(uid);
+      const selector = s.page.locator('.fortnight-selector');
+      await expect(selector.getByRole('button', {name: /Ciclo completo/})).toContainText(/29 oct.*28 nov/);
+      await expect(selector.getByRole('button', {name: /Primera quincena/})).toContainText(/29 oct.*13 nov/);
+      await expect(selector.getByRole('button', {name: /Segunda quincena/})).toContainText(/14 nov.*28 nov/);
+      for (const width of [320, 390, 1440]) {
+        await s.page.setViewportSize({width, height: 840});
+        await healthy(s);
+      }
     } finally {
       await s.context.close();
     }

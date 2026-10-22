@@ -165,6 +165,27 @@ describe('separate registered accounts and remaining income budget', () => {
       planMonth: '2026-12-01'
     });
   });
+  it('anchors 29–13 and 14–28 to the saved plan month without changing calendar totals', () => {
+    const reversed = {cycle_first_day: 29, cycle_second_day: 14};
+    expect(availabilityWindow(month, '2026-10-16', 'second', reversed)).toEqual({
+      start: '2026-10-14',
+      end: '2026-10-28',
+      planMonth: '2026-09-01'
+    });
+    expect(availabilityWindow(month, '2026-10-29', 'first', reversed)).toEqual({
+      start: '2026-10-29',
+      end: '2026-11-13',
+      planMonth: month
+    });
+    expect(availabilityWindow(month, '2026-10-29', 'month', reversed)).toEqual({
+      start: month,
+      end: '2026-10-31',
+      planMonth: month
+    });
+    expect(
+      availabilityWindow('2027-03-01', '2027-03-01', 'first', {cycle_first_day: 31, cycle_second_day: 16})
+    ).toEqual({start: '2027-03-01', end: '2027-03-15', planMonth: '2027-02-01'});
+  });
   it('does not turn personal shares of excluded household expenses back into budget spending', () => {
     const personal = scopeSource(
       s,

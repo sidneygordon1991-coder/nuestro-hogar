@@ -17,8 +17,11 @@ begin
  values(h,a,m,1000,500,500,14,29),(h,a,(m+interval '2 months')::date,1000,500,500,5,20);
  if (select cycle_first_day from public.get_finance_cycle_defaults(h,(m+interval '1 month')::date) where user_id=a)<>14 then raise exception 'Inherited a future cycle';end if;
  if exists(select 1 from public.get_finance_cycle_defaults(h,m)) then raise exception 'Current plan inherited into its past';end if;
- begin update public.finance_income_plans set cycle_first_day=29,cycle_second_day=30 where household_id=h;raise exception 'Invalid first day accepted';exception when check_violation then null;end;
+ begin update public.finance_income_plans set cycle_first_day=29,cycle_second_day=30 where household_id=h;raise exception 'Two missing February starts accepted';exception when check_violation then null;end;
  begin update public.finance_income_plans set cycle_second_day=14 where household_id=h and month=m;raise exception 'Overlapping boundaries accepted';exception when check_violation then null;end;
+ update public.finance_income_plans set cycle_first_day=29,cycle_second_day=14 where household_id=h and month=m;
+ if not exists(select 1 from public.finance_income_plans where household_id=h and month=m and cycle_first_day=29 and cycle_second_day=14 and first_half_amount=500 and second_half_amount=500) then raise exception 'Wrapping cycle not preserved';end if;
+ update public.finance_income_plans set cycle_first_day=14,cycle_second_day=29 where household_id=h and month=m;
  payload:=jsonb_build_object('description','QA special payment','type','expense','amount',200,'date',m,'paid_by',a,'is_shared',true,'category_id',cat,'account_id',account,'recurring',false,'budget_included',false);
  t:=public.save_transaction_once(h,request,payload);
  if (select budget_included from public.transactions where id=t) is distinct from false then raise exception 'Special funding classification lost';end if;

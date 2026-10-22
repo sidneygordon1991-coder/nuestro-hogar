@@ -2,8 +2,8 @@ import {useEffect, useMemo, useState} from 'react';
 import {CalendarDays, ArrowUpRight} from 'lucide-react';
 import {Amount} from './ui';
 import {formatMoney as money} from './lib/money';
-import {halfOf, type FinancePeriod} from './lib/financePeriods';
-import {effectiveCycle, type PayCycle} from './lib/payCycles';
+import {type FinancePeriod} from './lib/financePeriods';
+import {currentCyclePeriod, effectiveCycle, type PayCycle} from './lib/payCycles';
 import type {IncomePlan} from './lib/monthlyIncome';
 import {availabilityWindow, homeBudgetAvailability} from './lib/homeAvailability';
 import {scopeSource, type HomeFinance, type FinanceScope, type PrivateEntry} from './lib/homeOverview';
@@ -94,12 +94,7 @@ export default function HomeBudgetAvailability({
   const own = effectiveCycle(config(userId));
   const dateBasis = dateChoice === 'auto' ? (own.first !== 1 || own.second !== 16 ? userId : 'calendar') : dateChoice;
   const cycle = dateBasis === 'calendar' ? undefined : config(dateBasis);
-  const current = cycle
-    ? Number(full.today.slice(8)) >= effectiveCycle(cycle).first &&
-      Number(full.today.slice(8)) < effectiveCycle(cycle).second
-      ? 'first'
-      : 'second'
-    : halfOf(full.today);
+  const current = currentCyclePeriod(full.today, cycle);
   const period = periodChoice === 'current' ? current : periodChoice;
   const window = availabilityWindow(full.month, full.today, period, cycle);
   const withinMonth =
