@@ -45,7 +45,10 @@ test('refreshing the home source refreshes account balances and a failed read hi
     await s.page.getByRole('button', {name: 'Actualizar resumen', exact: true}).click();
     await expect(s.page.locator('.home-hero-chip')).toContainText('No pudimos verificar');
     await expect(s.page.locator('.home-hero h2')).toHaveText('Q —');
-    await expect(s.page.locator('.home-chart')).toHaveCount(0);
+    await expect(s.page.locator('.home-chart')).toBeVisible();
+    await expect(s.page.locator('.home-chart-purpose')).toContainText(
+      'Los saldos de cuentas siguen pendientes de verificar'
+    );
     await expect(s.page.locator('.home-hero-calc')).toHaveCount(0);
     fail = false;
     balance = 4000.75;

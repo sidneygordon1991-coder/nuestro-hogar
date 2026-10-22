@@ -1,0 +1,108 @@
+/* Clear hierarchy: period budget, recorded accounts, then concrete next actions. */
+.app.app-studio :is(.home-card,.control-section,.favorite-card,.finance-panel,.sharing-welcome-banner){box-shadow:none;border-color:var(--nh-border)}
+.app.app-studio :is(.home-register,.finance-new,.finance-primary,.sharing-primary){background:var(--nh-action);box-shadow:none}
+.app.app-studio .home-grid{gap:24px}
+.app.app-studio .home-main,.app.app-studio .home-side{gap:20px}
+.app.app-studio .home-hero{display:flex;flex-direction:column;gap:0;padding:0;border:1px solid var(--nh-border);border-radius:22px;background:var(--nh-surface);color:var(--nh-text);box-shadow:none}
+.app.app-studio .home-hero-leaves{display:none}
+.app.app-studio .home-hero-cover{z-index:0;top:0;bottom:auto;height:220px;pointer-events:none;opacity:.07}
+.app.app-studio .home-budget-available{position:relative;margin:0;padding:26px 28px;border:0;background:var(--nh-hero-start);color:var(--nh-hero-text)}
+.app.app-studio .home-budget-eyebrow{margin:0 0 16px;font-size:var(--ds-fs-sm);font-weight:500;line-height:1.5}
+.app.app-studio .home-available-period{background:transparent;border-color:color-mix(in srgb,var(--nh-hero-text) 24%,transparent);padding:3px}
+.app.app-studio .home-available-period>button{min-height:44px;font-size:var(--ds-fs-sm);font-weight:500}
+.app.app-studio .home-available-context{margin:12px 0 20px;gap:8px}
+.app.app-studio .home-available-title{align-items:center}
+.app.app-studio .home-available-title h3{font-size:var(--ds-fs-md);font-weight:500}
+.app.app-studio .home-budget-remaining{margin:12px 0;font-family:var(--ds-font-display);font-size:clamp(38px,4.6vw,56px);font-weight:600;letter-spacing:-1.4px;line-height:1.12}
+.app.app-studio .home-budget-available select{min-height:38px;max-width:180px;border-color:var(--nh-border);border-radius:8px}
+.app.app-studio .home-budget-note{font-size:var(--ds-fs-sm);line-height:1.55;opacity:1}
+.app.app-studio .home-budget-equation{margin-top:16px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--nh-hero-text) 22%,transparent);font-size:var(--ds-fs-sm);gap:7px}
+.app.app-studio .home-available-details{padding-top:12px;min-height:36px;font-size:var(--ds-fs-sm)}
+.app.app-studio .home-recorded-money{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;padding:22px 28px;color:var(--nh-text)}
+.app.app-studio .home-recorded-money .home-hero-top{position:static;display:flex;gap:10px;align-items:center}
+.app.app-studio .home-recorded-money .home-hero-icon{width:32px;height:32px;margin:0;border-radius:10px;background:var(--nh-accent-soft);color:var(--nh-accent)}
+.app.app-studio .home-recorded-money .home-hero-icon>svg{width:17px;height:17px}
+.app.app-studio .home-recorded-money .home-hero-chip{position:static;display:block;padding:0;border:0;border-radius:0;background:none;color:var(--nh-muted);font-size:var(--ds-fs-xs)}
+.app.app-studio .home-recorded-money .home-hero-more{display:none}
+.app.app-studio .home-recorded-money .home-hero-body{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 16px;padding:0;margin:0}
+.app.app-studio .home-recorded-money .home-hero-label{grid-column:1;margin:0;color:var(--nh-text);font-size:var(--ds-fs-sm);font-weight:600}
+.app.app-studio .home-recorded-money h2{grid-column:2;grid-row:1/3;margin:0;font-family:var(--ds-font-ui);font-size:clamp(22px,2.4vw,30px);font-weight:600;letter-spacing:-.8px;color:var(--nh-text)}
+.app.app-studio .home-recorded-money .home-hero-sub{grid-column:1/-1;margin:0;font-size:var(--ds-fs-xs);line-height:1.5;color:var(--nh-muted);opacity:1}
+.app.app-studio .home-recorded-money .home-hero-calc-toggle{grid-column:1/-1;justify-self:start;margin-top:5px;color:var(--nh-accent);font-size:var(--ds-fs-sm);text-decoration:none;min-height:36px}
+.app.app-studio .home-recorded-money .home-hero-minis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0;padding-top:12px;border-top:1px solid var(--nh-border)}
+.app.app-studio .home-recorded-money .home-hero-minis>button{padding:4px 0;border:0;border-radius:0;background:none;color:var(--nh-text);box-shadow:none;min-height:44px}
+.app.app-studio .home-recorded-money .home-hero-minis>button>svg{color:var(--nh-accent)}
+.app.app-studio .home-recorded-money .home-hero-minis small{color:var(--nh-muted);opacity:1}
+.app.app-studio .home-recorded-money .home-hero-minis strong{font-size:var(--ds-fs-md);font-weight:600}
+.app.app-studio .home-recorded-money .home-hero-calc{margin:0;background:var(--nh-subtle);border:1px solid var(--nh-border);color:var(--nh-text)}
+.app.app-studio .home-recorded-money .home-hero-calc-total{border-color:var(--nh-border)}
+.app.app-studio .home-overview-details{min-width:0;border-bottom:1px solid var(--nh-border);padding-bottom:12px}
+.app.app-studio .home-overview-details>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;list-style:none;cursor:pointer;font-size:var(--ds-fs-sm);color:var(--nh-muted);min-height:44px}
+.app.app-studio .home-overview-details>summary::-webkit-details-marker{display:none}
+.app.app-studio .home-overview-details[open]>summary>svg{transform:rotate(180deg)}
+.app.app-studio .home-overview-details[open] .home-kpis{display:grid;margin-top:10px}
+.app.app-studio .home-overview-details .home-kpi{box-shadow:none;padding:14px;background:var(--nh-surface)}
+.app.app-studio .home-card{border-radius:18px;padding:22px}
+.app.app-studio .home-card-head h3{font-size:var(--ds-fs-lg);font-weight:600;letter-spacing:-.3px}
+.app.app-studio .home-chart-purpose{margin:-2px 0 14px;font-size:var(--ds-fs-sm);color:var(--nh-muted)}
+.app.app-studio .home-getting-started{display:block;padding:24px;margin-bottom:22px;border:1px solid var(--nh-border);border-radius:20px;background:var(--nh-surface)}
+.home-getting-started-head{display:flex;gap:16px;align-items:flex-start;justify-content:space-between}
+.home-getting-started-head h3{margin:4px 0 0;font-family:var(--ds-font-display);font-size:var(--ds-fs-xl);font-weight:600}
+.home-getting-started-head>span{flex:none;color:var(--nh-muted);font-size:var(--ds-fs-xs);padding-top:5px}
+.home-getting-started ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;list-style:none;margin:24px 0 12px;padding:0}
+.home-getting-started li{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.home-setup-step-icon{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:12px;background:var(--nh-accent-soft);color:var(--nh-accent)}
+.home-setup-step-icon>svg{width:18px;height:18px}
+.home-getting-started li strong{font-size:var(--ds-fs-sm);font-weight:600}
+.home-getting-started li p{margin:5px 0;color:var(--nh-muted);font-size:var(--ds-fs-sm)}
+.home-getting-started li button{display:inline-flex;align-items:center;gap:4px;padding:8px 0;border:0;background:none;color:var(--nh-accent);font-size:var(--ds-fs-sm);font-weight:600;text-align:left;min-height:44px}
+.app.app-studio .finance-tabs>button{min-height:44px;font-size:var(--ds-fs-sm);font-weight:500}
+.app.app-studio .finance-more>summary{min-height:44px;font-size:var(--ds-fs-sm)}
+.app.app-studio .finance-nav-label{font-weight:500;letter-spacing:0}
+.global-command-panel .quick-entry-form{gap:16px}
+.global-command-panel .quick-amount{padding:18px;background:var(--nh-subtle);border-color:var(--nh-border);border-radius:16px}
+.global-command-panel .global-quick-form .quick-amount .quick-amount-input{font-family:var(--ds-font-display);font-size:44px;font-weight:600;border-bottom:0}
+.global-command-panel .quick-type{justify-self:start}
+.global-command-panel .quick-entry-form>.quick-form-title{margin-bottom:0}
+.global-command-panel .quick-entry-extras{min-width:0;border-top:1px solid var(--nh-border);padding-top:10px}
+.global-command-panel .quick-entry-extras>summary{padding:8px 0;color:var(--nh-accent);font-size:var(--ds-fs-sm);cursor:pointer;min-height:38px}
+.global-command-panel .quick-repeat-options>summary{padding:8px 0;color:var(--nh-accent);font-size:var(--ds-fs-sm);cursor:pointer;min-height:38px}
+.global-command-panel .quick-repeat-options .quick-repeats{margin-top:10px}
+.global-command-panel :is(.payment-budget-effect p,.payment-budget-effect small,.quick-entry-success small){text-transform:none}
+.global-command-panel .quick-entry-extras .two{margin-top:12px}
+.global-command-panel .quick-entry-form .finance-primary{min-height:48px;border-radius:12px;box-shadow:none;background:var(--nh-action)}
+.global-command-panel .quick-entry-success{animation:none;padding:28px 20px;box-shadow:none;border-radius:18px}
+.app.app-studio .sharing-welcome-banner{border-radius:16px;background:var(--nh-surface)}
+.app.app-studio .sharing-steps{gap:8px}
+.app.app-studio .sharing-steps>span{border-radius:8px;font-weight:500}
+
+@media(max-width:760px){
+ .app.app-studio .home-grid,.app.app-studio .home-main,.app.app-studio .home-side{gap:16px}
+ .app.app-studio .home-hero{order:1;border-radius:20px}
+ .app.app-studio .home-today{order:2}
+ .app.app-studio .home-budget{order:3}
+ .app.app-studio .home-goal{order:4}
+ .app.app-studio .home-agenda-slot{order:5}
+ .app.app-studio .home-fortnight{order:6}
+ .app.app-studio .home-overview-details{order:7}
+ .app.app-studio .home-accounts{order:8}
+ .app.app-studio .home-health{order:9}
+ .app.app-studio .home-budget-available{padding:22px 20px}
+ .app.app-studio .home-recorded-money{padding:18px 20px;gap:10px}
+ .app.app-studio .home-available-context{margin:10px 0 16px}
+ .app.app-studio .home-available-title{gap:8px}
+ .app.app-studio .home-budget-remaining{font-size:42px}
+ .app.app-studio .home-budget-note{font-size:var(--ds-fs-xs)}
+ .app.app-studio .home-overview-details .home-kpis{grid-template-columns:1fr}
+ .app.app-studio .home-card{padding:20px}
+ .app.app-studio .home-getting-started{padding:20px}
+ .home-getting-started ol{grid-template-columns:1fr;gap:18px;margin-top:20px}
+ .home-getting-started-head{flex-wrap:wrap;gap:4px}
+ .app.app-studio .finance-tabs{display:flex;flex-wrap:nowrap;gap:3px}
+ .app.app-studio .finance-tabs>button{flex:1 1 0;min-width:0;padding:8px 3px;font-size:12px}
+ .app.app-studio .finance-workspace-nav[data-view="complete"] .finance-tabs{flex-wrap:wrap}
+ .app.app-studio .finance-workspace-nav[data-view="complete"] .finance-tabs>button{flex:1 1 28%}
+ .app.app-studio .finance-more{flex:none}
+ .app.app-studio .finance-more>summary{padding:8px;font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.app.app-studio .home-hero,.global-command-panel .quick-entry-success{animation:none;transition:none}}

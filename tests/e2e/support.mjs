@@ -793,7 +793,7 @@ async function healthy(s) {
 async function openIncome(s) {
   await s.page.goto('http://127.0.0.1:4173/nuestro-hogar/?tab=presupuesto');
   await s.page.getByRole('heading', {name: 'Tu mapa de gastos'}).waitFor();
-  await s.page.locator('.finance-tabs button').getByText('Ingresos', {exact: true}).click();
+  await chooseFinance(s, 'Ingresos');
   await s.page.getByRole('heading', {name: 'Lo que esperamos recibir'}).waitFor();
 }
 async function open(s) {

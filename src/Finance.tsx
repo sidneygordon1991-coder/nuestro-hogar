@@ -23,7 +23,15 @@ import FinanceAccounts from './finance/sections/FinanceAccounts';
 import FinanceDialogs from './finance/sections/FinanceDialogs';
 import type {Household} from './FinanceParts';
 
-export default function Finance({household, readOnly = false}: {household: Household; readOnly?: boolean}) {
+export default function Finance({
+  household,
+  readOnly = false,
+  essential = true
+}: {
+  household: Household;
+  readOnly?: boolean;
+  essential?: boolean;
+}) {
   const workspace = useFinanceWorkspace({household, readOnly});
   const {tab, setTab, month, message, setMessage, setShowTxForm, cutoff, smartBudget, moveMonth, loading} = workspace;
   if (loading) return <ModuleLoading />;
@@ -52,7 +60,7 @@ export default function Finance({household, readOnly = false}: {household: House
             <ArrowRight size={18} />
           </button>
         </div>
-        <FinanceNavigation active={tab} onSelect={setTab} />
+        <FinanceNavigation active={tab} onSelect={setTab} essential={essential} />
         <p className="finance-cutoff-note">
           Cifras registradas hasta el{' '}
           {new Date(cutoff + 'T12:00').toLocaleDateString('es-GT', {day: 'numeric', month: 'long'})}. El presupuesto y

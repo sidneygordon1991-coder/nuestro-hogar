@@ -202,7 +202,8 @@ export default function HomeBudgetAvailability({
   const value = incomeBasis === 'received' ? summary?.remaining : summary?.projectedRemaining;
   const income = incomeBasis === 'received' ? summary?.received : summary?.expected;
   return (
-    <section className="home-budget-available" aria-label="Presupuesto disponible">
+    <section className="home-budget-available" aria-label="Presupuesto restante">
+      <p className="home-budget-eyebrow">{period === 'month' ? 'Tu mes, con claridad' : 'Tu quincena, con claridad'}</p>
       <div className="home-available-period" role="group" aria-label="Período del presupuesto disponible">
         {(['first', 'second', 'month'] as const).map(p => (
           <button type="button" key={p} aria-pressed={period === p} onClick={() => setPeriodChoice(p)}>
@@ -229,7 +230,7 @@ export default function HomeBudgetAvailability({
         </label>
       </div>
       <div className="home-available-title">
-        <h3>Presupuesto disponible</h3>
+        <h3>Presupuesto restante</h3>
         <label>
           Ingresos
           <select
@@ -282,10 +283,11 @@ export default function HomeBudgetAvailability({
       )}
       {summary && !loading && !error && (
         <>
-          {incomeBasis === 'expected' && (
+          {incomeBasis === 'expected' && summary.expected !== null && (
             <p className="home-budget-note">
-              Proyección según el plan guardado. Recibido hasta hoy: {money(summary.received)}. No suma dinero a tus
-              cuentas.
+              Proyección según el plan guardado. Ingresos por recibir:{' '}
+              {money(Math.max(0, summary.expected - summary.received))}. Recibido hasta hoy: {money(summary.received)}.
+              No suma dinero a tus cuentas.
             </p>
           )}
           {summary.outside > 0 && (

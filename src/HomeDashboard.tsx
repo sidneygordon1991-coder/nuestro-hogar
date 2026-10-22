@@ -1,3 +1,4 @@
+import HomeGettingStarted from './HomeGettingStarted';
 import {formatMoney as money} from './lib/money';
 import WorkspaceHeading from './WorkspaceHeading';
 import HomeAgenda from './HomeAgenda';
@@ -13,16 +14,7 @@ import type {ModuleIconName} from './ModuleIcon';
 import ModuleIcon from './ModuleIcon';
 import {lazy, Suspense, useEffect, useRef, useState} from 'react';
 const DemoPreview = lazy(() => import('./DemoPreview'));
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ChevronRight,
-  ArrowUpRight,
-  Palette,
-  ChevronDown,
-  Plus,
-  Sparkles
-} from 'lucide-react';
+import {AlertTriangle, CheckCircle2, ChevronRight, ArrowUpRight, Palette, ChevronDown, Plus} from 'lucide-react';
 import {supabase} from './lib/supabase';
 
 type Household = {id: string; name: string; invite_code: string};
@@ -38,7 +30,14 @@ type EventSource = {
   assigned_to: string | null;
   all_day: boolean;
 };
-type SetupState = {profile: boolean; finance: boolean; lists: boolean; family: boolean; backup: boolean};
+type SetupState = {
+  profile: boolean;
+  finance: boolean;
+  financeVerified: boolean;
+  lists: boolean;
+  family: boolean;
+  backup: boolean;
+};
 
 const iso = (d = new Date()) => {
   const x = new Date(d);
@@ -90,6 +89,7 @@ export default function HomeDashboard({
   const [setup, setSetup] = useState<SetupState>({
     profile: false,
     finance: false,
+    financeVerified: false,
     lists: false,
     family: false,
     backup: false
@@ -248,10 +248,10 @@ export default function HomeDashboard({
       supabase.from('profiles').select('id,full_name,birth_date,relationship').eq('id', user.id).maybeSingle(),
       can('finance')
         ? supabase.from('finance_accounts').select('id').eq('household_id', household.id).eq('active', true).limit(1)
-        : Promise.resolve({data: [] as any[]}),
+        : Promise.resolve({data: [] as any[], error: null}),
       can('backups')
         ? supabase.from('household_backups').select('id').eq('household_id', household.id).limit(1)
-        : Promise.resolve({data: [] as any[]}),
+        : Promise.resolve({data: [] as any[], error: null}),
       can('meals')
         ? supabase
             .from('meal_plan_entries')
@@ -299,6 +299,7 @@ export default function HomeDashboard({
         String(profileR.data?.full_name || '').trim() && String(profileR.data?.relationship || '').trim()
       ),
       finance: !can('finance') || Boolean(accountR.data?.length),
+      financeVerified: !accountR.error,
       lists: !can('lists') || listCount > 0,
       family: (memberR.data || []).length > 1,
       backup: !can('backups') || Boolean(backupR.data?.length)
@@ -439,7 +440,7 @@ export default function HomeDashboard({
       done: setup.finance,
       title: 'Agrega una cuenta',
       detail: 'Efectivo, banco o tarjeta para empezar',
-      tab: 'presupuesto',
+      tab: 'presupuesto:accounts',
       show: can('finance')
     },
     {
@@ -568,27 +569,21 @@ export default function HomeDashboard({
           </button>
         </div>
       )}
-      {showFinance && finance.source && !finance.source.transactions.length && !finance.source.allocations.length && (
-        <section className="home-card home-start" aria-labelledby="home-start-title">
-          <span className="home-goal-icon" aria-hidden="true">
-            <Sparkles />
-          </span>
-          <div>
-            <h3 id="home-start-title">Empieza en 3 minutos</h3>
-            <p>
-              Agrega tus cuentas con su saldo, tus ingresos con su día de cobro y tres rubros de presupuesto. Mientras
-              tanto, mira cómo se verá tu Inicio.
-            </p>
-          </div>
-          <div className="home-start-actions">
-            <button type="button" className="home-register" onClick={() => onNavigate('presupuesto:accounts')}>
-              Agregar mis cuentas
-            </button>
-            <button type="button" className="home-link" onClick={() => setDemo(true)}>
-              Ver un ejemplo
-            </button>
-          </div>
-        </section>
+      {showFinance && finance.source && setup.financeVerified && canRegister && !finance.source.transactions.length && (
+        <HomeGettingStarted
+          accounts={setup.finance}
+          income={
+            finance.source.members.length > 0 &&
+            finance.source.members.every(member =>
+              finance.source!.plans.some(
+                plan => plan.user_id === member.user_id && plan.month === finance.source!.month
+              )
+            )
+          }
+          budget={finance.source.allocations.length > 0}
+          onNavigate={onNavigate}
+          onExample={() => setDemo(true)}
+        />
       )}
       {demo && (
         <Suspense fallback={null}>
@@ -615,6 +610,7 @@ export default function HomeDashboard({
           today={todayInput}
           canHealth={can('health')}
           cover={appearance.cover}
+          essential={appearance.view === 'essential'}
         />
       ) : (
         <div className="home-grid home-grid--no-finance">
@@ -693,7 +689,7 @@ export default function HomeDashboard({
           ))}
         </div>
       </details>
-      {showSetup && nextStep && (
+      {showSetup && nextStep && (!showFinance || Boolean(finance.source?.transactions.length)) && (
         <section className="control-section home-next-step" aria-label="Tu próximo paso">
           <div>
             <p className="eyebrow">Un paso a la vez</p>

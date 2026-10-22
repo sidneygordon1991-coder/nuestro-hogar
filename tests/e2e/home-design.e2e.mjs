@@ -7,7 +7,7 @@ const finishes = [
   ['graphite', 'Negro'],
   ['iris', 'Morado']
 ];
-const canvas = {light: 'rgb(241, 243, 245)', dark: 'rgb(14, 16, 18)'};
+const canvas = {light: 'rgb(245, 244, 239)', dark: 'rgb(14, 16, 18)'};
 const amount = text => {
   const n = Number(
     text
@@ -65,7 +65,7 @@ for (const theme of ['light', 'dark']) {
         expect(amount(hero)).toBe(amount(kpis[0]));
         await s.page.locator('.home-hero-calc-toggle').click();
         await expect(s.page.locator('.home-hero-calc')).toContainText('Margen después de compromisos');
-        await expect(s.page.getByRole('region', {name: 'Presupuesto disponible', exact: true})).toBeVisible();
+        await expect(s.page.getByRole('region', {name: 'Presupuesto restante', exact: true})).toBeVisible();
         await expect(s.page.getByRole('region', {name: 'Tu quincena'})).toBeVisible();
         await expect(s.page.locator('.home-legend')).toContainText('Proyectado');
         await expect(s.page.getByRole('region', {name: 'Así va tu presupuesto'})).toBeVisible();
@@ -81,7 +81,7 @@ for (const theme of ['light', 'dark']) {
             expect(header.height).toBeLessThan(200);
             expect(heroBox.y).toBeLessThan(260);
             await expect(s.page.locator('.home-hero-minis')).toBeVisible();
-            await expect(s.page.locator('.home-kpis')).toBeHidden();
+            await expect(s.page.locator('.home-kpis')).toBeVisible();
             await expect(s.page.locator('.workspace-header .home-title-mobile')).toBeVisible();
           }
           if (width < 1100) {
@@ -108,6 +108,7 @@ for (const theme of ['light', 'dark']) {
         });
         await s.page.locator('.home-hero-minis button').first().click();
         await expect(s.page).toHaveURL(/tab=presupuesto/);
+        await expect(s.page.locator('.finance-tabs>button')).toHaveCount(5);
         await healthy(s);
       } finally {
         await s.context.close();
@@ -184,6 +185,7 @@ test('shared and personal lenses are remembered per household and change the fig
     await ready(s, '');
     const scope = s.page.getByRole('group', {name: 'Vista de tus finanzas'});
     await expect(scope.getByRole('button', {name: 'Compartido', exact: true})).toHaveAttribute('aria-pressed', 'true');
+    await s.page.locator('.home-overview-details>summary').click();
     const shared = await s.page.locator('.home-kpis').innerText();
     await scope.getByRole('button', {name: 'Personal', exact: true}).click();
     await expect(scope.getByRole('button', {name: 'Personal', exact: true})).toHaveAttribute('aria-pressed', 'true');

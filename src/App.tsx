@@ -1103,7 +1103,13 @@ function Shell(p: any) {
                   onNavigate={p.setTab}
                 />
               )}
-              {p.tab === 'presupuesto' && <Finance household={p.household} readOnly={level === 'view'} />}
+              {p.tab === 'presupuesto' && (
+                <Finance
+                  household={p.household}
+                  readOnly={level === 'view'}
+                  essential={appearance.view === 'essential'}
+                />
+              )}
               {p.tab === 'familia' && (
                 <FamilyCenter
                   household={p.household}

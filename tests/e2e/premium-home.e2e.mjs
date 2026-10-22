@@ -206,7 +206,10 @@ test('accounts fail independently and retry without replacing missing balances w
     await expect(s.page.getByRole('region', {name: 'Cuentas y efectivo'})).toBeVisible();
     await expect(s.page.locator('.home-hero-chip')).toContainText('No pudimos verificar');
     await expect(s.page.locator('.home-hero h2')).toHaveText('Q —');
-    await expect(s.page.locator('.home-chart')).toHaveCount(0);
+    await expect(s.page.locator('.home-chart')).toBeVisible();
+    await expect(s.page.locator('.home-chart-purpose')).toContainText(
+      'Los saldos de cuentas siguen pendientes de verificar'
+    );
     fail = false;
     await accounts.getByRole('button', {name: 'Reintentar cuentas', exact: true}).click();
     await expect(accounts).toContainText('Cuenta recuperada');

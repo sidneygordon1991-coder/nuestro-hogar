@@ -357,7 +357,11 @@ export default function HouseholdWelcome({
                         </p>
                       )}
                       <p>
-                        Después del plan: <strong>{money(income - budget)}</strong>
+                        Diferencia del plan: <strong>{money(income - budget)}</strong>
+                      </p>
+                      <p>
+                        Estos importes son una planificación. El saldo real aparece al registrar tus cuentas y
+                        movimientos.
                       </p>
                     </div>
                     {budget > income && (

@@ -19,11 +19,21 @@ const more = [
 ] as const;
 export default function FinanceNavigation({
   active,
-  onSelect
+  onSelect,
+  essential = true
 }: {
   active: FinanceSection;
   onSelect: (section: FinanceSection) => void;
+  essential?: boolean;
 }) {
+  const primary = essential
+    ? ([
+        ['summary', 'Resumen'],
+        ['transactions', 'Movimientos'],
+        ['budget', 'Presupuesto']
+      ] as const)
+    : main;
+  const secondary = [...main, ...more].filter(([key]) => !primary.some(([id]) => id === key));
   const root = useRef<HTMLDivElement>(null),
     details = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -37,10 +47,11 @@ export default function FinanceNavigation({
     if (details.current) details.current.open = false;
     onSelect(section);
   }
-  const additional = more.find(([key]) => key === active);
+  const additional = secondary.find(([key]) => key === active);
   return (
     <div
       ref={root}
+      data-view={essential ? 'essential' : 'complete'}
       className="finance-workspace-nav"
       onKeyDown={e => {
         if (e.key === 'Escape' && details.current?.open) {
@@ -54,11 +65,12 @@ export default function FinanceNavigation({
         <span>Tu espacio financiero</span>
       </div>
       <div className="finance-tabs" role="group" aria-label="Secciones de Finanzas">
-        {main.map(([key, label]) => (
+        {primary.map(([key, label]) => (
           <button
             type="button"
             key={key}
             aria-pressed={active === key}
+            aria-current={active === key ? 'page' : undefined}
             className={active === key ? 'active' : ''}
             onClick={() => select(key)}
           >
@@ -70,7 +82,7 @@ export default function FinanceNavigation({
             {additional ? additional[1] : 'Más'} <ChevronDown size={14} />
           </summary>
           <div className="finance-more-options" role="group" aria-label="Más secciones financieras">
-            {more.map(([key, label]) => (
+            {secondary.map(([key, label]) => (
               <button
                 type="button"
                 key={key}

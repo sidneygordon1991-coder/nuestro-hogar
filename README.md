@@ -41,6 +41,16 @@ El backend completo de pruebas sigue pendiente de una exportación revisada del 
 - En teléfonos, un hogar nuevo conserva visible «Agregar mis cuentas» y puede abrir Cuentas directamente. La regla que oculta el acceso duplicado de la cabecera ya no oculta los botones del contenido.
 - Si falla la descarga inicial de la aplicación, aparece una pantalla con «Volver a cargar» en lugar de una página vacía. El reintento vuelve a abrir el acceso cuando se recupera la conexión.
 
+### Experiencia más clara v38
+
+- Inicio da prioridad al presupuesto restante de la quincena o del mes. Los saldos de cuentas se muestran por separado y la proyección identifica los ingresos por recibir. Pagos y ahorro se pueden desplegar; la vista Completa los muestra desde el inicio.
+- El registro rápido comienza por monto, tipo, categoría y cuenta. Recuerda la categoría y cuenta después de un guardado confirmado, por usuario y hogar; conserva los controles de privacidad y los borradores. Fecha, nota y repetición de movimientos están en desplegables.
+- La vista Esencial de Finanzas ofrece Resumen, Movimientos y Presupuesto. Las otras ocho secciones siguen disponibles en «Más»; la vista Completa conserva sus cinco accesos principales.
+- Los hogares sin movimientos tienen una guía de cuentas, ingresos y presupuesto que reconoce los pasos completados en cualquier orden. Los fallos de consulta no se interpretan como cuentas sin configurar.
+- El tema claro usa superficies cálidas y menos sombras, con los cuatro colores y el modo oscuro disponibles. Las gráficas explican su base y distinguen cifras registradas de proyecciones; una consulta fallida de cuentas permite seguir viendo la evolución de ingresos y gastos verificados.
+
+Esta versión cambia la presentación y los accesos sin alterar las reglas de cálculo financiero ni requerir migraciones de base de datos.
+
 ### Diagnóstico financiero en Salud del hogar
 
 La vista integra el mes y ambas quincenas, un margen proyectado con fórmula visible, liquidez registrada, reserva de emergencia declarada, cuotas mínimas frente al ingreso mensual esperado y hasta tres acciones priorizadas. La segunda quincena proyecta el cierre del mes conservando pendientes de la primera. Se respetan las reglas de aportes existentes.
@@ -53,7 +63,7 @@ La migración `20261015194610_household_financial_diagnosis.sql` agrega dos RPC 
 
 ### Experiencia visual compartida
 
-`experience.css` unifica superficies, tipografía, formularios, ventanas y navegación en ambos temas. Inicio combina balance, distribución de ingresos registrados y agenda, respetando los colores, favoritos y la prioridad de agenda elegidos por cada usuario. Finanzas conserva sus once secciones: cinco accesos principales y las adicionales en «Más» (el nombre de la sección activa permanece visible).
+`experience.css` unifica superficies, tipografía, formularios, ventanas y navegación en ambos temas. Inicio combina balance, distribución de ingresos registrados y agenda, respetando los colores, favoritos y la prioridad de agenda elegidos por cada usuario. Finanzas conserva sus once secciones: tres accesos principales en la vista Esencial, cinco en la Completa y las adicionales en «Más» (el nombre de la sección activa permanece visible).
 
 `BalanceFlow` muestra gastos, ahorro y margen con importes reales; señala cuando gastos y ahorro superan los ingresos. Salud del hogar presenta indicadores y acciones compactos, con fórmula, motivos, histórico y operación disponibles mediante desplegables accesibles. El acceso por correo conserva sus flujos de contraseña, recuperación y verificación y usa una escena vectorial adaptable al tema, con movimiento reducido cuando el dispositivo lo solicita. La actualización visual no requiere migraciones ni modifica registros financieros.
 

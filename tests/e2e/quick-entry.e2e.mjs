@@ -59,6 +59,7 @@ test('quick entry: amount first, dollars, suggestion, repeat and private', async
     expect(patches).toHaveLength(0);
     await expect(dialog.getByRole('button', {name: 'Registrar otro'})).toBeFocused();
     await dialog.getByRole('button', {name: 'Registrar otro'}).click();
+    await dialog.locator('.quick-repeat-options>summary').click();
     await dialog.locator('.quick-repeat-chip').filter({hasText: 'Supermercado semanal'}).click();
     await expect(dialog.getByLabel('Monto', {exact: true})).toHaveValue('390');
     await dialog.locator('.quick-repeat-chip').filter({hasText: 'Ingreso mensual'}).click();

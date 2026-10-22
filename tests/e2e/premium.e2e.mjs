@@ -71,7 +71,9 @@ test('home and Finance agree; future movements remain visible without becoming a
     await ready(s, '');
     await expect(s.page.locator('.home-hero')).not.toContainText('9,999');
     await s.page.locator('.home-info-toggle').click();
-    await expect(s.page.locator('.home-fortnight .home-caption')).toContainText('ingreso esperado');
+    await expect(s.page.locator('.home-fortnight .home-caption:not(.home-chart-purpose)')).toContainText(
+      'ingreso esperado'
+    );
   } finally {
     await s.context.close();
   }

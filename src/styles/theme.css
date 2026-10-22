@@ -14,8 +14,8 @@ html {
 }
 html[data-theme="light"] {
  color-scheme:light;
- --nh-page:#f1f3f5; --nh-surface:#ffffff; --nh-subtle:#f6f7f9; --nh-raised:#e9edf1; --nh-text:#1b222c; --nh-muted:#525e6d;
- --nh-border:#d3d9e0; --nh-track:#dbe0e6; --nh-blue:#2f5aa8; --nh-purple:#6c3f9e; --nh-success:#166947; --nh-warning:#875309;
+ --nh-page:#f5f4ef; --nh-surface:#ffffff; --nh-subtle:#f7f7f3; --nh-raised:#efefe9; --nh-text:#202b27; --nh-muted:#535e58;
+ --nh-border:#d9ddd7; --nh-track:#dce1da; --nh-blue:#2f5aa8; --nh-purple:#6c3f9e; --nh-success:#166947; --nh-warning:#875309;
  --nh-danger:#a8303f; --nh-blue-soft:#e9f0fb; --nh-purple-soft:#f2ecfa; --nh-success-soft:#e6f3ec; --nh-warning-soft:#fdf1dc; --nh-danger-soft:#fbe9ec;
  --nh-neutral-soft:#eef1f4; --nh-success-border:#a2cfb9; --nh-chart-blue:#3f6fc6; --nh-chart-purple:#8a5bc9; --nh-chart-previous:#758c9e; --nh-chart-success:#24855f;
  --nh-chart-warning:#b97a1c; --nh-chart-danger:#c65b6b; --nh-on-brand:#ffffff; --nh-shadow:#1f2d3a14; --nh-highlight:#ffffff26; --nh-scrim:#0e1a2680;

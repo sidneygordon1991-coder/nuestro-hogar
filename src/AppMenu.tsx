@@ -377,5 +377,5 @@ function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = effective;
   document.documentElement.dataset.themePreference = theme;
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', effective === 'light' ? '#f1f3f5' : '#0e1012');
+  if (meta) meta.setAttribute('content', effective === 'light' ? '#f5f4ef' : '#0e1012');
 }

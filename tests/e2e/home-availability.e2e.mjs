@@ -163,7 +163,7 @@ for (const theme of ['light', 'dark'])
     try {
       await ready(s, '');
       const hero = s.page.locator('.home-hero'),
-        budget = s.page.getByRole('region', {name: 'Presupuesto disponible', exact: true});
+        budget = s.page.getByRole('region', {name: 'Presupuesto restante', exact: true});
       await expect(hero.locator('.home-liquid-total')).toContainText('5,800');
       await expect(hero.locator('.home-hero-minis')).toContainText('5,650');
       await expect(hero.locator('.home-hero-minis')).toContainText('150');
@@ -203,12 +203,14 @@ test('an account read failure hides cash only; incomplete expected income never 
   s.setAccountFailure(true);
   try {
     await ready(s, '');
-    const budget = s.page.getByRole('region', {name: 'Presupuesto disponible', exact: true});
+    const budget = s.page.getByRole('region', {name: 'Presupuesto restante', exact: true});
     await expect(s.page.locator('.home-liquid-total')).toHaveText('Q —');
     await expect(budget.locator('.home-budget-remaining')).toContainText('3,400');
     await budget.getByLabel('Base de ingresos del presupuesto').selectOption('expected');
     await expect(budget.locator('.home-budget-remaining')).toHaveText('Q —');
     await expect(budget).toContainText('Completa los ingresos esperados');
+    await expect(budget).not.toContainText('Ingresos por recibir:');
+    await expect(s.page.locator('.home-chart')).toBeVisible();
     s.setAccountFailure(false);
     await s.page.getByRole('button', {name: 'Reintentar cuentas', exact: true}).click();
     await expect(s.page.locator('.home-liquid-total')).toContainText('5,800');
@@ -222,7 +224,7 @@ test('a fortnight crossing the month loads its actual history and fails visibly 
   s.setCycleFailure(true);
   try {
     await ready(s, '');
-    const budget = s.page.getByRole('region', {name: 'Presupuesto disponible', exact: true});
+    const budget = s.page.getByRole('region', {name: 'Presupuesto restante', exact: true});
     await expect(budget.getByRole('alert')).toContainText('No pudimos verificar este período');
     await expect(budget.locator('.home-budget-remaining')).toHaveText('Q —');
     await expect(s.page.locator('.home-liquid-total')).toContainText('6,300');

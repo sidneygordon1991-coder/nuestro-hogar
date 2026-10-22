@@ -1,3 +1,4 @@
+import {readQuickChoices, rememberQuickChoices} from './lib/quickPreferences';
 import PaymentBudgetField from './PaymentBudgetField';
 import {paymentBudgetIncluded} from './lib/paymentBudget';
 import DraftForm from './DraftForm';
@@ -409,10 +410,16 @@ export default function GlobalCommandCenter({
       } catch {
         /* Vibration is optional. */
       }
+      if (visibility !== 'private')
+        rememberQuickChoices(userId, household.id, type, {
+          category: category || '',
+          account: String(f.get('account_id') || '')
+        });
       setSaved({
         type,
         text: formatEntryAmount(amount, original || {}),
         detail:
+          (categoryName ? (type === 'expense' ? 'Gasto en ' : 'Ingreso en ') + categoryName + ' · ' : '') +
           description +
           ' · ' +
           (visibility === 'private'
@@ -1050,6 +1057,10 @@ function TransactionForm({
   prefill: RepeatChip | null;
   onSubmit: (form: HTMLFormElement, requestId: string) => Promise<boolean>;
 }) {
+  const choices = useMemo(() => readQuickChoices(userId, householdId), [userId, householdId]);
+  const remembered = choices[type];
+  const rememberedCategory = categories.some(c => c.id === remembered?.category) ? remembered!.category : '';
+  const rememberedAccount = accounts.some(a => a.id === remembered?.account) ? remembered!.account : '';
   const amountId = useId(),
     initialVisibility = defaultVisibility(memberCount),
     rate = usdRate(rateValue),
@@ -1057,6 +1068,8 @@ function TransactionForm({
   const amountRef = useRef<HTMLInputElement>(null),
     descriptionRef = useRef<HTMLInputElement>(null),
     categoryRef = useRef<HTMLSelectElement>(null),
+    accountRef = useRef<HTMLSelectElement>(null),
+    accountTouched = useRef(false),
     typeRef = useRef<HTMLInputElement>(null),
     currencyRef = useRef<HTMLInputElement>(null),
     visibilityRef = useRef<HTMLInputElement>(null),
@@ -1074,6 +1087,12 @@ function TransactionForm({
     usd = currency === 'USD',
     entered = Number(amount),
     converted = usd && isValidAmount(entered) ? usdToQuetzales(entered, rate) : 0;
+  useEffect(() => {
+    if (rememberedCategory && !prefill && !touched.current.category && !categoryRef.current?.value)
+      setField(categoryRef.current, rememberedCategory, false);
+    if (rememberedAccount && !accountTouched.current && !accountRef.current?.value)
+      setField(accountRef.current, rememberedAccount, false);
+  }, [rememberedCategory, rememberedAccount, prefill]);
   // Members load after the dialog opens: follow the household default until the person chooses.
   useEffect(() => {
     if (touched.current.visibility || !visibilityRef.current) return;
@@ -1134,6 +1153,8 @@ function TransactionForm({
   }
   // Recovering or discarding a draft rewrites the fields directly: mirror them back into the toggles.
   function syncFromFields() {
+    accountTouched.current = true;
+    touched.current.category = true;
     const pick = (el: HTMLInputElement | null, fallback: string) => el?.value || fallback;
     const nextType = pick(typeRef.current, type) === 'income' ? 'income' : 'expense',
       nextCurrency = pick(currencyRef.current, 'GTQ') === 'USD' ? 'USD' : 'GTQ',
@@ -1172,14 +1193,6 @@ function TransactionForm({
           <div>
             <p className="eyebrow">{isExpense ? 'Gasto' : 'Ingreso'}</p>
             <h3>{isExpense ? 'Registrar gasto' : 'Registrar ingreso'}</h3>
-          </div>
-          <div className="quick-segmented quick-type" role="group" aria-label="Tipo de movimiento">
-            <button type="button" aria-pressed={isExpense} onClick={() => chooseType('expense')}>
-              Gasto
-            </button>
-            <button type="button" aria-pressed={!isExpense} onClick={() => chooseType('income')}>
-              Ingreso
-            </button>
           </div>
         </div>
         <input
@@ -1258,25 +1271,22 @@ function TransactionForm({
             </p>
           )}
         </div>
-        {repeats.length > 0 && <RepeatChips chips={repeats} categories={categories} onPick={repeat} />}
-        <label>
-          Descripción (opcional)
-          <input
-            ref={descriptionRef}
-            name="description"
-            placeholder={isExpense ? 'Ej. Supermercado' : 'Ej. Salario'}
-            maxLength={visibility === 'private' ? 140 : 250}
-            defaultValue={prefill?.description}
-            onChange={e => suggest(e.currentTarget.value, kind)}
-          />
-        </label>
-        <div className="two">
+        <div className="quick-segmented quick-type" role="group" aria-label="Tipo de movimiento">
+          <button type="button" aria-pressed={isExpense} onClick={() => chooseType('expense')}>
+            Gasto
+          </button>
+          <button type="button" aria-pressed={!isExpense} onClick={() => chooseType('income')}>
+            Ingreso
+          </button>
+        </div>
+        <div className="two quick-essential-fields">
           <label>
             Categoría{suggested && <em className="quick-suggested"> · sugerida</em>}
             <select
               ref={categoryRef}
+              aria-label="Categoría"
               name="category_id"
-              defaultValue={prefill?.category_id || ''}
+              defaultValue={prefill ? prefill.category_id || '' : rememberedCategory}
               onChange={() => {
                 if (!automatic.current) {
                   touched.current.category = true;
@@ -1292,11 +1302,39 @@ function TransactionForm({
               ))}
             </select>
           </label>
-          <label>
-            Fecha
-            <input ref={dateRef} name="date" type="date" defaultValue={iso()} required />
-          </label>
+          {visibility !== 'private' && accounts.length > 0 && (
+            <label>
+              Cuenta
+              <select
+                ref={accountRef}
+                aria-label="Cuenta"
+                name="account_id"
+                defaultValue={rememberedAccount}
+                onChange={() => {
+                  accountTouched.current = true;
+                }}
+              >
+                <option value="">Sin cuenta</option>
+                {accounts.map(a => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
+        <label>
+          Descripción (opcional)
+          <input
+            ref={descriptionRef}
+            name="description"
+            placeholder={isExpense ? 'Ej. Supermercado' : 'Ej. Salario'}
+            maxLength={visibility === 'private' ? 140 : 250}
+            defaultValue={prefill?.description}
+            onChange={e => suggest(e.currentTarget.value, kind)}
+          />
+        </label>
         {memberCount > 1 && (
           <div className="quick-visibility">
             <span className="quick-visibility-label" id="quick-visibility-label">
@@ -1318,25 +1356,25 @@ function TransactionForm({
             <p className="quick-visibility-hint">{visibilityHint(visibility)}</p>
           </div>
         )}
-        <div className={visibility !== 'private' && accounts.length > 0 ? 'two' : ''}>
-          {visibility !== 'private' && accounts.length > 0 && (
+        {repeats.length > 0 && (
+          <details className="quick-repeat-options">
+            <summary>Repetir un movimiento reciente</summary>
+            <RepeatChips chips={repeats} categories={categories} onPick={repeat} />
+          </details>
+        )}
+        <details className="quick-entry-extras">
+          <summary>Fecha y nota</summary>
+          <div className="two">
             <label>
-              Cuenta
-              <select name="account_id" defaultValue="">
-                <option value="">Sin cuenta</option>
-                {accounts.map(a => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
+              Fecha
+              <input ref={dateRef} name="date" type="date" defaultValue={iso()} required />
             </label>
-          )}
-          <label>
-            Nota
-            <input name="notes" placeholder="Opcional" maxLength={visibility === 'private' ? 500 : 2000} />
-          </label>
-        </div>
+            <label>
+              Nota
+              <input name="notes" placeholder="Opcional" maxLength={visibility === 'private' ? 500 : 2000} />
+            </label>
+          </div>
+        </details>
         {visibility !== 'private' && <PaymentBudgetField accounts={accounts} disabled={busy} />}
         <button className="finance-primary" disabled={busy}>
           <Check />

@@ -26,6 +26,7 @@ const App = React.lazy(() => import('./App'));
 import './styles/components/ui.css';
 import './styles/components/optional.css';
 import './styles/refinements.css';
+import './styles/layers/clarity.css';
 let content: React.ReactNode;
 let configured = false;
 try {

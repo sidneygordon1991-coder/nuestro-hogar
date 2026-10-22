@@ -38,7 +38,7 @@ describe('appearance switch lifecycle', () => {
     expect(stored.get('nh-theme')).toBe('light');
     media.dispatchEvent(new Event('change'));
     expect(dataset().theme).toBe('light');
-    expect(attrs.content).toBe('#f1f3f5');
+    expect(attrs.content).toBe('#f5f4ef');
     toggleTheme();
     expect(dataset().theme).toBe('dark');
     expect(attrs.content).toBe('#0e1012');
