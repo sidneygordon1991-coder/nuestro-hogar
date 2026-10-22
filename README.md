@@ -36,6 +36,11 @@ Los importes se muestran con su valor real desde el primer render; una animació
 
 El backend completo de pruebas sigue pendiente de una exportación revisada del esquema real: el historial actual no contiene las tablas iniciales. Consulta [Entornos y base de datos](docs/ENTORNOS_Y_BASE_DE_DATOS.md). Las pruebas simuladas y los escenarios SQL aislados no sustituyen esa restauración.
 
+### Correcciones v37.1
+
+- En teléfonos, un hogar nuevo conserva visible «Agregar mis cuentas» y puede abrir Cuentas directamente. La regla que oculta el acceso duplicado de la cabecera ya no oculta los botones del contenido.
+- Si falla la descarga inicial de la aplicación, aparece una pantalla con «Volver a cargar» en lugar de una página vacía. El reintento vuelve a abrir el acceso cuando se recupera la conexión.
+
 ### Diagnóstico financiero en Salud del hogar
 
 La vista integra el mes y ambas quincenas, un margen proyectado con fórmula visible, liquidez registrada, reserva de emergencia declarada, cuotas mínimas frente al ingreso mensual esperado y hasta tres acciones priorizadas. La segunda quincena proyecta el cierre del mes conservando pendientes de la primera. Se respetan las reglas de aportes existentes.

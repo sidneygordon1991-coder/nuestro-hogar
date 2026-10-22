@@ -20,7 +20,7 @@ import './styles/modules/payment-budget.css';
 import './styles/components/quick-entry.css';
 import './styles/components/notifications.css';
 import {getAppConfig} from './lib/appConfig';
-import {AppEnvironment, ConfigurationError} from './AppEnvironment';
+import {AppEnvironment, AppStartupBoundary, ConfigurationError} from './AppEnvironment';
 // Validate before loading App: its modules initialize the Supabase client at import time.
 const App = React.lazy(() => import('./App'));
 import './styles/components/ui.css';
@@ -34,9 +34,11 @@ try {
   content = (
     <>
       <AppEnvironment environment={config.environment} />
-      <React.Suspense fallback={<p role="status">Cargando Nuestro Hogar…</p>}>
-        <App />
-      </React.Suspense>
+      <AppStartupBoundary>
+        <React.Suspense fallback={<p role="status">Cargando Nuestro Hogar…</p>}>
+          <App />
+        </React.Suspense>
+      </AppStartupBoundary>
     </>
   );
 } catch (error) {
