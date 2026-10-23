@@ -334,13 +334,16 @@ export function ComparisonKpi({
   label,
   value,
   delta,
+  previous,
   goodWhenUp
 }: {
   label: string;
   value: number;
   delta: number;
+  previous?: number;
   goodWhenUp: boolean;
 }) {
+  const noBase = previous === 0 && value !== 0;
   const up = delta > 0,
     neutral = Math.abs(delta) < 0.05,
     good = neutral ? true : up === goodWhenUp;
@@ -350,9 +353,15 @@ export function ComparisonKpi({
         <small>{label}</small>
         <strong>{currency(value)}</strong>
       </div>
-      <span className={neutral ? 'neutral' : good ? 'good' : 'bad'}>
-        {neutral ? '—' : up ? <TrendingUp /> : <TrendingDown />}
-        {neutral ? 'Sin cambio' : Math.abs(delta) >= 1000 ? '>999%' : Math.abs(delta).toFixed(1) + '%'}
+      <span className={neutral || noBase ? 'neutral' : good ? 'good' : 'bad'}>
+        {neutral || noBase ? '—' : up ? <TrendingUp /> : <TrendingDown />}
+        {noBase
+          ? 'Sin base anterior'
+          : neutral
+            ? 'Sin cambio'
+            : Math.abs(delta) >= 1000
+              ? '>999%'
+              : Math.abs(delta).toFixed(1) + '%'}
       </span>
     </div>
   );

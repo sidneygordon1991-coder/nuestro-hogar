@@ -1,3 +1,4 @@
+import {registeredLedger, comparableMonthRange} from '../lib/registeredLedger';
 import {paymentBudgetIncluded} from '../lib/paymentBudget';
 import type {PayCycle} from '../lib/payCycles';
 import {countsInBudget} from '../lib/budgetTreatment';
@@ -95,6 +96,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
     [transactionQuery, setTransactionQuery] = useState(''),
     [transactionType, setTransactionType] = useState('all');
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [comparisonError, setComparisonError] = useState(false);
   const [summaryError, setSummaryError] = useState(false),
     [ledgerEnabled, setLedgerEnabled] = useState(false),
     [savingsEntry, setSavingsEntry] = useState<{goal: Goal; direction: 'deposit' | 'withdrawal'} | null>(null);
@@ -715,6 +717,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
         incomePlanR.error
       )
     );
+    setComparisonError(Boolean(historyTxR.error || historyContR.error || historyAllocR.error || catR.error));
     setAccountDataError(Boolean(accR.error || accTxR.error || transferR.error));
     setAssetDataError(Boolean(assetR.error));
     if (errors.length) setMessage(LOAD_ERROR);
@@ -729,39 +732,14 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
     [contributions, cutoff]
   );
   const totals = useMemo(() => {
-    const sum = (rows: {amount: number}[]) => rows.reduce((n, r) => n + toCents(r.amount), 0) / 100;
-    // Same rule as Home and Quincenas: an expense in a savings category is saving, not spending.
-    const savingIds = new Set(categories.filter(c => c.budget_group === 'saving').map(c => c.id)),
-      savedAsExpense = (t: {type: string; category_id: string | null}) =>
-        t.type === 'expense' && Boolean(t.category_id) && savingIds.has(t.category_id!);
-    const income = sum(actualTxs.filter(t => t.type === 'income')),
-      expense = sum(actualTxs.filter(t => t.type === 'expense' && !savedAsExpense(t)));
-    const saving =
-      (toCents(
-        sum(
-          actualContributions.filter(
-            c => c.contribution_date >= monthBounds(month).start && c.contribution_date <= monthBounds(month).end
-          )
-        )
-      ) +
-        toCents(sum(actualTxs.filter(savedAsExpense)))) /
-      100;
+    const ledger = registeredLedger(txs, contributions, categories, {...monthBounds(month), today: cutoff});
     const planned = allocations.reduce((n, a) => n + toCents(a.planned_amount), 0) / 100;
     const plannedExpense =
       allocations
         .filter(a => categories.find(c => c.id === a.category_id)?.budget_group !== 'saving')
         .reduce((n, a) => n + toCents(a.planned_amount), 0) / 100;
-    return {
-      income,
-      expense,
-      saving,
-      planned,
-      plannedExpense,
-      budgetExpense: sum(actualTxs.filter(t => t.type === 'expense' && !savedAsExpense(t) && countsInBudget(t))),
-      excludedExpense: sum(actualTxs.filter(t => t.type === 'expense' && !countsInBudget(t))),
-      available: (toCents(income) - toCents(expense) - toCents(saving)) / 100
-    };
-  }, [actualTxs, actualContributions, allocations, categories, month]);
+    return {...ledger, planned, plannedExpense};
+  }, [txs, contributions, allocations, categories, month, cutoff]);
   const actualByCategory = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of actualTxs) {
@@ -983,33 +961,12 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       const d = new Date(month.getFullYear(), month.getMonth() - offset, 1),
         key = monthDate(d),
         bounds = monthBounds(d);
-      const income =
-        historyTxs
-          .filter(
-            t =>
-              t.transaction_date <= cutoff &&
-              t.transaction_date >= bounds.start &&
-              t.transaction_date <= bounds.end &&
-              t.type === 'income'
-          )
-          .reduce((s, t) => s + toCents(t.amount), 0) / 100;
-      const expense =
-        historyTxs
-          .filter(
-            t =>
-              t.transaction_date <= cutoff &&
-              t.transaction_date >= bounds.start &&
-              t.transaction_date <= bounds.end &&
-              t.type === 'expense'
-          )
-          .reduce((s, t) => s + toCents(t.amount), 0) / 100;
-      const saving =
-        historyContributions
-          .filter(
-            x =>
-              x.contribution_date <= cutoff && x.contribution_date >= bounds.start && x.contribution_date <= bounds.end
-          )
-          .reduce((s, x) => s + toCents(x.amount), 0) / 100;
+      const {
+        income,
+        expense,
+        saving,
+        available: balance
+      } = registeredLedger(historyTxs, historyContributions, categories, {...bounds, today: cutoff});
       const budget =
         historyAllocations.filter(x => x.month === key).reduce((s, x) => s + toCents(x.planned_amount), 0) / 100;
       rows.push({
@@ -1019,25 +976,29 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
         expense,
         saving,
         budget,
-        balance: (toCents(income) - toCents(expense) - toCents(saving)) / 100,
+        balance,
         savingRate: income > 0 ? (saving / income) * 100 : 0
       });
     }
     return rows;
-  }, [historyTxs, historyContributions, historyAllocations, month, comparisonRange, cutoff]);
-  const currentMetric =
-    monthlyMetrics[monthlyMetrics.length - 1] ||
-    ({income: 0, expense: 0, saving: 0, budget: 0, balance: 0, savingRate: 0} as MonthMetric);
-  const previousMetric =
-    monthlyMetrics[monthlyMetrics.length - 2] ||
-    ({income: 0, expense: 0, saving: 0, budget: 0, balance: 0, savingRate: 0} as MonthMetric);
+  }, [historyTxs, historyContributions, historyAllocations, categories, month, comparisonRange, cutoff]);
+  const comparisonWindow = comparableMonthRange(monthDate(month), cutoff);
+  const currentMetric = registeredLedger(historyTxs, historyContributions, categories, {
+    ...comparisonWindow.current,
+    today: cutoff
+  });
+  const previousMetric = registeredLedger(historyTxs, historyContributions, categories, {
+    ...comparisonWindow.previous,
+    today: cutoff
+  });
   const metricDelta = (current: number, previous: number) =>
     previous === 0 ? (current === 0 ? 0 : 100) : ((current - previous) / Math.abs(previous)) * 100;
   const categoryComparison = useMemo(() => {
-    const currentBounds = monthBounds(month),
-      previousDate = new Date(month.getFullYear(), month.getMonth() - 1, 1),
-      previousBounds = monthBounds(previousDate);
+    const range = comparableMonthRange(monthDate(month), cutoff),
+      currentBounds = range.current,
+      previousBounds = range.previous;
     return categories
+      .filter(c => c.budget_group !== 'saving')
       .map(cat => {
         const current =
           historyTxs
@@ -1066,7 +1027,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       .filter(x => x.current > 0 || x.previous > 0)
       .sort((a, b) => Math.max(b.current, b.previous) - Math.max(a.current, a.previous))
       .slice(0, 8);
-  }, [categories, historyTxs, month]);
+  }, [categories, historyTxs, month, cutoff]);
   const contributionOverview = useMemo(
     () =>
       financePeriodSummary(
@@ -2185,6 +2146,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
     setTransactionType,
     month,
     setMonth,
+    comparisonError,
     summaryError,
     setSummaryError,
     ledgerEnabled,
@@ -2337,6 +2299,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
     incomeSummary,
     smartBudget,
     monthlyMetrics,
+    comparisonWindow,
     currentMetric,
     previousMetric,
     metricDelta,

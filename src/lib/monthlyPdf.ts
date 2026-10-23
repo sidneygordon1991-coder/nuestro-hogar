@@ -26,6 +26,8 @@ async function loadFonts() {
 export type MonthlyReport = {
   month: string;
   period_end?: string;
+  is_complete_month?: boolean;
+  generated_at?: string;
   score: number;
   status_label: string;
   financial: {
@@ -60,7 +62,7 @@ const money = (n: number) =>
 export async function buildMonthlyPdf(
   householdName: string,
   snapshot: MonthlyReport,
-  options: {reflection?: string | null; focus?: string[]; closed?: boolean} = {},
+  options: {reflection?: string | null; focus?: string[]; closed?: boolean; closedAt?: string} = {},
   fontData?: ReportFonts
 ) {
   const fonts = fontData || (await loadFonts());
@@ -79,7 +81,7 @@ export async function buildMonthlyPdf(
     subject: 'Finanzas y organización familiar'
   });
   function header(first = false) {
-    doc.setFillColor(18, 43, 59);
+    doc.setFillColor(11, 58, 51);
     doc.rect(0, 0, 210, first ? 12 : 17, 'F');
     doc.setFont('Report', 'bold');
     doc.setTextColor(first ? 24 : 255, first ? 72 : 255, first ? 94 : 255);
@@ -119,7 +121,7 @@ export async function buildMonthlyPdf(
     y += 6;
     doc.setDrawColor(211, 225, 233);
     doc.line(margin, y - 6, 193, y - 6);
-    text(label, 12, true, [14, 103, 133]);
+    text(label, 12, true, [15, 107, 89]);
     y += 2;
   }
   header(true);
@@ -135,6 +137,21 @@ export async function buildMonthlyPdf(
     false,
     [83, 109, 128]
   );
+  if (options.closedAt)
+    text(
+      'Fotografía guardada el ' + new Date(options.closedAt).toLocaleString('es-GT', {timeZone: 'America/Guatemala'}),
+      8,
+      false,
+      [83, 109, 128]
+    );
+  if (snapshot.generated_at)
+    text(
+      'Resumen calculado el ' +
+        new Date(snapshot.generated_at).toLocaleString('es-GT', {timeZone: 'America/Guatemala'}),
+      8,
+      false,
+      [83, 109, 128]
+    );
   y += 7;
   const metrics = [
     ['Ingresos', snapshot.financial.income],
@@ -146,7 +163,7 @@ export async function buildMonthlyPdf(
   metrics.forEach(([label, value], index) => {
     const x = margin + (index % 2) * 90,
       top = y + Math.floor(index / 2) * 25;
-    doc.setFillColor(239, 246, 250);
+    doc.setFillColor(242, 246, 242);
     doc.roundedRect(x, top, 86, 22, 3, 3, 'F');
     doc.setTextColor(83, 109, 128);
     doc.setFontSize(9);
@@ -169,9 +186,28 @@ export async function buildMonthlyPdf(
   if (snapshot.financial.excluded_expense)
     text('Fuera del presupuesto: ' + money(snapshot.financial.excluded_expense) + ' (incluido en el balance real).', 9);
   text('Salud del hogar: ' + snapshot.score + '/100 - ' + snapshot.status_label, 10, true);
-  text('El balance considera ingresos, gastos y ahorro registrado.', 8, false, [83, 109, 128]);
+  text(
+    'Resultado = ingresos recibidos - gastos - ahorro neto. Los saldos de cuentas se consultan por separado.',
+    8,
+    false,
+    [83, 109, 128]
+  );
+  if (options.closed)
+    text(
+      'Esta fotografía conserva las cifras del cierre. Los registros posteriores pueden diferir; contrástalos en la aplicación.',
+      8,
+      false,
+      [83, 109, 128]
+    );
   if (snapshot.previous) {
-    section('Comparación con el mes anterior');
+    section(snapshot.is_complete_month === false ? 'Referencia del mes anterior' : 'Comparación con el mes anterior');
+    if (snapshot.is_complete_month === false)
+      text(
+        'El mes actual es parcial y el anterior es completo: estos importes no comparan días equivalentes.',
+        8,
+        false,
+        [83, 109, 128]
+      );
     for (const [label, key] of [
       ['Ingresos', 'income'],
       ['Gastos', 'expense'],
@@ -196,7 +232,7 @@ export async function buildMonthlyPdf(
       doc.setFillColor(223, 234, 240);
       doc.roundedRect(margin, y, width, 2, 1, 1, 'F');
       if (share) {
-        doc.setFillColor(24, 133, 170);
+        doc.setFillColor(15, 107, 89);
         doc.roundedRect(margin, y, (width * share) / 100, 2, 1, 1, 'F');
       }
       y += 8;

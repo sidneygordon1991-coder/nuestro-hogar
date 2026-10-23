@@ -199,6 +199,26 @@ export default function HomeBudgetAvailability({
   return (
     <section className="home-budget-available" aria-label="Presupuesto restante">
       <p className="home-budget-eyebrow">{period === 'month' ? 'Tu mes, con claridad' : 'Tu quincena, con claridad'}</p>
+      <div className="home-available-title">
+        <h3>Presupuesto restante</h3>
+        <label>
+          Ingresos
+          <select
+            aria-label="Base de ingresos del presupuesto"
+            value={incomeBasis}
+            onChange={e => setIncomeBasis(e.target.value as typeof incomeBasis)}
+          >
+            <option value="received">Recibidos</option>
+            <option value="expected">Esperados</option>
+          </select>
+        </label>
+      </div>
+      <strong
+        className={'home-budget-remaining ' + (value != null && value < 0 ? 'is-deficit' : '')}
+        aria-live="polite"
+      >
+        {loading || error || value == null ? 'Q —' : <Amount value={value} animate />}
+      </strong>
       <div className="home-available-period" role="group" aria-label="Período del presupuesto disponible">
         {(['first', 'second', 'month'] as const).map(p => (
           <button type="button" key={p} aria-pressed={period === p} onClick={() => setPeriodChoice(p)}>
@@ -224,26 +244,6 @@ export default function HomeBudgetAvailability({
           </select>
         </label>
       </div>
-      <div className="home-available-title">
-        <h3>Presupuesto restante</h3>
-        <label>
-          Ingresos
-          <select
-            aria-label="Base de ingresos del presupuesto"
-            value={incomeBasis}
-            onChange={e => setIncomeBasis(e.target.value as typeof incomeBasis)}
-          >
-            <option value="received">Recibidos</option>
-            <option value="expected">Esperados</option>
-          </select>
-        </label>
-      </div>
-      <strong
-        className={'home-budget-remaining ' + (value != null && value < 0 ? 'is-deficit' : '')}
-        aria-live="polite"
-      >
-        {loading || error || value == null ? 'Q —' : <Amount value={value} animate />}
-      </strong>
       <p className="home-budget-note">
         {incomeBasis === 'received'
           ? 'Lo que queda de los ingresos recibidos tras los gastos del período. No es el saldo de tus cuentas.'

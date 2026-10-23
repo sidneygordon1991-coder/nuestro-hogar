@@ -3,6 +3,25 @@ import {AlertTriangle, RefreshCw} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {version as APP_VERSION} from '../package.json';
 
+/** Recoverable financial checks need an operational signal too, without amounts, descriptions or session URLs. */
+export function reportFinancialCheck(householdId: string, action: 'close-evidence' | 'close-refresh' | 'close-save') {
+  void supabase
+    .rpc('log_client_error', {
+      p_household_id: householdId,
+      p_source: 'finance.' + action,
+      p_message: 'No se pudo completar la comprobación financiera: ' + action,
+      p_stack: null,
+      p_context: {action, recoverable: true},
+      p_app_version: APP_VERSION,
+      p_url: window.location.origin + window.location.pathname,
+      p_user_agent: navigator.userAgent
+    })
+    .then(
+      () => {},
+      () => {}
+    );
+}
+
 function report(
   householdId: string,
   source: string,

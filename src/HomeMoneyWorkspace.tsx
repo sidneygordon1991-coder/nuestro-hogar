@@ -1,3 +1,4 @@
+import HomePanorama from './HomePanorama';
 import BalanceChart from './BalanceChart';
 import MovementList from './MovementList';
 import type {CashMovement} from './lib/cashFlow';
@@ -345,7 +346,7 @@ export default function HomeMoneyWorkspace({
       ? 'Verificando saldos…'
       : margin.basis === 'accounts'
         ? reconciledCutoff
-          ? 'Saldos conciliados al ' + shortDate(reconciledCutoff)
+          ? 'Última conciliación al ' + shortDate(reconciledCutoff)
           : 'Saldos registrados al ' + shortDate(source.today)
         : 'Sin cuentas líquidas registradas';
   const baseLabel = accountState.error
@@ -357,6 +358,7 @@ export default function HomeMoneyWorkspace({
 
   return (
     <div className="home-grid" data-scope={scope}>
+      <HomePanorama month={source.month} today={source.today} figures={monthly.flow} onNavigate={onNavigate} />
       <div className="home-main">
         {scope === 'personal' && (
           <p className="home-scope-note">

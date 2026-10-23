@@ -1,3 +1,4 @@
+import TransactionImpact from '../../TransactionImpact';
 import PaymentBudgetField from '../../PaymentBudgetField';
 // Finance: every form and dialog of the module.
 import EntityComments from '../../EntityComments';
@@ -14,6 +15,8 @@ import {useFinance} from '../useFinanceWorkspace';
 
 export default function FinanceDialogs() {
   const {
+    setTab,
+    cutoff,
     reconciling,
     setReconciling,
     editingContribution,
@@ -126,6 +129,37 @@ export default function FinanceDialogs() {
               </div>
             </dl>
             {detailTx.notes && <p>{detailTx.notes}</p>}
+          </div>
+          <TransactionImpact
+            key={household.id + ':' + detailTx.id}
+            transaction={detailTx}
+            account={accounts.find(a => a.id === detailTx.account_id)}
+            category={categories.find(c => c.id === detailTx.category_id)}
+            today={cutoff}
+            householdId={household.id}
+            memberName={memberName}
+          />
+          <div className="evidence-actions transaction-next-actions">
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingTx(detailTx);
+                  setDetailTx(null);
+                }}
+              >
+                Editar este movimiento
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setDetailTx(null);
+                setTab('accounts');
+              }}
+            >
+              Revisar cuentas
+            </button>
           </div>
           <TransactionReceipts
             key={detailTx.id}

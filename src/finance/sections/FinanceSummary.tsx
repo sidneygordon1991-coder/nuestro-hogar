@@ -1,3 +1,4 @@
+import FinancialEvidence from '../../FinancialEvidence';
 // Finance section: summary.
 import FinanceSimulator from '../../FinanceSimulator';
 import BalanceFlow from '../../BalanceFlow';
@@ -30,6 +31,9 @@ import {useFinance} from '../useFinanceWorkspace';
 export default function FinanceSummary() {
   const {
     tab,
+    cutoff,
+    comparisonWindow,
+    comparisonError,
     setTab,
     categoryFilter,
     setCategoryFilter,
@@ -86,7 +90,16 @@ export default function FinanceSummary() {
                 <h3 className={totals.available < 0 ? 'negative' : ''}>{currency(totals.available)}</h3>
                 <p>Ingresos − gastos − ahorro registrado</p>
                 <span className="studio-previous">
-                  Mes anterior <b>{currency(previousMetric.balance)}</b>
+                  {monthDate(month) > cutoff ? (
+                    'Período futuro: todavía sin resultado real'
+                  ) : comparisonError ? (
+                    'Comparación anterior por verificar'
+                  ) : (
+                    <>
+                      {comparisonWindow.partial ? 'Mismo tramo del mes anterior' : 'Mes anterior'}{' '}
+                      <b>{currency(previousMetric.balance)}</b>
+                    </>
+                  )}
                 </span>
               </div>
               <BalanceFlow
@@ -107,6 +120,17 @@ export default function FinanceSummary() {
                 </button>
               </div>
             </section>
+            <FinancialEvidence
+              figures={totals}
+              start={monthDate(month)}
+              end={totals.cutoff}
+              onNavigate={section => {
+                setCategoryFilter(null);
+                setTransactionType('all');
+                setTransactionQuery('');
+                setTab(section);
+              }}
+            />
             <div className="finance-kpis studio-finance-kpis">
               <Kpi label="Ingresos" value={currency(totals.income)} icon={<ArrowDownLeft />} tone="good" />
               <Kpi label="Gastado" value={currency(totals.expense)} icon={<ArrowUpRight />} tone="warn" />
@@ -119,7 +143,7 @@ export default function FinanceSummary() {
               </span>
               <div>
                 <strong>Tu mes, quincena a quincena</strong>
-                <small>Del 1 al 15 · del 16 al cierre · visión mensual</small>
+                <small>Fechas adaptables por persona · visión mensual</small>
               </div>
               <ArrowRight size={18} />
             </button>

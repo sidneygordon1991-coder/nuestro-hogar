@@ -72,3 +72,9 @@ La migración `20261018130000_platform_activity_metrics.sql` agrega al panel mas
 - Hogares activos en 30 días, hogares nuevos y errores de la app sin resolver.
 
 Solo cuenta filas por hogar y semana; no lee montos ni descripciones, y los movimientos "Solo yo" no participan. La métrica a vigilar es la primera: si sube semana a semana, la app se está usando de verdad.
+
+## 7. Comprobación de catálogo desde v0.40
+
+`npm run db:preflight` verifica presencia de tablas/funciones, RLS, políticas y ejecución anónima de funciones seleccionadas mediante la API administrativa de solo lectura. Exige la referencia del proyecto y el token desde el entorno seguro; rechaza producción salvo la opción explícita `--production-read-only`. El flujo manual `.github/workflows/backend-check.yml` permite repetirla en staging con secretos del entorno GitHub correspondiente.
+
+Es una comprobación de estructura y permisos declarados, no un ensayo de restauración ni una prueba integral del backend. Los requisitos y límites actuales están documentados en [Experiencia profesional v0.40](PROFESSIONAL_EXPERIENCE.md).

@@ -1,3 +1,4 @@
+import {registeredLedger} from './registeredLedger';
 import {countsInBudget, type BudgetTreatment} from './budgetTreatment';
 import {monthlyIncomeSummary, type IncomeMember, type IncomePlan} from './monthlyIncome';
 import {inPeriod, toCents, type FinancePeriod, type PeriodAllocation} from './financePeriods';
@@ -52,19 +53,14 @@ export function buildCashFlow(s: CashFlowSource) {
   );
   const sum = <T>(rows: T[], get: (r: T) => number | string) => rows.reduce((n, r) => n + toCents(get(r)), 0);
   const groups = new Map(s.categories.map(c => [c.id, c.budget_group || 'variable']));
-  // Money registered as an expense in a savings category ("Ahorro") is saving, never spending: counting it as both
-  // lowered the balance and still left the whole savings plan "por apartar".
-  const savedAsExpense = (t: CashMovement) =>
-    t.type === 'expense' && Boolean(t.category_id) && groups.get(t.category_id!) === 'saving';
-  const income = sum(
-      transactions.filter(t => t.type === 'income'),
-      t => t.amount
-    ),
-    expense = sum(
-      transactions.filter(t => t.type === 'expense' && !savedAsExpense(t)),
-      t => t.amount
-    ),
-    saving = sum(savings, t => t.amount) + sum(transactions.filter(savedAsExpense), t => t.amount);
+  const ledger = registeredLedger(transactions, savings, s.categories, {
+    start: s.month.slice(0, 7) + '-01',
+    end: s.month.slice(0, 7) + '-31',
+    today: s.today
+  });
+  const income = toCents(ledger.income),
+    expense = toCents(ledger.expense),
+    saving = toCents(ledger.saving);
   const periodPlans =
     period === 'month'
       ? s.plans
@@ -154,16 +150,8 @@ export function buildCashFlow(s: CashFlowSource) {
   return {
     income: income / 100,
     expense: expense / 100,
-    budgetExpense:
-      sum(
-        transactions.filter(t => t.type === 'expense' && !savedAsExpense(t) && countsInBudget(t)),
-        t => t.amount
-      ) / 100,
-    excludedExpense:
-      sum(
-        transactions.filter(t => t.type === 'expense' && !countsInBudget(t)),
-        t => t.amount
-      ) / 100,
+    budgetExpense: ledger.budgetExpense,
+    excludedExpense: ledger.excludedExpense,
     saving: saving / 100,
     available: available / 100,
     plannedFixed: plannedFixed / 100,

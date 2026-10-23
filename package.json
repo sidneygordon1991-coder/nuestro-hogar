@@ -1,7 +1,7 @@
 {
   "name": "nuestro-hogar",
   "private": true,
-  "version": "0.39.0",
+  "version": "0.40.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:types": "bash scripts/db-types.sh",
-    "db:baseline": "bash scripts/db-baseline.sh"
+    "db:baseline": "bash scripts/db-baseline.sh",
+    "db:preflight": "node scripts/db-preflight.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",

@@ -1,3 +1,6 @@
+import CloseReadiness from './CloseReadiness';
+import {reportFinancialCheck} from './AppDiagnostics';
+import {closeReviewKey} from './lib/closeEvidence';
 import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
@@ -132,9 +135,13 @@ export default function MonthlyCloseCenter({
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
   const request = useRef(0);
+  const [reviewed, setReviewed] = useState(false);
 
   useEffect(() => {
     load();
+    return () => {
+      request.current++;
+    };
   }, [household.id, month.getFullYear(), month.getMonth()]);
 
   async function load(showLoader = true) {
@@ -143,6 +150,9 @@ export default function MonthlyCloseCenter({
     if (showLoader) {
       setLoading(true);
       setMessage('');
+      setSnapshot(null);
+      setClosure(null);
+      setReviewed(false);
     }
     const key = monthKey(month);
     const [closeR, historyR] = await Promise.all([
@@ -220,9 +230,33 @@ export default function MonthlyCloseCenter({
       setMessage('Modo solo lectura.');
       return;
     }
-    if (isCurrent || isFuture) return;
+    if (isCurrent || isFuture || !reviewed || !snapshot || busy) return;
     setBusy(true);
     setMessage('');
+    const revision = request.current;
+    const fresh = await supabase.rpc('build_monthly_household_close', {
+      p_household_id: household.id,
+      p_month: monthKey(month)
+    });
+    if (revision !== request.current) {
+      setBusy(false);
+      return;
+    }
+    if (fresh.error || !fresh.data?.financial || !fresh.data?.operations || !fresh.data?.period_end) {
+      reportFinancialCheck(household.id, 'close-refresh');
+      setBusy(false);
+      setMessage('No pudimos volver a verificar el cierre. Tus notas se conservan; reintenta.');
+      return;
+    }
+    if (closeReviewKey(fresh.data as CloseSnapshot) !== closeReviewKey(snapshot)) {
+      setSnapshot(fresh.data as CloseSnapshot);
+      setReviewed(false);
+      setBusy(false);
+      setMessage(
+        'Las cifras o los pendientes cambiaron durante la revisión. Mostramos el resumen actualizado; revísalo antes de confirmar. Tus notas se conservan.'
+      );
+      return;
+    }
     const clean = focus.map(x => x.trim()).filter(Boolean);
     const {error} = await supabase.rpc('finalize_monthly_household_close', {
       p_household_id: household.id,
@@ -231,7 +265,9 @@ export default function MonthlyCloseCenter({
       p_next_month_focus: clean
     });
     setBusy(false);
+    if (revision !== request.current) return;
     if (error) {
+      reportFinancialCheck(household.id, 'close-save');
       setMessage(error.message);
       return;
     }
@@ -304,8 +340,9 @@ export default function MonthlyCloseCenter({
     c = snapshot.changes,
     o = snapshot.operations;
   const maxCategory = Math.max(1, ...snapshot.top_categories.map(x => Number(x.amount || 0)));
-  const statusCopy =
-    snapshot.status === 'excellent'
+  const statusCopy = !snapshot.is_complete_month
+    ? 'El mes sigue en curso. Este resultado es parcial y puede cambiar con los próximos registros.'
+    : snapshot.status === 'excellent'
       ? 'Un mes muy sólido. Mantengan las decisiones que están funcionando.'
       : snapshot.status === 'good'
         ? 'El mes terminó bien, con algunos puntos concretos para optimizar.'
@@ -366,7 +403,8 @@ export default function MonthlyCloseCenter({
             await downloadMonthlyPdf(household.name, snapshot, {
               reflection: closure?.reflection ?? reflection,
               focus: closure?.next_month_focus ?? focus.filter(Boolean),
-              closed: Boolean(closure)
+              closed: Boolean(closure),
+              closedAt: closure?.closed_at
             });
           } catch (error) {
             setMessage(error instanceof Error ? error.message : 'No se pudo generar el PDF.');
@@ -377,6 +415,16 @@ export default function MonthlyCloseCenter({
       >
         <Download size={17} /> Descargar resumen PDF
       </button>
+      <CloseReadiness
+        key={household.id + ':' + snapshot.month + ':' + snapshot.generated_at}
+        householdId={household.id}
+        month={snapshot.month}
+        end={snapshot.period_end}
+        financial={snapshot.financial}
+        pending={snapshot.operations.recurring_pending}
+        closed={Boolean(closure)}
+        onNavigate={onNavigate}
+      />
       <section className={'monthly-close-hero ' + snapshot.status}>
         <div className="monthly-close-score" style={{'--score': snapshot.score} as React.CSSProperties}>
           <div>
@@ -407,26 +455,33 @@ export default function MonthlyCloseCenter({
         </div>
       </section>
 
+      {!snapshot.is_complete_month && (
+        <p className="comparison-period-note">
+          Corte parcial al {shortDate(snapshot.period_end)}. El período anterior es una referencia completa; sus
+          importes no representan una comparación de días equivalentes. Para comparar el mismo tramo, abre Finanzas →
+          Comparación.
+        </p>
+      )}
       <div className="monthly-close-kpis">
         <CloseMetric
           title="Ingresos"
           value={currency(f.income)}
           previous={currency(p.income)}
-          change={c.income_pct}
+          change={snapshot.is_complete_month ? c.income_pct : null}
           kind="income"
         />
         <CloseMetric
           title="Gastos"
           value={currency(f.expense)}
           previous={currency(p.expense)}
-          change={c.expense_pct}
+          change={snapshot.is_complete_month ? c.expense_pct : null}
           kind="expense"
         />
         <CloseMetric
           title="Ahorro"
           value={currency(f.saving)}
           previous={currency(p.saving)}
-          change={c.saving_pct}
+          change={snapshot.is_complete_month ? c.saving_pct : null}
           kind="saving"
         />
         <CloseMetric
@@ -503,11 +558,13 @@ export default function MonthlyCloseCenter({
                     <span style={{width: Math.max(4, (Number(row.amount) / maxCategory) * 100) + '%'}} />
                   </div>
                   <small>
-                    {row.change_pct == null
-                      ? 'Sin base anterior'
-                      : row.change_pct === 0
-                        ? 'Sin cambio'
-                        : `${row.change_pct > 0 ? '+' : ''}${Math.round(row.change_pct)}% vs período anterior`}
+                    {!snapshot.is_complete_month
+                      ? 'Acumulado parcial del mes'
+                      : row.change_pct == null
+                        ? 'Sin base anterior'
+                        : row.change_pct === 0
+                          ? 'Sin cambio'
+                          : `${row.change_pct > 0 ? '+' : ''}${Math.round(row.change_pct)}% vs período anterior`}
                   </small>
                 </div>
               ))}
@@ -669,6 +726,15 @@ export default function MonthlyCloseCenter({
             )}
           </div>
         </div>
+        {!closure && !isCurrent && !readOnly && (
+          <label className="close-review-ack">
+            <input type="checkbox" checked={reviewed} onChange={e => setReviewed(e.target.checked)} disabled={busy} />
+            <span>
+              Revisé las cifras y los pendientes. Entiendo que se guardará una fotografía histórica y que los registros
+              financieros podrán seguir cambiando.
+            </span>
+          </label>
+        )}
         <div className="monthly-close-footer">
           {isCurrent && !closure ? (
             <div className="monthly-close-notice">
@@ -693,7 +759,7 @@ export default function MonthlyCloseCenter({
             <div className="monthly-close-notice ready">
               <ModuleIcon name="monthly_close" />
               <span>
-                <strong>Listo para cerrar</strong>
+                <strong>{reviewed ? 'Revisión confirmada' : 'Revisa antes de cerrar'}</strong>
                 <small>Al cerrar, guardaremos esta fotografía para futuras comparaciones.</small>
               </span>
             </div>
@@ -701,7 +767,7 @@ export default function MonthlyCloseCenter({
           {!readOnly && (
             <button
               className="monthly-close-primary"
-              disabled={busy || isCurrent}
+              disabled={busy || isCurrent || isFuture || (!closure && !reviewed)}
               onClick={closure ? saveReflection : finalize}
             >
               {busy ? 'Guardando...' : closure ? 'Guardar reflexión' : 'Cerrar mes'}
