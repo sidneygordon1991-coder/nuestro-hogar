@@ -57,7 +57,7 @@ test('refreshing the home source refreshes account balances and a failed read hi
       .getByRole('button', {name: 'Reintentar cuentas', exact: true})
       .click();
     await expect(s.page.locator('.home-liquid-total')).toContainText('4,000.75');
-    await expect(s.page.locator('.home-chart svg')).toBeVisible();
+    await expect(s.page.locator('.home-chart>svg')).toBeVisible();
     await healthy(s);
   } finally {
     await s.context.close();

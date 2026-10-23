@@ -57,6 +57,15 @@ Ingresos permite guardar la primera quincena con inicio 29 y la segunda con inic
 
 La migración `20261022220000_allow_wrapping_fortnight_cycles.sql` amplía las restricciones de los días, conserva los planes guardados y no modifica movimientos, importes ni permisos. Es necesaria antes de publicar el formulario actualizado. Las pruebas PostgreSQL aisladas ejecutan esa migración exacta y verifican la persistencia del nuevo orden, los límites válidos y la conservación de los registros existentes.
 
+### Experiencia visual e interactiva v39
+
+- La gráfica de Inicio permite tocar una fecha o recorrerla con un control accesible al teclado. El detalle identifica saldos registrados, contexto y proyecciones; los movimientos futuros no se presentan como recibidos. Los rubros de presupuesto se pueden desplegar para consultar sus gastos.
+- El registro rápido ofrece categorías y cuentas con iconos y búsqueda, conservando los campos originales para borradores, privacidad, sugerencias, reintentos y guardado. Las elecciones se siguen recordando tras confirmar el movimiento.
+- Las metas muestran hitos del 25 %, 50 %, 75 % y 100 % calculados sobre ahorro neto. Se puede elegir una foto personal desde Inicio o Metas: queda solo en el navegador y perfil que la eligió, por hogar y meta, y se puede quitar. No se sube a Supabase ni se comparte entre dispositivos.
+- Inicio muestra la relación de gastos incluidos con ingresos recibidos o esperados, con la base identificada. Los desplegables y barras tienen transiciones suaves; la preferencia de movimiento reducido desactiva las animaciones nuevas. Se conservan los cuatro colores y ambos temas.
+
+Estas mejoras no requieren migraciones ni cambian los importes o reglas de cálculo financiero.
+
 ### Diagnóstico financiero en Salud del hogar
 
 La vista integra el mes y ambas quincenas, un margen proyectado con fórmula visible, liquidez registrada, reserva de emergencia declarada, cuotas mínimas frente al ingreso mensual esperado y hasta tres acciones priorizadas. La segunda quincena proyecta el cierre del mes conservando pendientes de la primera. Se respetan las reglas de aportes existentes.

@@ -5,6 +5,7 @@ import {occurrenceDetails, type RecurringTerms} from './recurringDetails';
 
 export type CashMovement = BudgetTreatment & {
   id: string;
+  description?: string;
   type: string;
   amount: number | string;
   transaction_date: string;
@@ -28,7 +29,7 @@ export type CashFlowSource = {
   period?: FinancePeriod;
   transactions: CashMovement[];
   savings: CashSaving[];
-  categories: {id: string; budget_group?: string}[];
+  categories: {id: string; name?: string; budget_group?: string}[];
   allocations: PeriodAllocation[];
   members: IncomeMember[];
   plans: IncomePlan[];

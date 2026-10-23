@@ -463,7 +463,8 @@ export function GoalCard({
   onWithdraw,
   onEdit,
   onArchive,
-  onDelete
+  onDelete,
+  visual
 }: {
   goal: Goal;
   saved: number;
@@ -474,11 +475,13 @@ export function GoalCard({
   onEdit?: () => void;
   onArchive?: () => void;
   onDelete?: () => void;
+  visual?: React.ReactNode;
 }) {
   const [amount, setAmount] = useState('');
   const progress = pct(saved, Number(goal.target_amount));
   return (
     <div className="goal-card">
+      {visual}
       <div className="goal-head">
         <span className="studio-ring" style={{'--ring-progress': progress + '%'} as React.CSSProperties}>
           <Target />

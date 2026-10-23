@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react';
 import GoalManagementDialog, {type GoalAction} from '../GoalManagementDialog';
 import type {Goal} from '../../FinanceParts';
+import GoalVisual from '../../GoalVisual';
 // Finance section: goals.
 import {toCents} from '../../lib/financePeriods';
 import {Pencil, PiggyBank, Plus, Trash2} from 'lucide-react';
@@ -12,6 +13,7 @@ export default function FinanceGoals() {
   const {
     tab,
     household,
+    currentUser,
     load,
     setMessage,
     goalsDataError,
@@ -93,6 +95,15 @@ export default function FinanceGoals() {
                       saved={saved}
                       busy={busy}
                       readOnly={readOnly}
+                      visual={
+                        <GoalVisual
+                          userId={currentUser}
+                          householdId={household.id}
+                          goal={g}
+                          saved={saved}
+                          editable={!readOnly && !busy}
+                        />
+                      }
                       onContribute={contribute}
                       onEdit={() => setManagement({goal: g, action: 'edit'})}
                       onArchive={() => setManagement({goal: g, action: g.active ? 'archive' : 'restore'})}

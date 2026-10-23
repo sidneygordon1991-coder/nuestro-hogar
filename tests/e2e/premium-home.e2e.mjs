@@ -86,7 +86,7 @@ for (const theme of ['light', 'dark'])
       await expect(s.page.locator('.home-fortnight h3')).toHaveText('Tu quincena');
       await period.getByRole('button', {name: 'Mes', exact: true}).click();
       await expect(s.page.locator('.home-fortnight h3')).toHaveText('Tu mes, día a día');
-      await expect(s.page.locator('.home-chart svg')).toBeVisible();
+      await expect(s.page.locator('.home-chart>svg')).toBeVisible();
       await s.page.getByRole('button', {name: 'Ver las 4 cuentas', exact: true}).click();
       await expect(s.page.getByRole('region', {name: 'Tus cuentas'})).toContainText('Inversión');
       await expect(s.page.getByRole('region', {name: 'Tus cuentas'})).toContainText('No líquida');

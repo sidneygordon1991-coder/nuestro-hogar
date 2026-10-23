@@ -1,4 +1,7 @@
-import {amountsHidden, formatMoney as money, formatMoneyRounded} from './lib/money';
+import BalanceChart from './BalanceChart';
+import MovementList from './MovementList';
+import type {CashMovement} from './lib/cashFlow';
+import {amountsHidden, formatMoney as money} from './lib/money';
 import {useEffect, useId, useMemo, useRef, useState, type ReactNode} from 'react';
 import {
   AlertTriangle,
@@ -27,7 +30,6 @@ import {halfOf, toCents, type FinancePeriod} from './lib/financePeriods';
 import {
   balanceTimeline,
   dailyAllowance,
-  dayDiff,
   goalBalance,
   goalPace,
   homeActions,
@@ -55,6 +57,7 @@ import type {InstallmentPlan} from './lib/installments';
 import type {DailyAgendaItem} from './lib/dailyAgenda';
 import HomeBudgetAvailability from './HomeBudgetAvailability';
 import {accountAvailability} from './lib/homeAvailability';
+import GoalVisual from './GoalVisual';
 
 const shortDate = (date: string) =>
   new Date(date + 'T12:00').toLocaleDateString('es-GT', {day: 'numeric', month: 'short'}).replace('.', '');
@@ -586,7 +589,7 @@ export default function HomeMoneyWorkspace({
                     ? 'Cómo cambian tus saldos registrados y los compromisos que vienen.'
                     : 'Cómo evolucionan tus ingresos, gastos y compromisos del período.'}
               </p>
-              <BalanceChart timeline={timeline} />
+              <BalanceChart key={source.month + period + scope} timeline={timeline} source={source} />
               <TimelineStatus timeline={timeline} onNavigate={onNavigate} />
             </>
           )}
@@ -607,7 +610,19 @@ export default function HomeMoneyWorkspace({
           {budgets.length ? (
             <ul className="home-budget-list">
               {visibleBudgets.map((c, i) => (
-                <BudgetRow key={c.id} index={i} category={c} onNavigate={onNavigate} />
+                <BudgetRow
+                  key={c.id}
+                  index={i}
+                  category={c}
+                  onNavigate={onNavigate}
+                  movements={source.transactions.filter(
+                    t =>
+                      t.category_id === c.id &&
+                      t.type === 'expense' &&
+                      t.transaction_date.slice(0, 7) === source.month.slice(0, 7) &&
+                      t.transaction_date <= source.today
+                  )}
+                />
               ))}
             </ul>
           ) : (
@@ -666,6 +681,16 @@ export default function HomeMoneyWorkspace({
               {scope === 'personal' ? 'Meta del hogar' : shared ? 'Nuestra próxima meta' : 'Tu próxima meta'}
             </h3>
           </div>
+          {goal && (
+            <GoalVisual
+              key={householdId + ':' + userId + ':' + goal.id}
+              userId={userId}
+              householdId={householdId}
+              goal={goal}
+              saved={goal.saved}
+              editable={canEdit}
+            />
+          )}
           {goal ? (
             <button type="button" className="home-goal-body" onClick={() => onNavigate('presupuesto:goals')}>
               <span className="home-goal-icon" aria-hidden="true">
@@ -886,12 +911,15 @@ type BudgetCategory = ReturnType<typeof overviewPeriod>['budgets'][number];
 function BudgetRow({
   category,
   index,
-  onNavigate
+  onNavigate,
+  movements
 }: {
   category: BudgetCategory;
+  movements: CashMovement[];
   index: number;
   onNavigate: (tab: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const p = category.progress,
     Icon = categoryIcon(category.name, category.icon),
     tone = tileTones[index % tileTones.length];
@@ -906,10 +934,19 @@ function BudgetRow({
       >
         <Icon />
       </span>
-      <span className="home-budget-name">
+      <button
+        type="button"
+        className="home-budget-name home-budget-explore"
+        aria-expanded={expanded}
+        onClick={() => setExpanded(v => !v)}
+        aria-label={'Explorar gastos de ' + category.name}
+      >
         <strong>{category.name}</strong>
-        <small>{planned ? money(p.planned) + ' en total' : 'Sin presupuesto asignado'}</small>
-      </span>
+        <small>
+          {planned ? money(p.planned) + ' en total' : 'Sin presupuesto asignado'} ·{' '}
+          <span>{expanded ? 'Ocultar' : 'Ver gastos'}</span>
+        </small>
+      </button>
       <span
         className="home-budget-bar"
         role="progressbar"
@@ -953,6 +990,14 @@ function BudgetRow({
           </>
         )}
       </span>
+      {expanded && (
+        <div className="home-category-detail" role="region" aria-label={'Movimientos de ' + category.name}>
+          <MovementList rows={movements} empty="Todavía no hay gastos registrados de este rubro en la vista elegida." />
+          <button type="button" className="home-link" onClick={() => onNavigate('presupuesto:transactions')}>
+            Abrir Movimientos <ArrowUpRight size={14} aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <MoreMenu
         label={'Opciones de ' + category.name}
         className="home-row-more"
@@ -1117,184 +1162,6 @@ function focusWhenReady(id: string, tries = 20) {
     return;
   }
   if (tries > 0) window.setTimeout(() => focusWhenReady(id, tries - 1), 150);
-}
-
-function niceStep(range: number) {
-  const raw = range / 3,
-    pow = 10 ** Math.floor(Math.log10(Math.max(1, raw))),
-    n = raw / pow;
-  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * pow;
-}
-
-function BalanceChart({timeline}: {timeline: BalanceTimeline}) {
-  const id = useId().replace(/:/g, '');
-  const chart = useRef<HTMLElement>(null),
-    [width, setWidth] = useState(640);
-  useEffect(() => {
-    const el = chart.current;
-    if (!el) return;
-    const measure = () => setWidth(Math.max(260, Math.round(el.getBoundingClientRect().width)));
-    measure();
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', measure);
-      return () => window.removeEventListener('resize', measure);
-    }
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-  const context = timeline.context,
-    reg = timeline.registered,
-    proj = timeline.projected,
-    last = reg[reg.length - 1];
-  const all = [...context, ...reg, ...proj];
-  if (!all.length)
-    return (
-      <figure ref={chart} className="home-chart home-chart--empty">
-        <CalendarDays size={24} aria-hidden="true" />
-        <p>Este período todavía no tiene días registrados.</p>
-      </figure>
-    );
-  const compact = width < 420,
-    height = compact ? 172 : 200,
-    left = compact ? 54 : 66,
-    right = 16,
-    top = 12,
-    bottom = compact ? 30 : 46;
-  const axisStart = context[0]?.date || timeline.start,
-    span = Math.max(1, dayDiff(axisStart, timeline.end));
-  const values = all.map(r => r.balance),
-    min = Math.min(0, ...values),
-    max = Math.max(1, ...values);
-  const step = niceStep(max - min),
-    lo = Math.floor(min / step) * step,
-    hi = Math.ceil(max / step) * step,
-    range = hi - lo || 1;
-  const ticks: number[] = [];
-  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(v);
-  const x = (date: string) => left + (dayDiff(axisStart, date) / span) * (width - left - right);
-  const y = (n: number) => top + ((hi - n) / range) * (height - top - bottom);
-  const line = (rows: {date: string; balance: number}[]) =>
-    rows.map(r => x(r.date).toFixed(1) + ',' + y(r.balance).toFixed(1)).join(' ');
-  const solid = [...(context.length ? context : []), ...reg];
-  const projectedPath = last && proj.length ? line([last, ...proj.filter(p => p.date > last.date)]) : '';
-  // Date labels never overlap: candidates are placed by priority using their estimated text width.
-  const candidates: {date: string; note?: string; kind: string}[] = [
-    ...(last && timeline.status !== 'closed' ? [{date: last.date, note: 'Hoy', kind: 'today'}] : []),
-    ...timeline.marks
-      .filter(m => m.kind === 'income')
-      .map(m => ({date: m.date, note: 'Ingreso esperado', kind: 'income'})),
-    ...timeline.marks
-      .filter(m => m.kind === 'payment')
-      .sort((a, b) => b.amount - a.amount)
-      .map(m => ({date: m.date, note: m.label, kind: 'payment'})),
-    ...(context.length ? [{date: timeline.start, note: 'Inicio', kind: 'start'}] : []),
-    {date: axisStart, kind: 'edge'},
-    {date: timeline.end, kind: 'edge'}
-  ];
-  const charWidth = compact ? 6.2 : 6.6,
-    box = (c: {date: string; note?: string}) =>
-      Math.max(shortDate(c.date).length, compact || !c.note ? 0 : Math.min(16, c.note.length)) * charWidth + 10;
-  const placed: {date: string; note?: string; kind: string; x: number; w: number}[] = [];
-  for (const c of candidates) {
-    const cx = x(c.date),
-      w = box(c),
-      same = placed.find(p => p.date === c.date);
-    if (same) {
-      if (!same.note && c.note && !compact) {
-        same.note = c.note;
-        same.w = Math.max(same.w, w);
-      }
-      continue;
-    }
-    const lo1 = Math.max(left - 20, cx - w / 2),
-      hi1 = Math.min(width, cx + w / 2);
-    if (placed.every(p => hi1 + 6 <= p.x - p.w / 2 || lo1 - 6 >= p.x + p.w / 2)) placed.push({...c, x: cx, w});
-  }
-  const anchor = (px: number) => (px < left + 24 ? 'start' : px > width - right - 24 ? 'end' : 'middle');
-  const description =
-    'Saldo ' +
-    (timeline.basis === 'accounts' ? 'registrado en cuentas' : 'registrado del mes') +
-    (last ? ' al ' + shortDate(last.date) + ': ' + money(last.balance) : '') +
-    (proj.length ? '. Proyección al ' + shortDate(timeline.end) + ': ' + money(proj[proj.length - 1].balance) : '');
-  return (
-    <figure ref={chart} className="home-chart">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={description}>
-        <defs>
-          <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" className="home-chart-fill-start" />
-            <stop offset="100%" className="home-chart-fill-end" />
-          </linearGradient>
-        </defs>
-        {ticks.map(t => (
-          <g key={t}>
-            <line className="home-chart-grid" x1={left} x2={width - right} y1={y(t)} y2={y(t)} />
-            <text className="home-chart-tick" x={left - 8} y={y(t) + 4} textAnchor="end">
-              {formatMoneyRounded(t)}
-            </text>
-          </g>
-        ))}
-        {placed
-          .filter(p => p.kind !== 'edge')
-          .map(p => (
-            <line key={'v' + p.date} className="home-chart-marker" x1={p.x} x2={p.x} y1={top} y2={height - bottom} />
-          ))}
-        {solid.length > 1 && (
-          <polygon
-            points={`${x(solid[0].date)},${y(lo)} ${line(solid)} ${x(solid[solid.length - 1].date)},${y(lo)}`}
-            fill={`url(#${id})`}
-          />
-        )}
-        {solid.length > 0 && <polyline className="home-chart-line" points={line(solid)} />}
-        {projectedPath && <polyline className="home-chart-line home-chart-line--projected" points={projectedPath} />}
-        {timeline.marks
-          .filter(m => m.kind === 'payment')
-          .map(m => {
-            const point = proj.find(p => p.date === m.date);
-            return point ? (
-              <circle
-                key={'p' + m.date + m.label}
-                className="home-chart-dot"
-                cx={x(m.date)}
-                cy={y(point.balance)}
-                r={3.5}
-              />
-            ) : null;
-          })}
-        {timeline.marks
-          .filter(m => m.kind === 'income')
-          .filter((m, i, all) => all.findIndex(o => o.date === m.date) === i)
-          .map(m => {
-            const point = proj.find(p => p.date === m.date);
-            return point ? (
-              <circle
-                key={'i' + m.date}
-                className="home-chart-dot home-chart-dot--open"
-                cx={x(m.date)}
-                cy={y(point.balance)}
-                r={5}
-              />
-            ) : null;
-          })}
-        {last && (
-          <circle className="home-chart-dot home-chart-dot--today" cx={x(last.date)} cy={y(last.balance)} r={4.5} />
-        )}
-        {placed.map(p => (
-          <g key={'l' + p.date} className="home-chart-xlabel">
-            <text x={p.x} y={height - bottom + 17} textAnchor={anchor(p.x)}>
-              {shortDate(p.date)}
-            </text>
-            {p.note && !compact && (
-              <text className="home-chart-xnote" x={p.x} y={height - bottom + 33} textAnchor={anchor(p.x)}>
-                {p.note.length > 16 ? p.note.slice(0, 15) + '…' : p.note}
-              </text>
-            )}
-          </g>
-        ))}
-      </svg>
-      <figcaption className="sr-only">{description}</figcaption>
-    </figure>
-  );
 }
 
 function Leaves() {

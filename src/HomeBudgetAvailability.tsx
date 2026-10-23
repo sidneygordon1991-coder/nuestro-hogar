@@ -267,7 +267,7 @@ export default function HomeBudgetAvailability({
           </button>
         </p>
       ) : (
-        <p className="home-budget-equation">
+        <p key={window.start + window.end + incomeBasis} className="home-budget-equation">
           <span>
             Ingresos {incomeBasis === 'received' ? 'recibidos' : 'esperados'} <b>{money(income)}</b>
           </span>
@@ -278,6 +278,40 @@ export default function HomeBudgetAvailability({
       )}
       {summary && !loading && !error && (
         <>
+          {income != null && income > 0 && (
+            <div className={'home-income-usage ' + (summary.spent > income ? 'is-over' : '')}>
+              <div>
+                <span>Gastos incluidos</span>
+                <strong>
+                  {((summary.spent / income) * 100).toLocaleString('es-GT', {maximumFractionDigits: 1})}% de lo{' '}
+                  {incomeBasis === 'received' ? 'recibido' : 'esperado'}
+                </strong>
+              </div>
+              <span
+                role="progressbar"
+                aria-label="Relación entre gastos e ingresos del período"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.min(100, Math.round((summary.spent / income) * 100))}
+                aria-valuetext={
+                  money(summary.spent) +
+                  ' de gastos incluidos sobre ' +
+                  money(income) +
+                  ' de ingresos ' +
+                  (incomeBasis === 'received' ? 'recibidos' : 'esperados')
+                }
+              >
+                <i style={{width: Math.min(100, (summary.spent / income) * 100) + '%'}} />
+              </span>
+              <p>
+                {summary.spent > income
+                  ? 'Los gastos incluidos superan estos ingresos.'
+                  : incomeBasis === 'received'
+                    ? 'Así se distribuye lo que ya recibiste en este período.'
+                    : 'Esta relación usa tu plan de ingresos; todavía es una proyección.'}
+              </p>
+            </div>
+          )}
           {incomeBasis === 'expected' && summary.expected !== null && (
             <p className="home-budget-note">
               Proyección según el plan guardado. Ingresos por recibir:{' '}

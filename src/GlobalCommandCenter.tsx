@@ -4,6 +4,8 @@ import {paymentBudgetIncluded} from './lib/paymentBudget';
 import DraftForm from './DraftForm';
 import {useFocusTrap} from './lib/useFocusTrap';
 import ModuleIcon from './ModuleIcon';
+import VisualChoice from './VisualChoice';
+import {categoryIcon} from './BudgetCategoryProgress';
 import {FormEvent, useEffect, useId, useMemo, useRef, useState} from 'react';
 import VoiceEntryButton from './VoiceEntryButton';
 import {useFeature} from './lib/features';
@@ -12,6 +14,9 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Car,
+  CreditCard,
+  Landmark,
+  Wallet,
   Check,
   History,
   Lock,
@@ -418,13 +423,18 @@ export default function GlobalCommandCenter({
       setSaved({
         type,
         text: formatEntryAmount(amount, original || {}),
-        detail:
-          (categoryName ? (type === 'expense' ? 'Gasto en ' : 'Ingreso en ') + categoryName + ' · ' : '') +
-          description +
-          ' · ' +
-          (visibility === 'private'
+        detail: [
+          categoryName ? (type === 'expense' ? 'Gasto en ' : 'Ingreso en ') + categoryName : description,
+          categoryName && description !== categoryName ? description : '',
+          visibility === 'private'
             ? 'Solo tú lo ves'
-            : (type === 'expense' ? 'Gasto' : 'Ingreso') + ' ' + (visibility === 'shared' ? 'compartido' : 'personal'))
+            : (type === 'expense' ? 'Gasto' : 'Ingreso') + ' ' + (visibility === 'shared' ? 'compartido' : 'personal'),
+          visibility !== 'private' && accounts.find(a => a.id === String(f.get('account_id') || ''))?.name
+            ? 'Cuenta: ' + accounts.find(a => a.id === String(f.get('account_id') || ''))!.name
+            : ''
+        ]
+          .filter(Boolean)
+          .join(' · ')
       });
       setAction(null);
       setPrefill(null);
@@ -1024,6 +1034,7 @@ function setField(el: Field | null, value: string, notify = true) {
   const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
   Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, value);
   if (notify) el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', {bubbles: true}));
+  else el.dispatchEvent(new Event('nh:field-sync'));
 }
 
 function TransactionForm({
@@ -1280,48 +1291,67 @@ function TransactionForm({
           </button>
         </div>
         <div className="two quick-essential-fields">
-          <label>
-            Categoría{suggested && <em className="quick-suggested"> · sugerida</em>}
-            <select
-              ref={categoryRef}
-              aria-label="Categoría"
+          <div>
+            {suggested && <em className="quick-suggested">Categoría sugerida</em>}
+            <VisualChoice
+              label="Categoría"
               name="category_id"
+              fieldRef={categoryRef}
               defaultValue={prefill ? prefill.category_id || '' : rememberedCategory}
+              options={[
+                {id: '', name: 'Sin categoría', icon: <Wallet size={18} />},
+                ...categories.map(c => {
+                  const Icon = categoryIcon(c.name);
+                  return {id: c.id, name: c.name, icon: <Icon size={18} />};
+                })
+              ]}
+              disabled={busy}
               onChange={() => {
                 if (!automatic.current) {
                   touched.current.category = true;
                   setSuggested(false);
                 }
               }}
-            >
-              <option value="">Sin categoría</option>
-              {categories.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </div>
           {visibility !== 'private' && accounts.length > 0 && (
-            <label>
-              Cuenta
-              <select
-                ref={accountRef}
-                aria-label="Cuenta"
-                name="account_id"
-                defaultValue={rememberedAccount}
-                onChange={() => {
-                  accountTouched.current = true;
-                }}
-              >
-                <option value="">Sin cuenta</option>
-                {accounts.map(a => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <VisualChoice
+              label="Cuenta"
+              name="account_id"
+              fieldRef={accountRef}
+              defaultValue={rememberedAccount}
+              options={[
+                {id: '', name: 'Sin cuenta', icon: <Wallet size={18} />},
+                ...accounts.map(a => ({
+                  id: a.id,
+                  name: a.name,
+                  icon:
+                    a.account_class === 'liability' ? (
+                      <CreditCard size={18} />
+                    ) : a.account_type === 'cash' ? (
+                      <Wallet size={18} />
+                    ) : (
+                      <Landmark size={18} />
+                    ),
+                  detail:
+                    a.account_class === 'liability'
+                      ? a.account_type === 'credit'
+                        ? 'Tarjeta de crédito'
+                        : 'Préstamo o deuda'
+                      : a.account_type === 'cash'
+                        ? 'Efectivo'
+                        : a.account_type === 'savings'
+                          ? 'Ahorro'
+                          : a.account_type === 'investment'
+                            ? 'Inversión'
+                            : 'Cuenta bancaria'
+                }))
+              ]}
+              disabled={busy}
+              onChange={() => {
+                accountTouched.current = true;
+              }}
+            />
           )}
         </div>
         <label>
