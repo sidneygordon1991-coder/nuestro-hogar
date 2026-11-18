@@ -354,7 +354,9 @@
 }
 @media (max-width: 520px) {
   .app .nh-setup li.is-next .nh-setup-go {
-    flex: 1 0 100%;
+    flex: 1 1 calc(100% - 44px);
+    min-width: 0;
+    max-width: calc(100% - 44px);
     margin-left: 44px;
   }
 }

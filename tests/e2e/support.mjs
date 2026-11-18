@@ -218,7 +218,22 @@ async function setup(
     staleEntry = false
   } = {}
 ) {
+  // Existing E2E scenarios assert the expanded home. Seed that preference only
+  // in the browser fixture; real users still default to the v42 Essential view.
+  const fixtureAppearance = JSON.stringify({view: 'complete'});
   const context = await browser.newContext({
+    storageState: loggedIn
+      ? {
+          cookies: [],
+          origins: [{
+            origin: 'http://127.0.0.1:4173',
+            localStorage: [hh, rid].map(householdId => ({
+              name: 'nh:appearance:' + uid + ':' + householdId,
+              value: fixtureAppearance
+            }))
+          }]
+        }
+      : undefined,
     timezoneId: 'America/Guatemala',
     viewport: {width: 390, height: 844},
     reducedMotion: 'reduce',
