@@ -250,7 +250,9 @@ export default function EmailAuth() {
               <ModuleIcon name="family" size={18} /> Cada familia tiene su propio espacio.
             </p>
           </section>
-          <p className="auth-entry-footer">Nuestro Hogar · Conecta lo que importa</p>
+          <p className="auth-entry-footer">
+            <a href={import.meta.env.BASE_URL + 'calculadoras/'}>Calcula gratis tu Bono 14, aguinaldo e ISR</a>
+          </p>
         </div>
       </div>
     </main>

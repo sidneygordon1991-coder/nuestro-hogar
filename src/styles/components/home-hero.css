@@ -1,0 +1,530 @@
+/* Inicio 2.0: one headline figure, a compact setup card and quiet secondary rows.
+   Tokens only (--nh-* colors, --ds-* scale); every rule is scoped under .app so older layers cannot reach it. */
+
+.app .nh-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: var(--ds-space-5);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--ds-radius-xl);
+  background: var(--nh-surface);
+  box-shadow: var(--ds-elev-1);
+  color: var(--nh-text);
+}
+.app .nh-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+}
+.app .nh-hero-label {
+  margin: 0;
+  font-size: var(--ds-fs-sm);
+  font-weight: var(--ds-fw-medium);
+  color: var(--nh-muted);
+}
+.app .nh-hero-eye {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  background: var(--nh-neutral-soft);
+  color: var(--nh-muted);
+}
+.app .nh-hero-eye:hover,
+.app .nh-hero-eye:focus-visible {
+  color: var(--nh-accent);
+}
+.app .nh-hero-figure {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-weight: var(--ds-fw-semibold);
+  font-size: clamp(40px, 11vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--nh-text);
+}
+.app .nh-hero-figure.is-over {
+  color: var(--nh-danger);
+}
+.app .nh-hero-wait {
+  color: var(--nh-muted);
+}
+.app .nh-hero-pace {
+  margin: 0;
+  font-size: var(--ds-fs-md);
+  font-weight: var(--ds-fw-medium);
+  color: var(--nh-success);
+}
+.app .nh-hero-pace.is-over {
+  color: var(--nh-danger);
+}
+.app .nh-hero-progress {
+  display: grid;
+  gap: 6px;
+}
+.app .nh-hero-progress > span[role='progressbar'] {
+  display: block;
+  height: 8px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--nh-track);
+  overflow: hidden;
+}
+.app .nh-hero-progress i {
+  display: block;
+  height: 100%;
+  border-radius: var(--ds-radius-pill);
+  background: var(--nh-action);
+  transition: width var(--ds-dur-slow) var(--ds-ease-out);
+}
+.app .nh-hero-progress i.is-near {
+  background: var(--nh-chart-warning);
+}
+.app .nh-hero-progress i.is-over {
+  background: var(--nh-chart-danger);
+}
+.app .nh-hero-progress-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  font-size: var(--ds-fs-xs);
+  color: var(--nh-muted);
+}
+.app .nh-hero-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  width: 100%;
+  min-height: var(--ds-tap);
+  margin-top: var(--ds-space-1);
+  padding: var(--ds-space-3) 0 0;
+  border: 0;
+  border-top: 1px solid var(--nh-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--nh-text);
+  font-size: var(--ds-fs-md);
+  text-align: left;
+}
+.app .nh-hero-row > span {
+  flex: 1;
+  color: var(--nh-muted);
+}
+.app .nh-hero-row > strong {
+  font-weight: var(--ds-fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.app .nh-hero-row > svg {
+  color: var(--nh-muted);
+}
+.app .nh-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.app .nh-hero-chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  background: var(--nh-neutral-soft);
+  color: var(--nh-text);
+  font-size: var(--ds-fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+.app .nh-hero-note {
+  margin: 0;
+  font-size: var(--ds-fs-xs);
+  color: var(--nh-muted);
+}
+.app .nh-hero-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--nh-accent);
+  font-size: inherit;
+  font-weight: var(--ds-fw-semibold);
+}
+.app .nh-hero-invite {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  width: 100%;
+  margin-top: var(--ds-space-1);
+  padding: var(--ds-space-3) 0 0;
+  border: 0;
+  border-top: 1px solid var(--nh-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--nh-text);
+  text-align: left;
+}
+.app .nh-hero-invite-icon {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ds-radius-sm);
+  background: var(--nh-accent-soft);
+  color: var(--nh-accent);
+}
+.app .nh-hero-invite-copy {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  font-size: var(--ds-fs-sm);
+}
+.app .nh-hero-invite-copy strong {
+  font-size: var(--ds-fs-md);
+  font-weight: var(--ds-fw-semibold);
+}
+.app .nh-hero-invite-copy small {
+  font-size: var(--ds-fs-sm);
+  color: var(--nh-muted);
+}
+.app .nh-hero-invite > svg {
+  color: var(--nh-muted);
+}
+
+/* Compact setup: progress, the next step as the only primary action, the rest as quiet rows. */
+.app .nh-setup {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: var(--ds-space-4) var(--ds-space-5);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--ds-radius-xl);
+  background: var(--nh-surface);
+  color: var(--nh-text);
+}
+.app .nh-setup-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+.app .nh-setup-head h3 {
+  margin: 0;
+  font-family: var(--ds-font-ui);
+  font-size: var(--ds-fs-md);
+  font-weight: var(--ds-fw-semibold);
+  letter-spacing: 0;
+}
+.app .nh-setup-head > span {
+  margin-left: auto;
+  font-size: var(--ds-fs-sm);
+  color: var(--nh-muted);
+  white-space: nowrap;
+}
+.app .nh-setup-bar {
+  display: block;
+  height: 6px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--nh-track);
+  overflow: hidden;
+}
+.app .nh-setup-bar i {
+  display: block;
+  height: 100%;
+  border-radius: var(--ds-radius-pill);
+  background: var(--nh-action);
+}
+.app .nh-setup ol {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.app .nh-setup li {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: 0;
+}
+.app .nh-setup-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ds-radius-sm);
+  background: var(--nh-neutral-soft);
+  color: var(--nh-muted);
+}
+.app .nh-setup-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.app .nh-setup li.is-next .nh-setup-icon {
+  background: var(--nh-accent-soft);
+  color: var(--nh-accent);
+}
+.app .nh-setup li.is-done .nh-setup-icon {
+  background: var(--nh-success-soft);
+  color: var(--nh-success);
+}
+.app .nh-setup-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.app .nh-setup-copy strong {
+  font-size: var(--ds-fs-sm);
+  font-weight: var(--ds-fw-semibold);
+}
+.app .nh-setup li.is-done .nh-setup-copy strong {
+  color: var(--nh-muted);
+  font-weight: var(--ds-fw-medium);
+}
+.app .nh-setup-copy small {
+  font-size: var(--ds-fs-xs);
+  color: var(--nh-muted);
+}
+.app .nh-setup-go {
+  flex: none;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--ds-radius-md);
+  background: var(--nh-action);
+  color: var(--nh-on-action);
+  font-size: var(--ds-fs-sm);
+  font-weight: var(--ds-fw-semibold);
+}
+.app .nh-setup-later {
+  flex: none;
+  min-height: 40px;
+  padding: 8px 4px;
+  border: 0;
+  background: none;
+  color: var(--nh-accent);
+  font-size: var(--ds-fs-sm);
+  font-weight: var(--ds-fw-medium);
+}
+.app .nh-setup-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Inicio essentials: tighter vertical rhythm, the page fits in about one phone screen. */
+.app .home-dashboard.nh-home-essential {
+  gap: var(--ds-space-4);
+}
+.app .nh-home-greeting {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .app .nh-hero {
+    padding: var(--ds-space-4) var(--ds-space-4) var(--ds-space-4);
+  }
+  .app .nh-setup {
+    padding: var(--ds-space-4);
+  }
+  .app[data-module='inicio'] .workspace-header .amounts-toggle {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app .nh-hero-progress i {
+    transition: none;
+  }
+}
+
+/* The next step keeps its full label: on narrow screens the button drops under the text. */
+.app .nh-setup li.is-next {
+  flex-wrap: wrap;
+}
+.app .nh-setup li.is-next .nh-setup-copy {
+  flex: 1 1 160px;
+}
+@media (max-width: 520px) {
+  .app .nh-setup li.is-next .nh-setup-go {
+    flex: 1 0 100%;
+    margin-left: 44px;
+  }
+}
+
+/* Quincena / Mes switch next to the eye. */
+.app .nh-hero-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex: none;
+}
+.app .nh-hero-lens {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--ds-radius-sm);
+  background: var(--nh-neutral-soft);
+}
+.app .nh-hero-lens button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--nh-muted);
+  font-size: var(--ds-fs-xs);
+  font-weight: var(--ds-fw-semibold);
+}
+.app .nh-hero-lens button[aria-pressed='true'] {
+  background: var(--nh-surface);
+  color: var(--nh-text);
+  box-shadow: var(--ds-elev-1);
+}
+
+/* «Llegó tu quincena»: one line until opened, then the split and the next move. */
+.app .nh-fortnight {
+  margin: 0;
+  border: 1px solid var(--nh-accent-border);
+  border-radius: var(--ds-radius-xl);
+  background: var(--nh-accent-soft);
+  color: var(--nh-text);
+  overflow: hidden;
+}
+.app .nh-fortnight-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.app .nh-fortnight-icon {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ds-radius-sm);
+  background: var(--nh-surface);
+  color: var(--nh-accent);
+}
+.app .nh-fortnight-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.app .nh-fortnight-copy strong {
+  font-size: var(--ds-fs-md);
+  font-weight: var(--ds-fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.app .nh-fortnight-copy small {
+  font-size: var(--ds-fs-sm);
+  color: var(--nh-success);
+  font-variant-numeric: tabular-nums;
+}
+.app .nh-fortnight-copy small.is-short {
+  color: var(--nh-danger);
+}
+.app .nh-fortnight-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  color: var(--nh-accent);
+  font-size: var(--ds-fs-sm);
+  font-weight: var(--ds-fw-semibold);
+}
+.app .nh-fortnight-head[aria-expanded='true'] .nh-fortnight-toggle svg {
+  transform: rotate(180deg);
+}
+.app .nh-fortnight-body {
+  display: grid;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4);
+  border-top: 1px solid var(--nh-accent-border);
+  background: var(--nh-surface);
+}
+.app .nh-fortnight-range,
+.app .nh-fortnight-hint {
+  margin: 0;
+  font-size: var(--ds-fs-sm);
+  color: var(--nh-muted);
+}
+.app .nh-fortnight-rows {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.app .nh-fortnight-rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  font-size: var(--ds-fs-sm);
+}
+.app .nh-fortnight-rows dt {
+  color: var(--nh-muted);
+}
+.app .nh-fortnight-rows dd {
+  margin: 0;
+  font-weight: var(--ds-fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.app .nh-fortnight-rows > div.is-note {
+  padding-left: var(--ds-space-3);
+  font-size: var(--ds-fs-xs);
+}
+.app .nh-fortnight-rows > div.is-total {
+  margin-top: 4px;
+  padding-top: var(--ds-space-2);
+  border-top: 1px solid var(--nh-border);
+  font-size: var(--ds-fs-md);
+}
+.app .nh-fortnight-rows > div.is-total dt {
+  color: var(--nh-text);
+  font-weight: var(--ds-fw-semibold);
+}
+.app .nh-fortnight-rows > div.is-total dd {
+  color: var(--nh-success);
+}
+.app .nh-fortnight-rows > div.is-total.is-short dd {
+  color: var(--nh-danger);
+}
+.app .nh-fortnight-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.app .nh-fortnight-actions .nh-setup-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.app .nh-fortnight-secondary {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--nh-surface);
+  color: var(--nh-text);
+  font-size: var(--ds-fs-sm);
+  font-weight: var(--ds-fw-semibold);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .app .nh-fortnight-toggle svg {
+    transition: transform var(--ds-dur-base) var(--ds-ease-out);
+  }
+}

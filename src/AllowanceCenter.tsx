@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import {FormEvent, useEffect, useRef, useState} from 'react';
 import {fetchAllRows, pagedResult} from './lib/paging';
 import {Pause, Pencil, Play, Plus} from 'lucide-react';
@@ -189,9 +190,9 @@ export default function AllowanceCenter({
   }
   async function remove(a: Allowance) {
     if (
-      !window.confirm(
+      !(await confirmAction(
         '¿Eliminar la mesada de ' + a.child_name + ' y su historial de frascos? Los gastos ya registrados se quedan.'
-      )
+      ))
     )
       return;
     const {error} = await supabase.from('allowances').delete().eq('id', a.id);

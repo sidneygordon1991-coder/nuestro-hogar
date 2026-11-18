@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
@@ -341,7 +342,7 @@ export default function PlanningCenter({
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Eliminar este objetivo y todos sus pasos?')) return;
+    if (!(await confirmAction('¿Eliminar este objetivo y todos sus pasos?'))) return;
     setBusy(true);
     const {error} = await supabase
       .from('household_planning_goals')
@@ -402,7 +403,7 @@ export default function PlanningCenter({
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Eliminar este paso?')) return;
+    if (!(await confirmAction('¿Eliminar este paso?'))) return;
     const {error} = await supabase.from('planning_milestones').delete().eq('id', m.id).eq('household_id', household.id);
     setMessage(error ? error.message : 'Paso eliminado.');
     if (!error) await load(false);

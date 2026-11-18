@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import {useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Check, HandCoins, Plus, RefreshCw, Trash2} from 'lucide-react';
 import {supabase} from './lib/supabase';
@@ -174,9 +175,9 @@ export default function SettlementsPanel({
   async function remove(row: SettlementRow) {
     if (readOnly || busy) return;
     if (
-      !window.confirm(
+      !(await confirmAction(
         `¿Eliminar el pago de ${name(row.from_user_id)} a ${name(row.to_user_id)} por ${formatMoney(Number(row.amount))}? El balance del mes volverá a contarlo como pendiente.`
-      )
+      ))
     )
       return;
     setBusy(true);

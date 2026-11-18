@@ -145,7 +145,7 @@ test('five spaces navigate within the mounted Finance module and preserve back h
     await s.page.setViewportSize({width: 1440, height: 1000});
     await ready(s, 'presupuesto');
     const calls = s.calls.filter(c => c.path.endsWith('/transactions')).length;
-    await s.page.locator('.rail-item').getByText('Mi plan', {exact: true}).click();
+    await s.page.locator('.rail-item').getByText('Plan', {exact: true}).click();
     await expect(s.page.locator('.finance-tabs')).toContainText('Presupuesto');
     await expect(s.page.getByLabel('Presupuesto mensual de Alimentación', {exact: true})).toBeVisible();
     await s.page.locator('.rail-sublinks').getByRole('button', {name: 'Metas de ahorro', exact: true}).click();
@@ -153,22 +153,22 @@ test('five spaces navigate within the mounted Finance module and preserve back h
     await expect(s.page).toHaveURL(/finance=goals/);
     expect(s.calls.filter(c => c.path.endsWith('/transactions')).length).toBe(calls);
     await chooseFinance(s, 'Cuentas');
-    await expect(s.page.locator('.rail-item.active')).toHaveText('Mi dinero');
+    await expect(s.page.locator('.rail-item.active')).toHaveText('Dinero');
     await expect(s.page).toHaveURL(/finance=accounts/);
     await s.page.goBack();
     await expect(s.page.getByLabel('Presupuesto mensual de Alimentación', {exact: true})).toBeVisible();
     await s.page.setViewportSize({width: 390, height: 844});
     await s.page
       .getByRole('navigation', {name: 'Navegación principal', exact: true})
-      .getByRole('button', {name: 'Mi hogar', exact: true})
+      .getByRole('button', {name: 'Hogar', exact: true})
       .click();
-    const menu = s.page.getByRole('dialog', {name: 'Mi hogar', exact: true});
+    const menu = s.page.getByRole('dialog', {name: 'Hogar', exact: true});
     await expect(menu.getByRole('button', {name: 'Agenda y calendario', exact: true})).toBeVisible();
     await s.page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
     await s.page
       .getByRole('navigation', {name: 'Navegación principal', exact: true})
-      .getByRole('button', {name: 'Mi hogar', exact: true})
+      .getByRole('button', {name: 'Hogar', exact: true})
       .click();
     await menu.getByRole('button', {name: 'Agenda y calendario', exact: true}).click();
     await expect(s.page.locator('.workspace-header .page-title')).toHaveText('Calendario');
@@ -263,7 +263,7 @@ test('restricted financial access never mounts account or goal previews', async 
     await expect(
       s.page
         .getByRole('navigation', {name: 'Navegación principal', exact: true})
-        .getByRole('button', {name: 'Mi dinero', exact: true})
+        .getByRole('button', {name: 'Dinero', exact: true})
     ).toHaveCount(0);
     expect(s.calls.filter(c => c.path.endsWith('/finance_accounts'))).toHaveLength(0);
     await healthy(s);

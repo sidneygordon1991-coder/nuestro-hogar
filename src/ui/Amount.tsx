@@ -36,7 +36,9 @@ export default function Amount({
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration),
         eased = 1 - Math.pow(1 - t, 3);
-      setShown(Math.round((initial + (value - initial) * eased) * 100) / 100);
+      const next = initial + (value - initial) * eased;
+      // Whole amounts count in whole quetzales: no flicker of cents on the way to "Q 1,180".
+      setShown(Number.isInteger(value) && Number.isInteger(initial) ? Math.round(next) : Math.round(next * 100) / 100);
       if (t < 1) frame = requestAnimationFrame(tick);
       else from.current = value;
     };

@@ -1,3 +1,4 @@
+import {confirmAction} from '../../ui';
 import TransactionImpact from '../../TransactionImpact';
 import PaymentBudgetField from '../../PaymentBudgetField';
 // Finance: every form and dialog of the module.
@@ -179,12 +180,12 @@ export default function FinanceDialogs() {
       {showImport && !readOnly && (
         <Modal
           title="Importar estado de cuenta"
-          close={() => {
+          close={async () => {
             if (
               importBusy.current &&
-              !window.confirm(
+              !(await confirmAction(
                 'La importación sigue en curso. Si cierras, se terminará de guardar pero no verás el resumen. ¿Cerrar de todos modos?'
-              )
+              ))
             )
               return;
             setShowImport(false);

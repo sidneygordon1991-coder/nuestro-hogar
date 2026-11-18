@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
@@ -387,7 +388,7 @@ export default function MaintenanceCenter({
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Archivar este plan de mantenimiento?')) return;
+    if (!(await confirmAction('¿Archivar este plan de mantenimiento?'))) return;
     setBusy(true);
     setMessage('');
     const {error} = await supabase

@@ -510,20 +510,38 @@ export default function HomeDashboard({
     day: 'numeric',
     month: 'long'
   });
+  // Esencial keeps Inicio to about one screen; Completa brings back favorites, the module catalog and the full setup list.
+  const essentialView = appearance.view === 'essential';
+  const setupCard = showFinance &&
+    finance.source &&
+    setup.financeVerified &&
+    canRegister &&
+    !finance.source.transactions.length && (
+      <HomeGettingStarted
+        accounts={setup.finance}
+        income={
+          finance.source.members.length > 0 &&
+          finance.source.members.every(member =>
+            finance.source!.plans.some(plan => plan.user_id === member.user_id && plan.month === finance.source!.month)
+          )
+        }
+        budget={finance.source.allocations.length > 0}
+        onNavigate={onNavigate}
+        onExample={() => setDemo(true)}
+      />
+    );
   const todayInput = {notifications: urgent, overdue: overdueItems, agendaError, onOpenNotification: openAttention};
   return (
-    <section className="home-dashboard home-control premium-home" data-focus={appearance.focus}>
+    <section
+      className={'home-dashboard home-control premium-home' + (essentialView ? ' nh-home-essential' : '')}
+      data-focus={appearance.focus}
+    >
       <WorkspaceHeading className="home-heading">
         <div className="home-intro">
           <div className="home-title">
-            <h2>
-              <span className="home-title-desktop">
-                {can('finance') ? 'Tu dinero, en perspectiva.' : 'Tu hogar, en perspectiva.'}
-              </span>
-              <span className="home-title-mobile">
-                {greeting}
-                {firstName ? ', ' + firstName : ''}
-              </span>
+            <h2 className="nh-home-greeting">
+              {greeting}
+              {firstName ? ', ' + firstName : ''}
             </h2>
             <p className="home-date">{longDate.charAt(0).toUpperCase() + longDate.slice(1)}</p>
           </div>
@@ -569,22 +587,6 @@ export default function HomeDashboard({
           </button>
         </div>
       )}
-      {showFinance && finance.source && setup.financeVerified && canRegister && !finance.source.transactions.length && (
-        <HomeGettingStarted
-          accounts={setup.finance}
-          income={
-            finance.source.members.length > 0 &&
-            finance.source.members.every(member =>
-              finance.source!.plans.some(
-                plan => plan.user_id === member.user_id && plan.month === finance.source!.month
-              )
-            )
-          }
-          budget={finance.source.allocations.length > 0}
-          onNavigate={onNavigate}
-          onExample={() => setDemo(true)}
-        />
-      )}
       {demo && (
         <Suspense fallback={null}>
           <DemoPreview
@@ -611,6 +613,7 @@ export default function HomeDashboard({
           canHealth={can('health')}
           cover={appearance.cover}
           essential={appearance.view === 'essential'}
+          setup={setupCard || null}
         />
       ) : (
         <div className="home-grid home-grid--no-finance">
@@ -635,60 +638,64 @@ export default function HomeDashboard({
       {showFinance && weekly && (
         <WeeklySummaryCard householdId={household.id} source={finance.source} onNavigate={onNavigate} />
       )}
-      <section className="home-favorites-section">
-        <div className="control-section-head">
-          <div>
-            <p className="eyebrow">A tu manera</p>
-            <h3>Tus favoritos</h3>
+      {!essentialView && (
+        <section className="home-favorites-section">
+          <div className="control-section-head">
+            <div>
+              <p className="eyebrow">A tu manera</p>
+              <h3>Tus favoritos</h3>
+            </div>
+            <button aria-label="Personalizar mi espacio" onClick={onPersonalize}>
+              Editar <Palette size={15} />
+            </button>
           </div>
-          <button aria-label="Personalizar mi espacio" onClick={onPersonalize}>
-            Editar <Palette size={15} />
-          </button>
-        </div>
-        {favorites.length ? (
-          <div className="studio-favorites">
-            {favorites.map(m => (
-              <button key={m.tab} className={'favorite-card module-' + m.icon} onClick={() => onNavigate(m.tab)}>
-                <span>
-                  <ModuleIcon name={m.icon as ModuleIconName} size={30} />
+          {favorites.length ? (
+            <div className="studio-favorites">
+              {favorites.map(m => (
+                <button key={m.tab} className={'favorite-card module-' + m.icon} onClick={() => onNavigate(m.tab)}>
+                  <span>
+                    <ModuleIcon name={m.icon as ModuleIconName} size={30} />
+                  </span>
+                  <ArrowUpRight className="favorite-arrow" size={17} />
+                  <strong>{m.label}</strong>
+                  <small>{m.detail}</small>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button className="home-see-more" onClick={onPersonalize}>
+              Elige tus módulos favoritos <Palette size={16} />
+            </button>
+          )}
+        </section>
+      )}
+      {!essentialView && (
+        <details className="control-section home-all-modules">
+          <summary>
+            <span>
+              <p className="eyebrow">Explora tu hogar</p>
+              <strong>Todos los espacios</strong>
+            </span>
+            <span>
+              {availableModules.length} módulos <ChevronDown size={17} />
+            </span>
+          </summary>
+          <div className="control-module-grid">
+            {availableModules.map(m => (
+              <button key={m.tab} onClick={() => onNavigate(m.tab)}>
+                <span className={m.icon}>
+                  <ModuleIcon name={m.icon as ModuleIconName} />
                 </span>
-                <ArrowUpRight className="favorite-arrow" size={17} />
-                <strong>{m.label}</strong>
-                <small>{m.detail}</small>
+                <div>
+                  <strong>{m.label}</strong>
+                  <small>{m.detail}</small>
+                </div>
+                <ChevronRight />
               </button>
             ))}
           </div>
-        ) : (
-          <button className="home-see-more" onClick={onPersonalize}>
-            Elige tus módulos favoritos <Palette size={16} />
-          </button>
-        )}
-      </section>
-      <details className="control-section home-all-modules">
-        <summary>
-          <span>
-            <p className="eyebrow">Explora tu hogar</p>
-            <strong>Todos los espacios</strong>
-          </span>
-          <span>
-            {availableModules.length} módulos <ChevronDown size={17} />
-          </span>
-        </summary>
-        <div className="control-module-grid">
-          {availableModules.map(m => (
-            <button key={m.tab} onClick={() => onNavigate(m.tab)}>
-              <span className={m.icon}>
-                <ModuleIcon name={m.icon as ModuleIconName} />
-              </span>
-              <div>
-                <strong>{m.label}</strong>
-                <small>{m.detail}</small>
-              </div>
-              <ChevronRight />
-            </button>
-          ))}
-        </div>
-      </details>
+        </details>
+      )}
       {showSetup && nextStep && (!showFinance || Boolean(finance.source?.transactions.length)) && (
         <section className="control-section home-next-step" aria-label="Tu próximo paso">
           <div>
@@ -701,7 +708,7 @@ export default function HomeDashboard({
           </button>
         </section>
       )}
-      {showSetup && (
+      {showSetup && !essentialView && (
         <details className="control-section home-setup-section">
           <summary>
             <span>
@@ -735,9 +742,6 @@ export default function HomeDashboard({
           </div>
         </details>
       )}
-      <p className="home-signature">
-        <ModuleIcon name="home" size={16} /> Hecho para compartir la vida.
-      </p>
     </section>
   );
 }

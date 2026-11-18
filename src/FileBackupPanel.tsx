@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import {useState} from 'react';
 import {Download, Package, UploadCloud} from 'lucide-react';
 import {supabase} from './lib/supabase';
@@ -78,9 +79,9 @@ export default function FileBackupPanel({
   async function restore() {
     if (!archive) return;
     if (
-      !window.confirm(
+      !(await confirmAction(
         '¿Restaurar registros y archivos faltantes de esta familia? Se conservará la información que ya existe.'
-      )
+      ))
     )
       return;
     setBusy('restore');

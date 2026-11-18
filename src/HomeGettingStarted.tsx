@@ -1,5 +1,10 @@
 import {Check, ChevronRight, Wallet, CalendarDays, ChartPie} from 'lucide-react';
+import './styles/components/home-hero.css';
 
+/**
+ * First-run guide, compact: a progress bar, the next step as the only primary action and the other steps as
+ * quiet rows. It disappears once accounts, income and budget are set up.
+ */
 export default function HomeGettingStarted({
   accounts,
   income,
@@ -17,7 +22,7 @@ export default function HomeGettingStarted({
     {
       done: accounts,
       title: 'Ubica tu dinero',
-      detail: 'Efectivo y cuentas con su saldo registrado.',
+      detail: 'Efectivo y cuentas con su saldo',
       route: 'accounts',
       icon: Wallet,
       action: 'Agregar mis cuentas'
@@ -25,53 +30,78 @@ export default function HomeGettingStarted({
     {
       done: income,
       title: 'Organiza tus ingresos',
-      detail: 'Cuánto esperas recibir y tus fechas de cobro.',
+      detail: 'Cuánto esperas y cuándo cobras',
       route: 'income',
       icon: CalendarDays,
       action: 'Configurar mis ingresos'
     },
     {
       done: budget,
-      title: 'Dale un destino',
-      detail: 'Empieza con unas pocas categorías del mes.',
+      title: 'Dale un destino a tu dinero',
+      detail: 'Unas pocas categorías del mes',
       route: 'budget',
       icon: ChartPie,
       action: 'Preparar mi presupuesto'
     }
   ];
   const done = steps.filter(s => s.done).length;
-  if (done === 3) return null;
+  if (done === steps.length) return null;
+  const next = steps.find(s => !s.done)!;
   return (
-    <section className="home-start home-getting-started" aria-labelledby="home-start-title">
-      <div className="home-getting-started-head">
-        <div>
-          <p className="eyebrow">Tu punto de partida</p>
-          <h3 id="home-start-title">Un hogar organizado, paso a paso</h3>
-        </div>
-        <span>{done} de 3 listos</span>
+    <section className="nh-setup" aria-labelledby="home-start-title">
+      <div className="nh-setup-head">
+        <h3 id="home-start-title">Configura tu hogar</h3>
+        <span>
+          {done} de {steps.length}
+        </span>
       </div>
+      <span
+        className="nh-setup-bar"
+        role="progressbar"
+        aria-label="Avance de la configuración"
+        aria-valuemin={0}
+        aria-valuemax={steps.length}
+        aria-valuenow={done}
+      >
+        <i style={{width: Math.round((done / steps.length) * 100) + '%'}} />
+      </span>
       <ol>
-        {steps.map(({done, title, detail, route, icon: Icon, action}, i) => (
-          <li key={route} className={done ? 'is-done' : ''}>
-            <span className="home-setup-step-icon" aria-hidden="true">
-              {done ? <Check /> : <Icon />}
-            </span>
-            <div>
-              <strong>
-                {i + 1}. {title}
-              </strong>
-              <p>{detail}</p>
-              <button type="button" onClick={() => onNavigate('presupuesto:' + route)}>
-                {done ? 'Revisar' : action}
-                <ChevronRight size={14} aria-hidden="true" />
-              </button>
-            </div>
-          </li>
-        ))}
+        {steps.map(({done: isDone, title, detail, route, icon: Icon, action}) => {
+          const isNext = route === next.route;
+          return (
+            <li key={route} className={isDone ? 'is-done' : isNext ? 'is-next' : ''}>
+              <span className="nh-setup-icon" aria-hidden="true">
+                {isDone ? <Check /> : <Icon />}
+              </span>
+              <span className="nh-setup-copy">
+                <strong>{title}</strong>
+                <small>{isDone ? 'Listo' : detail}</small>
+              </span>
+              {isNext ? (
+                <button type="button" className="nh-setup-go" onClick={() => onNavigate('presupuesto:' + route)}>
+                  {action}
+                </button>
+              ) : (
+                !isDone && (
+                  <button
+                    type="button"
+                    className="nh-setup-later"
+                    aria-label={action}
+                    onClick={() => onNavigate('presupuesto:' + route)}
+                  >
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </button>
+                )
+              )}
+            </li>
+          );
+        })}
       </ol>
-      <button type="button" className="home-link" onClick={onExample}>
-        Ver un ejemplo
-      </button>
+      <div className="nh-setup-foot">
+        <button type="button" className="nh-hero-link" onClick={onExample}>
+          Ver un ejemplo
+        </button>
+      </div>
     </section>
   );
 }

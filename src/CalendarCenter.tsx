@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleIcon from './ModuleIcon';
@@ -288,7 +289,7 @@ export default function CalendarCenter({
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Eliminar este evento?')) return;
+    if (!(await confirmAction('¿Eliminar este evento?'))) return;
     setBusy(true);
     setMessage('');
     const {error} = await supabase.from('events').delete().eq('id', event.id).eq('household_id', household.id);

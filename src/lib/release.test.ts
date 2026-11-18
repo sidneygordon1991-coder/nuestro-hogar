@@ -36,8 +36,17 @@ describe('commercial release safeguards', () => {
     expect(manifest.id).toBe(manifest.start_url);
   });
 
+  it('accepts text shared from other apps into Registrar', () => {
+    const manifest = JSON.parse(manifestRaw);
+    expect(manifest.share_target).toMatchObject({
+      action: '/nuestro-hogar/',
+      method: 'GET',
+      params: {title: 'title', text: 'text', url: 'url'}
+    });
+  });
+
   it('keeps the service worker lifecycle and offline shell protections', () => {
-    expect(serviceWorkerRaw).toContain('nuestro-hogar-v40');
+    expect(serviceWorkerRaw).toContain('nuestro-hogar-v42');
     expect(serviceWorkerRaw).toContain('self.clients.claim()');
     expect(serviceWorkerRaw).toContain('SKIP_WAITING');
     expect(serviceWorkerRaw).toContain('icon-192.png');

@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import {signOutDevice} from './lib/signOut';
@@ -329,7 +330,7 @@ export default function FamilyCenter({
   }
 
   async function removeMember(member: MemberRow) {
-    if (!window.confirm('¿Quitar a ' + member.full_name + ' de este hogar?')) return;
+    if (!(await confirmAction('¿Quitar a ' + member.full_name + ' de este hogar?'))) return;
     setBusy(true);
     setMessage('');
     const {error} = await supabase.rpc('remove_household_member', {
@@ -349,7 +350,7 @@ export default function FamilyCenter({
 
   async function leaveHousehold() {
     if (!me || me.role === 'owner') return;
-    if (!window.confirm('¿Salir de este hogar? Perderás acceso a su información compartida.')) return;
+    if (!(await confirmAction('¿Salir de este hogar? Perderás acceso a su información compartida.'))) return;
     setBusy(true);
     setMessage('');
     const {error} = await supabase.rpc('remove_household_member', {
@@ -375,7 +376,8 @@ export default function FamilyCenter({
     }
   }
   async function rotateInvite() {
-    if (!window.confirm('¿Generar un código nuevo? El código anterior dejará de funcionar inmediatamente.')) return;
+    if (!(await confirmAction('¿Generar un código nuevo? El código anterior dejará de funcionar inmediatamente.')))
+      return;
     setBusy(true);
     setMessage('');
     const {data, error} = await supabase.rpc('rotate_household_invite_code', {p_household_id: household.id});

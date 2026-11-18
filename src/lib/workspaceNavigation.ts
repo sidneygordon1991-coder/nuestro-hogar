@@ -3,7 +3,7 @@ export const workspaceGroups = [
   {id: 'today', label: 'Hoy', short: 'Hoy', icon: 'home', items: [{label: 'Inicio', route: 'inicio'}]},
   {
     id: 'money',
-    label: 'Mi dinero',
+    label: 'Dinero',
     short: 'Dinero',
     icon: 'finance',
     items: [
@@ -15,7 +15,7 @@ export const workspaceGroups = [
   },
   {
     id: 'plan',
-    label: 'Mi plan',
+    label: 'Plan',
     short: 'Plan',
     icon: 'planning',
     items: [
@@ -30,7 +30,7 @@ export const workspaceGroups = [
   },
   {
     id: 'progress',
-    label: 'Mi progreso',
+    label: 'Progreso',
     short: 'Progreso',
     icon: 'health',
     items: [
@@ -42,7 +42,7 @@ export const workspaceGroups = [
   },
   {
     id: 'home',
-    label: 'Mi hogar',
+    label: 'Hogar',
     short: 'Hogar',
     icon: 'family',
     items: [
