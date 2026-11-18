@@ -225,13 +225,15 @@ async function setup(
     storageState: loggedIn
       ? {
           cookies: [],
-          origins: [{
-            origin: 'http://127.0.0.1:4173',
-            localStorage: [hh, rid].map(householdId => ({
-              name: 'nh:appearance:' + uid + ':' + householdId,
-              value: fixtureAppearance
-            }))
-          }]
+          origins: [
+            {
+              origin: 'http://127.0.0.1:4173',
+              localStorage: [hh, rid].map(householdId => ({
+                name: 'nh:appearance:' + uid + ':' + householdId,
+                value: fixtureAppearance
+              }))
+            }
+          ]
         }
       : undefined,
     timezoneId: 'America/Guatemala',
