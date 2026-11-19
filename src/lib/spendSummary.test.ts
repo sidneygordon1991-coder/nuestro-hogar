@@ -37,6 +37,17 @@ describe('spend summary for Inicio', () => {
     expect(s.until).toBe('2026-11-15');
   });
 
+  it('leaves out the budget held for pending fixed payments', () => {
+    const s = spendSummary([{planned: 2500, spent: 640}], '2026-11-18', '2026-11-30', 1260)!;
+    expect(s.remaining).toBe(1260);
+    expect(s.reserved).toBe(600);
+    expect(s.perDay).toBe(96.92);
+    // The free part can never exceed what is left of the plan.
+    expect(spendSummary([{planned: 1000, spent: 900}], '2026-11-18', '2026-11-30', 400)!.remaining).toBe(100);
+    // Over budget still shows the overspend.
+    expect(spendSummary([{planned: 1000, spent: 1200}], '2026-11-18', '2026-11-30', 0)!.remaining).toBe(-200);
+  });
+
   it('handles February and the last day of the month', () => {
     const s = spendSummary([{planned: 280, spent: 0}], '2028-02-29', '2028-02-29')!;
     expect(s.until).toBe('2028-02-29');

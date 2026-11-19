@@ -574,7 +574,7 @@ export function homeActions({
     actions.push({
       id: 'payment',
       kind: 'payment',
-      title: 'Preparar ' + (flow.nextPayment.terms.description || 'el siguiente pago'),
+      title: 'Pagar ' + (flow.nextPayment.terms.description || 'el siguiente pago'),
       detail:
         (due < today ? 'Venció el ' : 'Vence el ') +
         new Date(due + 'T12:00').toLocaleDateString('es-GT', {day: 'numeric', month: 'short'}) +

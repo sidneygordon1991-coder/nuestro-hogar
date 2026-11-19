@@ -369,20 +369,30 @@ export default function HomeMoneyWorkspace({
       /* storage unavailable: the choice lasts this session */
     }
   }
-  const fortnightBudgets = useMemo(() => overviewPeriod(source, halfOf(source.today)).budgets, [source]);
+  const fortnightView = useMemo(() => overviewPeriod(source, halfOf(source.today)), [source]);
   const monthSpend = useMemo(
     () =>
       scope === 'household'
-        ? spendSummary(monthly.budgets, source.today, periodBounds(source.month, 'month').end)
+        ? spendSummary(
+            monthly.budgets,
+            source.today,
+            periodBounds(source.month, 'month').end,
+            monthly.flow.variableRemaining
+          )
         : null,
     [scope, monthly, source.today, source.month]
   );
   const fortnightSpend = useMemo(
     () =>
       scope === 'household'
-        ? spendSummary(fortnightBudgets, source.today, periodBounds(source.month, halfOf(source.today)).end)
+        ? spendSummary(
+            fortnightView.budgets,
+            source.today,
+            periodBounds(source.month, halfOf(source.today)).end,
+            fortnightView.flow.variableRemaining
+          )
         : null,
-    [scope, fortnightBudgets, source.today, source.month]
+    [scope, fortnightView, source.today, source.month]
   );
   const spendLens: 'fortnight' | 'month' = lens === 'fortnight' && fortnightSpend ? 'fortnight' : 'month';
   const spend = spendLens === 'fortnight' ? fortnightSpend : monthSpend;

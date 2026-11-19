@@ -15,6 +15,8 @@ export type SpendSummary = {
   until: string;
   /** Share of the plan already used, 0–100 (capped). */
   usedPercent: number;
+  /** Budget still held for fixed payments and bills of the period, already left out of `remaining`. */
+  reserved: number;
 };
 
 /**
@@ -26,12 +28,20 @@ export type SpendSummary = {
 export function spendSummary(
   budgets: readonly {planned: number; spent: number}[],
   today: string,
-  until: string
+  until: string,
+  /**
+   * Money of the plan still free after the period's pending fixed payments (buildCashFlow's variableRemaining).
+   * When given, the headline never offers money that a bill or a fixed category is waiting for.
+   */
+  free?: number
 ): SpendSummary | null {
   const plannedCents = budgets.reduce((n, b) => n + Math.max(0, toCents(b.planned)), 0);
   if (plannedCents <= 0) return null;
   const spentCents = budgets.reduce((n, b) => n + Math.max(0, toCents(b.spent)), 0);
-  const remainingCents = plannedCents - spentCents;
+  const leftCents = plannedCents - spentCents;
+  // Over budget stays visible as a negative; otherwise the free part of what is left leads.
+  const freeCents = free === undefined ? leftCents : Math.max(0, Math.min(leftCents, toCents(free)));
+  const remainingCents = leftCents < 0 ? leftCents : freeCents;
   const day = (iso: string) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
   // Today included; a period already over still divides by one day, a future one by its full length.
   const daysLeft = Math.max(1, Math.round((day(until) - day(today)) / 86400000) + 1);
@@ -42,6 +52,7 @@ export function spendSummary(
     daysLeft,
     perDay: remainingCents > 0 ? Math.floor(remainingCents / daysLeft) / 100 : 0,
     until,
-    usedPercent: Math.min(100, Math.round((spentCents * 100) / plannedCents))
+    usedPercent: Math.min(100, Math.round((spentCents * 100) / plannedCents)),
+    reserved: leftCents > 0 ? (leftCents - freeCents) / 100 : 0
   };
 }

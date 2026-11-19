@@ -115,6 +115,11 @@ export default function HomeSpendHero({
                   : 'quedan ' + summary.daysLeft + ' días')
               : 'Ya usaste casi todo el presupuesto ' + (period === 'fortnight' ? 'de la quincena.' : 'del mes.')}
         </p>
+        {!over && summary.reserved >= 1 && (
+          <p className="nh-hero-note">
+            Ya descontamos {money(summary.reserved)} del presupuesto para pagos fijos que faltan.
+          </p>
+        )}
         <div className="nh-hero-progress">
           <span
             role="progressbar"
