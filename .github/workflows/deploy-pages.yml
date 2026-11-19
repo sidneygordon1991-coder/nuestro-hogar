@@ -37,6 +37,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       # Preview release gate: retain the complete regression suite in quality.yml.
       # The legacy full-home screenshot tests need redesign for the v42 Essential home.
+      - name: Check production login startup in a clean browser
+        run: node scripts/check-production-startup.mjs
       - name: Test core browser workflows for v42 preview
         run: >-
           npx playwright test
