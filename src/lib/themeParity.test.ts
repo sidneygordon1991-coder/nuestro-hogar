@@ -77,7 +77,7 @@ describe('whole-project theme contract', () => {
   it('loads one shared palette before React and exposes the current switch state', () => {
     // Formatting may break lines: compare without whitespace.
     expect(mainRaw.replace(/\s+/g, '')).toContain("import'./styles/theme.css';initializeTheme();");
-    expect(appRaw.replace(/\s+/g, '')).toContain("aria-pressed={effectiveTheme==='dark'}");
+    expect(appRaw.replace(/\s+/g, '')).toContain("aria-pressed={theme==='dark'}");
   });
   it('defines the same roles in both themes', () => {
     expect(palettes).toHaveLength(2);

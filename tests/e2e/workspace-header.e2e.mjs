@@ -74,10 +74,10 @@ test('heading actions retain module state and personalization remains reachable'
     await expect(s.page.getByRole('dialog', {name: 'Personaliza tu espacio', exact: true})).toHaveCount(0);
     await s.page
       .locator('nav[aria-label="Navegación principal"]')
-      .getByRole('button', {name: 'Mi hogar', exact: true})
+      .getByRole('button', {name: 'Hogar', exact: true})
       .click();
     await s.page
-      .getByRole('dialog', {name: 'Mi hogar', exact: true})
+      .getByRole('dialog', {name: 'Hogar', exact: true})
       .getByRole('button', {name: 'Familia y permisos', exact: true})
       .click();
     await expect(s.page.locator('.workspace-header .page-title')).toHaveText('Mi familia');

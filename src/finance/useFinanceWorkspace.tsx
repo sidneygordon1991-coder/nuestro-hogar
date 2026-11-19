@@ -1,3 +1,4 @@
+import {confirmAction} from '../ui';
 import {registeredLedger, comparableMonthRange} from '../lib/registeredLedger';
 import {paymentBudgetIncluded} from '../lib/paymentBudget';
 import type {PayCycle} from '../lib/payCycles';
@@ -1435,9 +1436,9 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
     }
     if (
       existing?.length &&
-      !window.confirm(
+      !(await confirmAction(
         `${monthLabel(month)} ya tiene un presupuesto guardado. ¿Reemplazarlo con el del mes anterior? Los montos actuales se sobrescribirán.`
-      )
+      ))
     ) {
       setBusy(false);
       return;
@@ -1609,7 +1610,8 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Eliminar este movimiento? Esta acción actualizará los saldos y el presupuesto.')) return;
+    if (!(await confirmAction('¿Eliminar este movimiento? Esta acción actualizará los saldos y el presupuesto.')))
+      return;
     setBusy(true);
     setMessage('');
     let occurrenceIds: string[] = [];
@@ -1943,7 +1945,9 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
   }
   async function endInstallment(plan: InstallmentPlan) {
     if (readOnly) return;
-    if (!window.confirm('¿Quitar "' + plan.description + '"? Úsalo si ya lo terminaste de pagar o lo cancelaste.'))
+    if (
+      !(await confirmAction('¿Quitar "' + plan.description + '"? Úsalo si ya lo terminaste de pagar o lo cancelaste.'))
+    )
       return;
     const {error} = await supabase.from('card_installments').update({active: false}).eq('id', plan.id);
     if (error) setMessage('No se pudo quitar. Inténtalo de nuevo.');
@@ -1954,7 +1958,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Archivar esta cuenta? Los movimientos históricos se conservarán.')) return;
+    if (!(await confirmAction('¿Archivar esta cuenta? Los movimientos históricos se conservarán.'))) return;
     setBusy(true);
     const {error} = await supabase
       .from('finance_accounts')
@@ -2005,7 +2009,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Eliminar este activo del patrimonio?')) return;
+    if (!(await confirmAction('¿Eliminar este activo del patrimonio?'))) return;
     setBusy(true);
     const {error} = await supabase.from('finance_assets').delete().eq('id', asset.id).eq('household_id', household.id);
     setBusy(false);
@@ -2052,7 +2056,7 @@ export function useFinanceWorkspace({household, readOnly = false}: {household: H
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Eliminar esta transferencia?')) return;
+    if (!(await confirmAction('¿Eliminar esta transferencia?'))) return;
     setBusy(true);
     const {error} = await supabase
       .from('finance_transfers')

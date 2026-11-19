@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import EntityComments from './EntityComments';
 import ShoppingCheckoutDialog from './ShoppingCheckoutDialog';
 import TransactionReceipts from './TransactionReceipts';
@@ -332,7 +333,7 @@ export default function ListsCenter({
   async function deleteList() {
     if (
       !selectedList ||
-      !window.confirm('¿Eliminar esta lista y sus elementos? Las rutinas de esta lista dejarán de continuar.')
+      !(await confirmAction('¿Eliminar esta lista y sus elementos? Las rutinas de esta lista dejarán de continuar.'))
     )
       return;
     await mutate(
@@ -483,9 +484,9 @@ export default function ListsCenter({
             {!readOnly && selectedItems.some(i => i.completed) && (
               <button
                 disabled={busy}
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(
+                    await confirmAction(
                       '¿Eliminar los elementos completados? Las próximas tareas de las rutinas se conservan.'
                     )
                   )
@@ -587,11 +588,11 @@ export default function ListsCenter({
                         className="list-delete-item"
                         disabled={busy}
                         aria-label={'Eliminar elemento ' + item.text}
-                        onClick={() => {
+                        onClick={async () => {
                           if (
                             item.routine_frequency !== 'none' &&
                             !item.completed &&
-                            !window.confirm('¿Eliminar esta tarea? La rutina no continuará desde este elemento.')
+                            !(await confirmAction('¿Eliminar esta tarea? La rutina no continuará desde este elemento.'))
                           )
                             return;
                           mutate(() =>

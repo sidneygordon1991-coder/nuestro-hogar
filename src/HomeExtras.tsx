@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import {useMemo, useState} from 'react';
 import {ArrowRight, Check, CreditCard, HandCoins, Lock, Trash2} from 'lucide-react';
 import {supabase} from './lib/supabase';
@@ -243,7 +244,7 @@ export function HomePrivate({
   const [error, setError] = useState(''),
     [busy, setBusy] = useState('');
   async function remove(id: string) {
-    if (!window.confirm('¿Eliminar este movimiento privado?')) return;
+    if (!(await confirmAction('¿Eliminar este movimiento privado?'))) return;
     setBusy(id);
     setError('');
     const {error} = await supabase.from('private_transactions').delete().eq('id', id);

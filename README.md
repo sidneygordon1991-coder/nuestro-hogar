@@ -30,6 +30,34 @@ El proyecto usa únicamente la publishable key en el frontend. La autorización 
 
 La configuración pública del despliegue existente está en `.env.production`; Vite la carga al ejecutar `npm run build`. Las variables del proceso tienen prioridad. La compilación rechaza configuraciones incompletas o inseguras. Las claves administrativas nunca deben usar el prefijo `VITE_`.
 
+### Quincenas y calculadoras v42
+
+- **La cifra principal sigue la quincena** (1–15 y 16–fin de mes) cuando el presupuesto la divide, con un selector Quincena/Mes que se recuerda por persona y hogar. Sin división por quincena usa el mes.
+- **«Llegó tu quincena»** (`HomeFortnightCard.tsx`, `lib/fortnightSplit.ts`): al registrar el ingreso de la quincena (o en sus primeros tres días) Inicio muestra en una línea cuánto entra y cuánto queda libre después del plan. Al abrirla: ingresos, lo ya gastado y ahorrado, pagos fijos pendientes, resto del presupuesto, ahorro por apartar y lo libre, con acciones para apartar a una meta o ajustar el presupuesto. Usa el mismo motor `buildCashFlow` que Inicio y Salud del hogar, así que un pago recurrente dentro de un rubro no se cuenta dos veces. No cambia datos; «Listo» la oculta hasta la próxima quincena.
+- **Calculadoras públicas** en `/nuestro-hogar/calculadoras/`: Bono 14, aguinaldo y sueldo líquido con IGSS e ISR 2026, sin cuenta y sin conexión a Supabase, con `lib/guatemalaPay.ts`. Enlaces compartibles (`?calc=aguinaldo&salario=6500`), título y descripción para buscadores, y una invitación a crear cuenta. Se enlaza desde la pantalla de acceso. Es una segunda página de Vite (`calculadoras/index.html`); el service worker la guarda con su propia dirección y nunca como la app.
+- Las cifras enteras ya no muestran centavos mientras se animan.
+- «Puedes gastar» ya no ofrece dinero que espera un pago fijo: usa la parte libre del presupuesto (`variableRemaining` del motor) y avisa cuánto se descontó para pagos fijos que faltan. Si el período se pasó del presupuesto, sigue mostrando el exceso.
+- La acción del día dice «Pagar Luz» en lugar de «Preparar Luz».
+- La agenda de Inicio oculta el filtro «Responsable» en hogares de una sola persona.
+
+Al cambiar de dominio, actualiza la URL canónica de `calculadoras/index.html`. PWA v42, sin migraciones.
+
+### Inicio premium v41
+
+Inspirado en los patrones de las apps líderes (cifra «disponible para gastar» de Copilot, guía de inicio y vista personalizable de Monarch, avisos de pagos compartidos de Honeydue) y en la decisión de mantener la app simple por defecto.
+
+- **Inicio en la vista Esencial cabe en una pantalla aproximadamente.** Encabeza con una sola cifra: «Puedes gastar Q X hasta el 30» (presupuesto del mes menos gastos del presupuesto, en centavos, `lib/spendSummary.ts`), con ritmo por día y barra de avance. Sin presupuesto muestra «Cuentas y efectivo» con bancos y efectivo, y una invitación a definir el presupuesto.
+- La guía inicial es una tarjeta compacta con barra de avance y un solo botón para el siguiente paso.
+- El lema del panorama, los ceros, la gráfica, los KPI, tarjetas, salud, cuentas, favoritos y el catálogo pasan a la vista **Completa**; no se eliminó ninguna función ni cálculo.
+- El ojo para ocultar montos está junto a la cifra principal. El tema se cambia en Configuración o el menú; ya no ocupa la cabecera.
+- Saludo en teléfono y escritorio. Menú sin posesivos: Hoy, Dinero, Plan, Progreso, Hogar. Barra lateral clara en el tema de día.
+- **Confirmaciones propias** (`ui/ConfirmDialog.tsx`) en lugar de las ventanas del navegador: título con la pregunta, botón con el verbo, foco en «Cancelar» si la acción borra algo y Escape para cancelar.
+- **Deshacer** después de registrar un movimiento desde Registrar.
+- **Compartir a la app** (Web Share Target): el texto de un SMS o notificación del banco abre Registrar con monto y descripción.
+- Pantalla de carga con la marca, contador de avisos en el color de acento y nombre accesible con el número sin leer.
+
+No requiere migraciones. PWA v41.
+
 ### Mejoras v37
 
 Los importes se muestran con su valor real desde el primer render; una animación no los inicia en cero. Inicio distingue el saldo registrado del presupuesto y de los ingresos por recibir, y ofrece un único siguiente paso pendiente de preparación. La prueba de cambio de hogar espera el importe final y registra la respuesta anterior antes de liberarla.

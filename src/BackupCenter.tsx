@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import {fetchAllRows, pagedResult} from './lib/paging';
@@ -164,9 +165,9 @@ export default function BackupCenter({household}: {household: Household}) {
 
   async function restoreBackup(backup: BackupRow) {
     if (
-      !window.confirm(
+      !(await confirmAction(
         '¿Restaurar registros faltantes desde este respaldo? No se sobrescribirá información que todavía exista.'
-      )
+      ))
     )
       return;
     setBusy('restore-' + backup.id);
@@ -187,7 +188,7 @@ export default function BackupCenter({household}: {household: Household}) {
   }
 
   async function deleteBackup(backup: BackupRow) {
-    if (!window.confirm('¿Eliminar definitivamente este respaldo?')) return;
+    if (!(await confirmAction('¿Eliminar definitivamente este respaldo?'))) return;
     setBusy('delete-' + backup.id);
     const {error} = await supabase.rpc('delete_household_backup', {p_backup_id: backup.id});
     setBusy('');
@@ -245,7 +246,9 @@ export default function BackupCenter({household}: {household: Household}) {
   }
 
   async function discardRecovery(item: RecoveryRow) {
-    if (!window.confirm('¿Eliminar este elemento de recuperación? Después no podrá restaurarse desde la papelera.'))
+    if (
+      !(await confirmAction('¿Eliminar este elemento de recuperación? Después no podrá restaurarse desde la papelera.'))
+    )
       return;
     setBusy('discard-' + item.id);
     const {error} = await supabase.rpc('discard_recovery_item', {p_item_id: item.id});

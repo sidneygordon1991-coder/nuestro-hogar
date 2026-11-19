@@ -470,7 +470,7 @@ export default function NotificationCenter({
           if (!open) void load();
           setOpen(v => !v);
         }}
-        aria-label="Notificaciones"
+        aria-label={unread ? 'Notificaciones, ' + (unread > 99 ? 'más de 99' : unread) + ' sin leer' : 'Notificaciones'}
         aria-expanded={open}
         aria-haspopup="dialog"
       >

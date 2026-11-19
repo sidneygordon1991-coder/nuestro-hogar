@@ -12,6 +12,7 @@ import {useDialogFocus} from './lib/useDialogFocus';
 import {lazyWithReload} from './lib/lazyRetry';
 import DesktopRail from './DesktopRail';
 import BrandMark from './BrandMark';
+import BootScreen from './BootScreen';
 import {appearanceKey, readAppearance, type Appearance} from './lib/appearance';
 import ModuleIcon from './ModuleIcon';
 import {Illustration} from './ui';
@@ -529,12 +530,7 @@ export default function App() {
         read.allocations.length > 0
     });
   }
-  if (loading)
-    return (
-      <div className="center" role="status" aria-label="Cargando Nuestro Hogar">
-        <div className="loader" aria-hidden="true" />
-      </div>
-    );
+  if (loading) return <BootScreen />;
   if (recovery)
     return (
       <UpdatePassword
@@ -594,12 +590,7 @@ export default function App() {
         </div>
       </main>
     );
-  if (householdsLoading || householdsLoadedFor !== session.user.id)
-    return (
-      <div className="center" role="status" aria-label="Cargando Nuestro Hogar">
-        <div className="loader" aria-hidden="true" />
-      </div>
-    );
+  if (householdsLoading || householdsLoadedFor !== session.user.id) return <BootScreen />;
   if (!household)
     return (
       <>
@@ -616,9 +607,7 @@ export default function App() {
         </div>
       </main>
     ) : (
-      <div className="center" role="status" aria-label="Cargando Nuestro Hogar">
-        <div className="loader" aria-hidden="true" />
-      </div>
+      <BootScreen />
     );
   return (
     <AppErrorBoundary key={scope} householdId={household.id}>
@@ -906,7 +895,6 @@ function MasterHeader({onBack, onProfile}: {onBack: () => void; onProfile: () =>
 
 function Shell(p: any) {
   const [headingSlot, setHeadingSlot] = useState<HTMLDivElement | null>(null);
-  const effectiveTheme = useEffectiveTheme();
   // "Ocultar montos": masks every amount on this device (useful in public); Shell re-renders the whole workspace.
   const [amountsMasked, setAmountsMasked] = useState(() => {
     try {
@@ -926,6 +914,22 @@ function Shell(p: any) {
       /* private mode */
     }
   }
+  // The eye next to Inicio's headline figure toggles the same preference as the header button.
+  useEffect(() => {
+    const onToggle = () =>
+      setAmountsMasked(current => {
+        const next = !current;
+        setAmountsHidden(next);
+        try {
+          localStorage.setItem('nh:amounts-hidden', next ? '1' : '0');
+        } catch {
+          /* private mode */
+        }
+        return next;
+      });
+    window.addEventListener('nh:toggle-amounts', onToggle);
+    return () => window.removeEventListener('nh:toggle-amounts', onToggle);
+  }, []);
   const preferenceKey = appearanceKey(p.userId, p.household.id);
   // Optional features are personal: read them for this person in this household.
   useLayoutEffect(() => setFeatureScope(p.userId, p.household.id), [p.userId, p.household.id]);
@@ -950,9 +954,22 @@ function Shell(p: any) {
     denied = level === 'none';
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.searchParams.get('quick') !== '1') return;
-    const timer = window.setTimeout(() => window.dispatchEvent(new CustomEvent('nh:quick-add')), 180);
+    // Web Share Target opens the app with ?title=&text=&url= (the browser replaces the query string).
+    const fromShare = ['title', 'text', 'url'].some(key => url.searchParams.has(key));
+    if (url.searchParams.get('quick') !== '1' && !fromShare) return;
+    // Web Share Target: text shared from another app (a bank SMS or notification) pre-fills Registrar.
+    const shared = [url.searchParams.get('title'), url.searchParams.get('text'), url.searchParams.get('url')]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    const timer = window.setTimeout(
+      () => window.dispatchEvent(new CustomEvent('nh:quick-add', {detail: shared ? {text: shared} : undefined})),
+      180
+    );
     url.searchParams.delete('quick');
+    url.searchParams.delete('title');
+    url.searchParams.delete('text');
+    url.searchParams.delete('url');
     window.history.replaceState({}, '', url);
     return () => window.clearTimeout(timer);
   }, [p.household.id]);
@@ -999,21 +1016,6 @@ function Shell(p: any) {
               </select>
               <ChevronDown size={16} aria-hidden="true" />
             </div>
-            <button
-              type="button"
-              className="header-theme-toggle"
-              onClick={toggleTheme}
-              aria-label={effectiveTheme === 'light' ? 'Activar tema de noche' : 'Activar tema de día'}
-              aria-pressed={effectiveTheme === 'dark'}
-              title={effectiveTheme === 'light' ? 'Tema de día · cambiar a noche' : 'Tema de noche · cambiar a día'}
-            >
-              <span className="theme-sun">
-                <Sun size={16} />
-              </span>
-              <span className="theme-moon">
-                <Moon size={16} />
-              </span>
-            </button>
             <button
               type="button"
               className="amounts-toggle"

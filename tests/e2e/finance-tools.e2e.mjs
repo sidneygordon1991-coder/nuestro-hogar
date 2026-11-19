@@ -272,6 +272,8 @@ test('settlements: suggestion, mark as paid, custom amount and history', async (
   await expect(panel.locator('.settlement-history-row')).toHaveCount(2);
 
   await panel.getByRole('button', {name: /Eliminar pago de Andrea a Sidney/}).click();
+  // In-app confirmation (replaces the browser's confirm box).
+  await s.page.getByRole('alertdialog').getByRole('button', {name: 'Eliminar', exact: true}).click();
   await expect(panel.locator('.settlement-history-row')).toHaveCount(1);
   await healthy(s);
   await s.context.close();

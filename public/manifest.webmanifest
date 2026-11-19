@@ -74,5 +74,14 @@
       ]
     }
   ],
-  "id": "/nuestro-hogar/"
+  "id": "/nuestro-hogar/",
+  "share_target": {
+    "action": "/nuestro-hogar/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

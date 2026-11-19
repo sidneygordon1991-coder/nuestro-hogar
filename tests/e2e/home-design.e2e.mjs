@@ -154,10 +154,14 @@ for (const theme of ['light', 'dark']) {
       await expect(s.page.locator('html')).toHaveAttribute('data-theme', theme === 'light' ? 'dark' : 'light');
       await s.page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);
-      await s.page
-        .getByRole('button', {name: theme === 'light' ? 'Activar tema de día' : 'Activar tema de noche', exact: true})
+      // v41: the theme lives in Configuración (and the menu), no longer as a header button.
+      await s.page.locator('.desktop-rail').getByRole('button', {name: 'Configuración', exact: true}).click();
+      await dialog
+        .getByRole('group', {name: 'Tema de la app'})
+        .getByRole('button', {name: theme === 'light' ? 'Día' : 'Noche', exact: true})
         .click();
       await expect(s.page.locator('html')).toHaveAttribute('data-theme', theme);
+      await s.page.keyboard.press('Escape');
       await expect(s.page.locator('.app-studio')).toHaveAttribute('data-accent', 'iris');
       expect(writes).toEqual([]);
     } finally {

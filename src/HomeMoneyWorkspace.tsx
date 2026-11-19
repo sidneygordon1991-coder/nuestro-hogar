@@ -11,7 +11,6 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
-  Coins,
   CreditCard,
   Ellipsis,
   EllipsisVertical,
@@ -59,6 +58,9 @@ import type {DailyAgendaItem} from './lib/dailyAgenda';
 import HomeBudgetAvailability from './HomeBudgetAvailability';
 import {accountAvailability} from './lib/homeAvailability';
 import GoalVisual from './GoalVisual';
+import HomeSpendHero from './HomeSpendHero';
+import HomeFortnightCard from './HomeFortnightCard';
+import {spendSummary} from './lib/spendSummary';
 
 const shortDate = (date: string) =>
   new Date(date + 'T12:00').toLocaleDateString('es-GT', {day: 'numeric', month: 'short'}).replace('.', '');
@@ -106,7 +108,8 @@ export default function HomeMoneyWorkspace({
   today,
   canHealth,
   cover,
-  essential = true
+  essential = true,
+  setup = null
 }: {
   householdName?: string;
   householdId: string;
@@ -125,6 +128,8 @@ export default function HomeMoneyWorkspace({
   canHealth: boolean;
   cover: string;
   essential?: boolean;
+  /** First-run guide, shown right under the headline figure. */
+  setup?: ReactNode;
 }) {
   const agendaSlot = <div className="home-agenda-slot">{agenda}</div>;
   const fullSource = finance.source!;
@@ -340,25 +345,141 @@ export default function HomeMoneyWorkspace({
   const budgets = monthly.budgets,
     visibleBudgets = showBudgets ? budgets : budgets.slice(0, 3);
   const pendingLoading = accountState.loading || Boolean(accountState.error);
-  const chip = accountState.error
-    ? 'No pudimos verificar tus cuentas'
-    : pendingLoading
-      ? 'Verificando saldos…'
-      : margin.basis === 'accounts'
-        ? reconciledCutoff
-          ? 'Última conciliación al ' + shortDate(reconciledCutoff)
-          : 'Saldos registrados al ' + shortDate(source.today)
-        : 'Sin cuentas líquidas registradas';
   const baseLabel = accountState.error
     ? 'Dinero por verificar'
     : margin.basis === 'accounts'
       ? 'Dinero en cuentas'
       : 'Dinero en cuentas';
   const personalEmpty = scope === 'personal' && !source.transactions.length && !source.plans.length && !accounts.length;
+  // Budgets are planned for the household: the personal lens shows its money, not a household allowance.
+  // Guatemalan households think in quincenas: the headline uses the current fortnight when the plan splits it.
+  const lensKey = 'nh:spend-lens:' + userId + ':' + householdId;
+  const [lens, setLensState] = useState<'fortnight' | 'month'>(() => {
+    try {
+      return localStorage.getItem(lensKey) === 'month' ? 'month' : 'fortnight';
+    } catch {
+      return 'fortnight';
+    }
+  });
+  function setLens(next: 'fortnight' | 'month') {
+    setLensState(next);
+    try {
+      localStorage.setItem(lensKey, next);
+    } catch {
+      /* storage unavailable: the choice lasts this session */
+    }
+  }
+  const fortnightView = useMemo(() => overviewPeriod(source, halfOf(source.today)), [source]);
+  const monthSpend = useMemo(
+    () =>
+      scope === 'household'
+        ? spendSummary(
+            monthly.budgets,
+            source.today,
+            periodBounds(source.month, 'month').end,
+            monthly.flow.variableRemaining
+          )
+        : null,
+    [scope, monthly, source.today, source.month]
+  );
+  const fortnightSpend = useMemo(
+    () =>
+      scope === 'household'
+        ? spendSummary(
+            fortnightView.budgets,
+            source.today,
+            periodBounds(source.month, halfOf(source.today)).end,
+            fortnightView.flow.variableRemaining
+          )
+        : null,
+    [scope, fortnightView, source.today, source.month]
+  );
+  const spendLens: 'fortnight' | 'month' = lens === 'fortnight' && fortnightSpend ? 'fortnight' : 'month';
+  const spend = spendLens === 'fortnight' ? fortnightSpend : monthSpend;
+  const balanceNote = reconciledCutoff
+    ? 'Saldos revisados el ' + shortDate(reconciledCutoff)
+    : 'Saldos según tus registros';
+  const commitments = !pendingLoading && (
+    <>
+      <button
+        type="button"
+        className="home-hero-calc-toggle"
+        aria-expanded={calculation}
+        onClick={() => setCalculation(v => !v)}
+      >
+        {calculation ? 'Ocultar compromisos' : 'Ver compromisos y metas'} <ArrowUpRight size={14} aria-hidden="true" />
+      </button>
+      {calculation && (
+        <div className="home-hero-calc">
+          <div>
+            <span>
+              {margin.basis === 'accounts'
+                ? 'Dinero registrado en efectivo y cuentas'
+                : 'Ingresos − gastos − ahorro del mes'}
+            </span>
+            <b>{money(margin.base)}</b>
+          </div>
+          {margin.goals > 0 && (
+            <div>
+              <span>Apartado en tus metas de ahorro</span>
+              <b>− {money(margin.goals)}</b>
+            </div>
+          )}
+          {margin.cards > 0 && (
+            <div>
+              <span>Tarjetas por pagar este mes</span>
+              <b>− {money(margin.cards)}</b>
+            </div>
+          )}
+          <div>
+            <span>Pagos y fijos pendientes del mes</span>
+            <b>− {money(margin.pending)}</b>
+          </div>
+          <div>
+            <span>Ahorro del plan aún por apartar</span>
+            <b>− {money(margin.reserved)}</b>
+          </div>
+          <div className="home-hero-calc-total">
+            <span>Margen después de compromisos</span>
+            <b>{money(margin.margin)}</b>
+          </div>
+          <p>
+            {margin.basis === 'accounts'
+              ? 'Usa los saldos registrados de tus cuentas líquidas (efectivo, bancos y ahorro), descuenta lo que ya apartaste para metas y lo que debes pagar de tus tarjetas este mes. No incluye inversiones.'
+              : 'Aún no hay cuentas registradas: se usa el resultado registrado del mes.'}{' '}
+            No descuenta el presupuesto variable que todavía podrías usar ni suma ingresos esperados.
+          </p>
+          <p>
+            Este margen adicional es {money(margin.margin)}.{' '}
+            {allowance.perDay >= 1
+              ? `${money(Math.floor(allowance.perDay))} por día hasta el ${shortDate(allowance.until)}.`
+              : 'Sin margen para gastos variables.'}{' '}
+            No es el presupuesto restante del período.
+          </p>
+        </div>
+      )}
+    </>
+  );
+  const todayCard = (
+    <HomeToday
+      notifications={today.notifications}
+      actions={actions}
+      overdue={today.overdue}
+      agendaError={today.agendaError}
+      onOpenNotification={today.onOpenNotification}
+      onNavigate={route =>
+        route === 'nh:recap'
+          ? setRecap(recapPeriod || (halfOf(fullSource.today) as 'first' | 'second'))
+          : onNavigate(route)
+      }
+    />
+  );
 
   return (
     <div className="home-grid" data-scope={scope}>
-      <HomePanorama month={source.month} today={source.today} figures={monthly.flow} onNavigate={onNavigate} />
+      {!essential && (
+        <HomePanorama month={source.month} today={source.today} figures={monthly.flow} onNavigate={onNavigate} />
+      )}
       <div className="home-main">
         {scope === 'personal' && (
           <p className="home-scope-note">
@@ -373,7 +494,24 @@ export default function HomeMoneyWorkspace({
           </p>
         )}
 
-        <section className="home-hero" aria-labelledby="home-margin-label">
+        <HomeSpendHero
+          summary={spend}
+          period={spendLens}
+          onPeriod={fortnightSpend && monthSpend ? setLens : undefined}
+          recorded={recorded}
+          accountsLoading={accountState.loading}
+          accountsError={accountState.error}
+          balanceNote={balanceNote}
+          canPlan={canEdit && scope === 'household'}
+          onNavigate={onNavigate}
+          onRetryAccounts={() => setAccountAttempt(v => v + 1)}
+          details={essential ? null : commitments}
+        />
+        {setup}
+        {scope === 'household' && !demoAccounts && (
+          <HomeFortnightCard source={source} householdId={householdId} canEdit={canEdit} onNavigate={onNavigate} />
+        )}
+        {!essential && (
           <HomeBudgetAvailability
             key={[householdId, userId, scope, fullSource.month].join(':')}
             householdId={householdId}
@@ -384,298 +522,175 @@ export default function HomeMoneyWorkspace({
             demo={Boolean(demoAccounts)}
             onNavigate={onNavigate}
           />
-          <div className="home-recorded-money">
-            {cover && <img src={cover} alt="" className="home-hero-cover" />}
-            <Leaves />
-            <div className="home-hero-top">
-              <span className="home-hero-icon" aria-hidden="true">
-                <Coins />
-              </span>
-              <span className="home-hero-chip">{chip}</span>
-              <MoreMenu
-                label="Opciones del margen"
-                className="home-hero-more"
-                icon={<Ellipsis />}
-                items={[
-                  ...(!pendingLoading
-                    ? [
-                        {
-                          label: calculation ? 'Ocultar compromisos' : 'Ver compromisos y metas',
-                          onSelect: () => setCalculation(v => !v)
-                        }
-                      ]
-                    : []),
-                  {label: 'Ver cuentas', onSelect: () => onNavigate('presupuesto:accounts')},
-                  {label: 'Ver movimientos', onSelect: () => onNavigate('presupuesto:transactions')}
-                ]}
-              />
-            </div>
-            <div className="home-hero-body">
-              <p id="home-margin-label" className="home-hero-label">
-                Cuentas y efectivo
-              </p>
-              <h2 className={'home-liquid-total ' + (recorded.total < 0 ? 'is-negative' : '')}>
-                {pendingLoading ? (
-                  <span className="home-skeleton-text">Q —</span>
-                ) : (
-                  <Amount value={recorded.total} animate />
-                )}
-              </h2>
-              <p className="home-hero-sub">
-                {recorded.count
-                  ? 'Saldo registrado hoy, independiente del presupuesto'
-                  : 'Agrega tus cuentas y su saldo inicial para ubicar tu dinero'}
-              </p>
-              <p className="home-hero-sub">No suma ingresos por recibir ni límites de tarjetas.</p>
-              {!pendingLoading && (
+        )}
+        {essential && todayCard}
+
+        {!essential && (
+          <>
+            <details className="home-overview-details" open={essential ? undefined : true}>
+              <summary>
+                Pagos y ahorro del mes <ChevronDown size={15} aria-hidden="true" />
+              </summary>
+              <section className="home-kpis" aria-label="Resumen de tu dinero">
+                <Kpi
+                  tone="accent"
+                  icon={<Wallet />}
+                  label={baseLabel}
+                  value={pendingLoading ? null : recorded.total}
+                  hint="Saldos de bancos, ahorro y efectivo registrados"
+                  onClick={() => onNavigate('presupuesto:accounts')}
+                />
+                <Kpi
+                  tone="warning"
+                  icon={<FileText />}
+                  label="Pagos pendientes"
+                  value={dueTotal}
+                  hint={
+                    margin.cards > 0
+                      ? 'Pagos, fijos y tarjetas por cubrir este mes'
+                      : 'Pagos y fijos por cubrir este mes'
+                  }
+                  onClick={() => onNavigate('presupuesto:recurring')}
+                />
+                <Kpi
+                  tone="success"
+                  icon={<PiggyBank />}
+                  label="Ahorro reservado"
+                  value={reservedTotal}
+                  hint={
+                    margin.goals > 0 ? 'Lo apartado en metas y el ahorro del plan' : 'Ahorro del plan aún por apartar'
+                  }
+                  onClick={() => onNavigate('presupuesto:goals')}
+                />
+              </section>
+            </details>
+
+            <section className="home-card home-fortnight" aria-labelledby="home-fortnight-title">
+              <div className="home-card-head">
+                <h3 id="home-fortnight-title">{period === 'month' ? 'Tu mes, día a día' : 'Tu quincena'}</h3>
+                <div className="home-segmented home-segmented--small" role="group" aria-label="Período de la gráfica">
+                  <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(half)}>
+                    {fortnightLabel}
+                  </button>
+                  <button type="button" aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>
+                    Mes
+                  </button>
+                </div>
+                <div className="home-legend" aria-hidden="true">
+                  <span>
+                    <i className="solid" />
+                    Registrado
+                  </span>
+                  <span>
+                    <i className="dashed" />
+                    Proyectado
+                  </span>
+                </div>
+                <MoreMenu
+                  label="Opciones de la gráfica"
+                  className="home-card-more"
+                  icon={<Ellipsis />}
+                  items={[
+                    {label: 'Abrir quincenas', onSelect: () => onNavigate('presupuesto:fortnight')},
+                    {label: 'Ver pagos recurrentes', onSelect: () => onNavigate('presupuesto:recurring')},
+                    {
+                      label: 'Resumen de la quincena',
+                      onSelect: () => setRecap(halfOf(fullSource.today) as 'first' | 'second')
+                    }
+                  ]}
+                />
+              </div>
+              {accountState.loading ? (
+                <p className="home-caption" role="status">
+                  {accountState.error
+                    ? 'Reintenta la consulta de Tus cuentas para verificar la gráfica y el margen.'
+                    : 'Verificando saldos para la gráfica…'}
+                </p>
+              ) : (
+                <>
+                  <p className="home-caption home-chart-purpose">
+                    {accountState.error
+                      ? 'Ingresos y gastos del período. Los saldos de cuentas siguen pendientes de verificar.'
+                      : timeline.basis === 'accounts'
+                        ? 'Cómo cambian tus saldos registrados y los compromisos que vienen.'
+                        : 'Cómo evolucionan tus ingresos, gastos y compromisos del período.'}
+                  </p>
+                  <BalanceChart key={source.month + period + scope} timeline={timeline} source={source} />
+                  <TimelineStatus timeline={timeline} onNavigate={onNavigate} />
+                </>
+              )}
+            </section>
+
+            <section className="home-card home-budget" aria-labelledby="home-budget-title">
+              <div className="home-card-head">
+                <h3 id="home-budget-title">Así va tu presupuesto</h3>
+                <button type="button" className="home-link" onClick={() => onNavigate('presupuesto:budget')}>
+                  Ver todos
+                </button>
+              </div>
+              {monthly.flow.excludedExpense > 0 && (
+                <p className="home-caption">
+                  Fuera del presupuesto: {money(monthly.flow.excludedExpense)}. Incluido en el saldo real.
+                </p>
+              )}
+              {budgets.length ? (
+                <ul className="home-budget-list">
+                  {visibleBudgets.map((c, i) => (
+                    <BudgetRow
+                      key={c.id}
+                      index={i}
+                      category={c}
+                      onNavigate={onNavigate}
+                      movements={source.transactions.filter(
+                        t =>
+                          t.category_id === c.id &&
+                          t.type === 'expense' &&
+                          t.transaction_date.slice(0, 7) === source.month.slice(0, 7) &&
+                          t.transaction_date <= source.today
+                      )}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <div className="home-empty home-empty--art">
+                  <Illustration name="budget" size={84} />
+                  <div>
+                    <strong>
+                      {scope === 'personal' ? 'Sin gastos personales en este período' : 'Dale un destino a tu dinero'}
+                    </strong>
+                    <p>
+                      {scope === 'personal'
+                        ? 'Los presupuestos son del hogar; aquí verás tus gastos personales por rubro.'
+                        : 'Guarda tu presupuesto para ver cuánto queda en cada rubro.'}
+                    </p>
+                  </div>
+                  {scope !== 'personal' && (
+                    <button type="button" className="home-link" onClick={() => onNavigate('presupuesto:budget')}>
+                      Configurar presupuesto <ArrowRight size={15} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              )}
+              {budgets.length > 3 && (
                 <button
                   type="button"
-                  className="home-hero-calc-toggle"
-                  aria-expanded={calculation}
-                  onClick={() => setCalculation(v => !v)}
+                  className="home-link home-more"
+                  aria-expanded={showBudgets}
+                  onClick={() => setShowBudgets(v => !v)}
                 >
-                  {calculation ? 'Ocultar compromisos' : 'Ver compromisos y metas'}{' '}
-                  <ArrowUpRight size={14} aria-hidden="true" />
+                  {showBudgets ? 'Mostrar menos' : 'Ver los ' + budgets.length + ' rubros'}
                 </button>
               )}
-            </div>
-            {calculation && !pendingLoading && (
-              <div className="home-hero-calc">
-                <div>
-                  <span>
-                    {margin.basis === 'accounts'
-                      ? 'Dinero registrado en efectivo y cuentas'
-                      : 'Ingresos − gastos − ahorro del mes'}
-                  </span>
-                  <b>{money(margin.base)}</b>
-                </div>
-                {margin.goals > 0 && (
-                  <div>
-                    <span>Apartado en tus metas de ahorro</span>
-                    <b>− {money(margin.goals)}</b>
-                  </div>
-                )}
-                {margin.cards > 0 && (
-                  <div>
-                    <span>Tarjetas por pagar este mes</span>
-                    <b>− {money(margin.cards)}</b>
-                  </div>
-                )}
-                <div>
-                  <span>Pagos y fijos pendientes del mes</span>
-                  <b>− {money(margin.pending)}</b>
-                </div>
-                <div>
-                  <span>Ahorro del plan aún por apartar</span>
-                  <b>− {money(margin.reserved)}</b>
-                </div>
-                <div className="home-hero-calc-total">
-                  <span>Margen después de compromisos</span>
-                  <b>{money(margin.margin)}</b>
-                </div>
-                <p>
-                  {margin.basis === 'accounts'
-                    ? 'Usa los saldos registrados de tus cuentas líquidas (efectivo, bancos y ahorro), descuenta lo que ya apartaste para metas y lo que debes pagar de tus tarjetas este mes. No incluye inversiones.'
-                    : 'Aún no hay cuentas registradas: se usa el resultado registrado del mes.'}{' '}
-                  No descuenta el presupuesto variable que todavía podrías usar ni suma ingresos esperados.
-                </p>
-                <p>
-                  Este margen adicional es {money(margin.margin)}.{' '}
-                  {allowance.perDay >= 1
-                    ? `${money(Math.floor(allowance.perDay))} por día hasta el ${shortDate(allowance.until)}.`
-                    : 'Sin margen para gastos variables.'}{' '}
-                  No es el presupuesto restante del período.
-                </p>
-              </div>
-            )}
-            <div className="home-hero-minis" aria-label="Distribución del dinero registrado">
-              <button type="button" onClick={() => onNavigate('presupuesto:accounts')}>
-                <Landmark aria-hidden="true" />
-                <span>
-                  <small>Bancos y ahorro</small>
-                  <strong>{pendingLoading ? 'Q —' : money(recorded.bank)}</strong>
-                </span>
-              </button>
-              <button type="button" onClick={() => onNavigate('presupuesto:accounts')}>
-                <Wallet aria-hidden="true" />
-                <span>
-                  <small>Efectivo</small>
-                  <strong>{pendingLoading ? 'Q —' : money(recorded.cash)}</strong>
-                </span>
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <details className="home-overview-details" open={essential ? undefined : true}>
-          <summary>
-            Pagos y ahorro del mes <ChevronDown size={15} aria-hidden="true" />
-          </summary>
-          <section className="home-kpis" aria-label="Resumen de tu dinero">
-            <Kpi
-              tone="accent"
-              icon={<Wallet />}
-              label={baseLabel}
-              value={pendingLoading ? null : recorded.total}
-              hint="Saldos de bancos, ahorro y efectivo registrados"
-              onClick={() => onNavigate('presupuesto:accounts')}
-            />
-            <Kpi
-              tone="warning"
-              icon={<FileText />}
-              label="Pagos pendientes"
-              value={dueTotal}
-              hint={
-                margin.cards > 0 ? 'Pagos, fijos y tarjetas por cubrir este mes' : 'Pagos y fijos por cubrir este mes'
-              }
-              onClick={() => onNavigate('presupuesto:recurring')}
-            />
-            <Kpi
-              tone="success"
-              icon={<PiggyBank />}
-              label="Ahorro reservado"
-              value={reservedTotal}
-              hint={margin.goals > 0 ? 'Lo apartado en metas y el ahorro del plan' : 'Ahorro del plan aún por apartar'}
-              onClick={() => onNavigate('presupuesto:goals')}
-            />
-          </section>
-        </details>
-
-        <section className="home-card home-fortnight" aria-labelledby="home-fortnight-title">
-          <div className="home-card-head">
-            <h3 id="home-fortnight-title">{period === 'month' ? 'Tu mes, día a día' : 'Tu quincena'}</h3>
-            <div className="home-segmented home-segmented--small" role="group" aria-label="Período de la gráfica">
-              <button type="button" aria-pressed={period !== 'month'} onClick={() => setPeriod(half)}>
-                {fortnightLabel}
-              </button>
-              <button type="button" aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>
-                Mes
-              </button>
-            </div>
-            <div className="home-legend" aria-hidden="true">
-              <span>
-                <i className="solid" />
-                Registrado
-              </span>
-              <span>
-                <i className="dashed" />
-                Proyectado
-              </span>
-            </div>
-            <MoreMenu
-              label="Opciones de la gráfica"
-              className="home-card-more"
-              icon={<Ellipsis />}
-              items={[
-                {label: 'Abrir quincenas', onSelect: () => onNavigate('presupuesto:fortnight')},
-                {label: 'Ver pagos recurrentes', onSelect: () => onNavigate('presupuesto:recurring')},
-                {
-                  label: 'Resumen de la quincena',
-                  onSelect: () => setRecap(halfOf(fullSource.today) as 'first' | 'second')
-                }
-              ]}
-            />
-          </div>
-          {accountState.loading ? (
-            <p className="home-caption" role="status">
-              {accountState.error
-                ? 'Reintenta la consulta de Tus cuentas para verificar la gráfica y el margen.'
-                : 'Verificando saldos para la gráfica…'}
-            </p>
-          ) : (
-            <>
-              <p className="home-caption home-chart-purpose">
-                {accountState.error
-                  ? 'Ingresos y gastos del período. Los saldos de cuentas siguen pendientes de verificar.'
-                  : timeline.basis === 'accounts'
-                    ? 'Cómo cambian tus saldos registrados y los compromisos que vienen.'
-                    : 'Cómo evolucionan tus ingresos, gastos y compromisos del período.'}
-              </p>
-              <BalanceChart key={source.month + period + scope} timeline={timeline} source={source} />
-              <TimelineStatus timeline={timeline} onNavigate={onNavigate} />
-            </>
-          )}
-        </section>
-
-        <section className="home-card home-budget" aria-labelledby="home-budget-title">
-          <div className="home-card-head">
-            <h3 id="home-budget-title">Así va tu presupuesto</h3>
-            <button type="button" className="home-link" onClick={() => onNavigate('presupuesto:budget')}>
-              Ver todos
-            </button>
-          </div>
-          {monthly.flow.excludedExpense > 0 && (
-            <p className="home-caption">
-              Fuera del presupuesto: {money(monthly.flow.excludedExpense)}. Incluido en el saldo real.
-            </p>
-          )}
-          {budgets.length ? (
-            <ul className="home-budget-list">
-              {visibleBudgets.map((c, i) => (
-                <BudgetRow
-                  key={c.id}
-                  index={i}
-                  category={c}
-                  onNavigate={onNavigate}
-                  movements={source.transactions.filter(
-                    t =>
-                      t.category_id === c.id &&
-                      t.type === 'expense' &&
-                      t.transaction_date.slice(0, 7) === source.month.slice(0, 7) &&
-                      t.transaction_date <= source.today
-                  )}
-                />
-              ))}
-            </ul>
-          ) : (
-            <div className="home-empty home-empty--art">
-              <Illustration name="budget" size={84} />
-              <div>
-                <strong>
-                  {scope === 'personal' ? 'Sin gastos personales en este período' : 'Dale un destino a tu dinero'}
-                </strong>
-                <p>
-                  {scope === 'personal'
-                    ? 'Los presupuestos son del hogar; aquí verás tus gastos personales por rubro.'
-                    : 'Guarda tu presupuesto para ver cuánto queda en cada rubro.'}
-                </p>
-              </div>
-              {scope !== 'personal' && (
-                <button type="button" className="home-link" onClick={() => onNavigate('presupuesto:budget')}>
-                  Configurar presupuesto <ArrowRight size={15} aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          )}
-          {budgets.length > 3 && (
-            <button
-              type="button"
-              className="home-link home-more"
-              aria-expanded={showBudgets}
-              onClick={() => setShowBudgets(v => !v)}
-            >
-              {showBudgets ? 'Mostrar menos' : 'Ver los ' + budgets.length + ' rubros'}
-            </button>
-          )}
-        </section>
+            </section>
+          </>
+        )}
 
         {!agendaFirst && agendaSlot}
       </div>
 
       <aside className="home-side" aria-label="Prioridades, metas y cuentas">
         {agendaFirst && agendaSlot}
-        <HomeToday
-          notifications={today.notifications}
-          actions={actions}
-          overdue={today.overdue}
-          agendaError={today.agendaError}
-          onOpenNotification={today.onOpenNotification}
-          onNavigate={route =>
-            route === 'nh:recap'
-              ? setRecap(recapPeriod || (halfOf(fullSource.today) as 'first' | 'second'))
-              : onNavigate(route)
-          }
-        />
+        {!essential && todayCard}
 
         <section className="home-card home-goal" aria-labelledby="home-goal-title">
           <div className="home-card-head">
@@ -683,7 +698,7 @@ export default function HomeMoneyWorkspace({
               {scope === 'personal' ? 'Meta del hogar' : shared ? 'Nuestra próxima meta' : 'Tu próxima meta'}
             </h3>
           </div>
-          {goal && (
+          {goal && !essential && (
             <GoalVisual
               key={householdId + ':' + userId + ':' + goal.id}
               userId={userId}
@@ -762,9 +777,9 @@ export default function HomeMoneyWorkspace({
         {scope === 'personal' && (
           <HomePrivate entries={finance.privateEntries || []} canEdit={canEdit} onChanged={onRefresh} />
         )}
-        <HomeCards cards={cards} onNavigate={onNavigate} />
+        {!essential && <HomeCards cards={cards} onNavigate={onNavigate} />}
 
-        {canHealth && (
+        {canHealth && !essential && (
           <section className="home-card home-health" aria-labelledby="home-health-title">
             <div className="home-health-row">
               <span className="home-goal-icon" aria-hidden="true">
@@ -781,86 +796,88 @@ export default function HomeMoneyWorkspace({
           </section>
         )}
 
-        <section className="home-card home-accounts" aria-labelledby="home-accounts-title">
-          <div className="home-card-head">
-            <h3 id="home-accounts-title">Tus cuentas</h3>
-            <button
-              type="button"
-              className="home-icon-button"
-              aria-label="Actualizar cuentas"
-              onClick={() => setAccountAttempt(v => v + 1)}
-            >
-              <RefreshCw size={16} />
-            </button>
-          </div>
-          {accountState.loading ? (
-            <p role="status" className="home-caption">
-              Verificando saldos registrados…
-            </p>
-          ) : accountState.error ? (
-            <div role="alert" className="home-empty">
-              <AlertTriangle aria-hidden="true" />
-              <div>
-                <p>{accountState.error}</p>
-              </div>
-              <button type="button" className="home-link" onClick={() => setAccountAttempt(v => v + 1)}>
-                Reintentar cuentas
+        {!essential && (
+          <section className="home-card home-accounts" aria-labelledby="home-accounts-title">
+            <div className="home-card-head">
+              <h3 id="home-accounts-title">Tus cuentas</h3>
+              <button
+                type="button"
+                className="home-icon-button"
+                aria-label="Actualizar cuentas"
+                onClick={() => setAccountAttempt(v => v + 1)}
+              >
+                <RefreshCw size={16} />
               </button>
             </div>
-          ) : (
-            <>
-              {accountRows.length > 0 && (
-                <ul className="home-account-list">
-                  {(showAccounts ? accountRows : accountRows.slice(0, 3)).map(a => (
-                    <li key={a.id}>
-                      <button type="button" onClick={() => onNavigate('presupuesto:accounts')}>
-                        <span className="home-tile home-tile--accent" aria-hidden="true">
-                          {a.account_type === 'credit' ? (
-                            <CreditCard />
-                          ) : a.account_type === 'cash' ? (
-                            <Wallet />
-                          ) : (
-                            <Landmark />
-                          )}
-                        </span>
-                        <span className="home-account-copy">
-                          <strong>{a.name}</strong>
-                          <small>
-                            {accountNames[a.account_type] || 'Cuenta'}
-                            {a.account_class === 'liability' ? ' · Deuda' : !a.liquid ? ' · No líquida' : ''}
-                          </small>
-                        </span>
-                        <b className={a.balance < 0 ? 'is-negative' : ''}>{money(a.balance)}</b>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {!accountRows.length && (
-                <div className="home-empty home-empty--art">
-                  <Illustration name="accounts" size={84} />
-                  <div>
-                    <strong>{scope === 'personal' ? 'Sin cuentas personales' : 'Ubica tu dinero'}</strong>
-                    <p>Agrega efectivo, cuentas o tarjetas con su saldo inicial para ver tu dinero registrado.</p>
-                  </div>
+            {accountState.loading ? (
+              <p role="status" className="home-caption">
+                Verificando saldos registrados…
+              </p>
+            ) : accountState.error ? (
+              <div role="alert" className="home-empty">
+                <AlertTriangle aria-hidden="true" />
+                <div>
+                  <p>{accountState.error}</p>
                 </div>
-              )}
-              {accountRows.length > 3 && (
-                <button
-                  type="button"
-                  className="home-link home-more"
-                  aria-expanded={showAccounts}
-                  onClick={() => setShowAccounts(v => !v)}
-                >
-                  {showAccounts ? 'Mostrar menos' : 'Ver las ' + accountRows.length + ' cuentas'}
+                <button type="button" className="home-link" onClick={() => setAccountAttempt(v => v + 1)}>
+                  Reintentar cuentas
                 </button>
-              )}
-            </>
-          )}
-          <button type="button" className="home-link" onClick={() => onNavigate('presupuesto:accounts')}>
-            Administrar y conciliar <ArrowRight size={15} aria-hidden="true" />
-          </button>
-        </section>
+              </div>
+            ) : (
+              <>
+                {accountRows.length > 0 && (
+                  <ul className="home-account-list">
+                    {(showAccounts ? accountRows : accountRows.slice(0, 3)).map(a => (
+                      <li key={a.id}>
+                        <button type="button" onClick={() => onNavigate('presupuesto:accounts')}>
+                          <span className="home-tile home-tile--accent" aria-hidden="true">
+                            {a.account_type === 'credit' ? (
+                              <CreditCard />
+                            ) : a.account_type === 'cash' ? (
+                              <Wallet />
+                            ) : (
+                              <Landmark />
+                            )}
+                          </span>
+                          <span className="home-account-copy">
+                            <strong>{a.name}</strong>
+                            <small>
+                              {accountNames[a.account_type] || 'Cuenta'}
+                              {a.account_class === 'liability' ? ' · Deuda' : !a.liquid ? ' · No líquida' : ''}
+                            </small>
+                          </span>
+                          <b className={a.balance < 0 ? 'is-negative' : ''}>{money(a.balance)}</b>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {!accountRows.length && (
+                  <div className="home-empty home-empty--art">
+                    <Illustration name="accounts" size={84} />
+                    <div>
+                      <strong>{scope === 'personal' ? 'Sin cuentas personales' : 'Ubica tu dinero'}</strong>
+                      <p>Agrega efectivo, cuentas o tarjetas con su saldo inicial para ver tu dinero registrado.</p>
+                    </div>
+                  </div>
+                )}
+                {accountRows.length > 3 && (
+                  <button
+                    type="button"
+                    className="home-link home-more"
+                    aria-expanded={showAccounts}
+                    onClick={() => setShowAccounts(v => !v)}
+                  >
+                    {showAccounts ? 'Mostrar menos' : 'Ver las ' + accountRows.length + ' cuentas'}
+                  </button>
+                )}
+              </>
+            )}
+            <button type="button" className="home-link" onClick={() => onNavigate('presupuesto:accounts')}>
+              Administrar y conciliar <ArrowRight size={15} aria-hidden="true" />
+            </button>
+          </section>
+        )}
         {recap && (
           <FortnightRecap
             source={source}
@@ -871,9 +888,11 @@ export default function HomeMoneyWorkspace({
             onClose={() => setRecap(null)}
           />
         )}
-        <button type="button" className="home-link home-refresh" onClick={onRefresh}>
-          <RefreshCw size={15} aria-hidden="true" /> Actualizar resumen
-        </button>
+        {!essential && (
+          <button type="button" className="home-link home-refresh" onClick={onRefresh}>
+            <RefreshCw size={15} aria-hidden="true" /> Actualizar resumen
+          </button>
+        )}
       </aside>
     </div>
   );
@@ -1164,22 +1183,4 @@ function focusWhenReady(id: string, tries = 20) {
     return;
   }
   if (tries > 0) window.setTimeout(() => focusWhenReady(id, tries - 1), 150);
-}
-
-function Leaves() {
-  return (
-    <svg className="home-hero-leaves" viewBox="0 0 220 160" aria-hidden="true" focusable="false">
-      <g fill="currentColor">
-        <path d="M150 160c-6-38 6-79 52-104-8 41-24 77-52 104z" opacity=".55" />
-        <path d="M120 160c-24-26-32-62-16-104 24 30 32 66 16 104z" opacity=".4" />
-        <path d="M176 160c10-28 30-48 60-58-10 26-32 46-60 58z" opacity=".35" />
-        <path d="M92 160c-30-8-52-30-60-62 32 8 52 30 60 62z" opacity=".28" />
-      </g>
-      <g fill="none" stroke="currentColor" strokeWidth="1.4" opacity=".55">
-        <path d="M150 160c8-36 24-70 52-104" />
-        <path d="M120 160c2-36-2-72-16-104" />
-        <path d="M176 160c16-24 36-44 60-58" />
-      </g>
-    </svg>
-  );
 }

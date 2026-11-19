@@ -1,0 +1,228 @@
+/* Premium finish (v41): small global refinements loaded last. Tokens only. */
+
+/* Branded start screen instead of a bare spinner or plain text. */
+.nh-boot {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-6);
+  background: var(--nh-page);
+  color: var(--nh-text);
+  font-family: var(--ds-font-ui);
+}
+.nh-boot-mark {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ds-radius-xl);
+  background: var(--nh-action);
+  color: var(--nh-on-action);
+  box-shadow: var(--ds-elev-2);
+}
+.nh-boot-name {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-fs-xl);
+  font-weight: var(--ds-fw-semibold);
+  letter-spacing: -0.01em;
+}
+.nh-boot-line {
+  position: relative;
+  width: 120px;
+  height: 3px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--nh-track);
+  overflow: hidden;
+}
+.nh-boot-line i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--nh-action);
+  animation: nh-boot-slide 1.1s var(--ds-ease-in-out) infinite;
+}
+@keyframes nh-boot-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nh-boot-line i {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+/* Calm alerts: the unread count uses the accent; red stays for real problems. */
+.app .notification-bell > span {
+  background: var(--nh-action);
+  color: var(--nh-on-action);
+  border-color: var(--nh-surface);
+  font-weight: var(--ds-fw-bold);
+}
+
+/* In-app confirmations (replace the browser's confirm box). */
+.nh-confirm-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ds-z-dialog);
+  display: grid;
+  place-items: end center;
+  padding: var(--ds-space-4);
+  background: var(--nh-scrim);
+  animation: nh-fade-in var(--ds-dur-base) var(--ds-ease-out);
+}
+.nh-confirm {
+  width: min(100%, 420px);
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: var(--ds-space-6) var(--ds-space-5) var(--ds-space-5);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--ds-radius-xl);
+  background: var(--nh-surface);
+  color: var(--nh-text);
+  box-shadow: var(--ds-elev-3);
+  font-family: var(--ds-font-ui);
+  animation: nh-sheet-up var(--ds-dur-slow) var(--ds-ease-out);
+}
+.nh-confirm h2 {
+  margin: 0;
+  font-family: var(--ds-font-ui);
+  font-size: var(--ds-fs-lg);
+  font-weight: var(--ds-fw-semibold);
+  letter-spacing: 0;
+}
+.nh-confirm p {
+  margin: 0;
+  font-size: var(--ds-fs-md);
+  line-height: var(--ds-lh-body);
+  color: var(--nh-muted);
+}
+.nh-confirm-actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-2);
+}
+.nh-confirm-actions button {
+  min-height: var(--ds-tap);
+  padding: 10px 16px;
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-fs-md);
+  font-weight: var(--ds-fw-semibold);
+  cursor: pointer;
+}
+.nh-confirm-cancel {
+  border: 1px solid var(--nh-border);
+  background: var(--nh-surface);
+  color: var(--nh-text);
+}
+.nh-confirm-ok {
+  border: 0;
+  background: var(--nh-action);
+  color: var(--nh-on-action);
+}
+.nh-confirm-ok.is-danger {
+  background: var(--nh-danger);
+  color: var(--nh-surface);
+}
+@media (min-width: 640px) {
+  .nh-confirm-scrim {
+    place-items: center;
+  }
+  .nh-confirm-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+
+/* "Deshacer" toast after a quick entry. */
+.nh-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  z-index: var(--ds-z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 10px 10px 10px 16px;
+  border-radius: var(--ds-radius-md);
+  background: var(--nh-text);
+  color: var(--nh-page);
+  box-shadow: var(--ds-elev-3);
+  font-family: var(--ds-font-ui);
+  font-size: var(--ds-fs-sm);
+  transform: translateX(-50%);
+  animation: nh-toast-in var(--ds-dur-slow) var(--ds-ease-out);
+}
+.nh-toast button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: var(--nh-page);
+  font-size: var(--ds-fs-sm);
+  font-weight: var(--ds-fw-bold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+@media (min-width: 900px) {
+  .nh-toast {
+    bottom: var(--ds-space-6);
+  }
+}
+@keyframes nh-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes nh-sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+@keyframes nh-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nh-confirm-scrim,
+  .nh-confirm,
+  .nh-toast {
+    animation: none;
+  }
+}
+
+/* Desktop sidebar in the light theme: same surface as the page instead of a heavy dark block, so the content
+   leads. The dark theme keeps its deep rail. The rail only reads these brand roles, so redefining them is enough. */
+html[data-theme='light'] .app.app-studio .app-rail {
+  --nh-brand: var(--nh-surface);
+  --nh-brand-end: var(--nh-surface);
+  --nh-on-brand: var(--nh-text);
+  --nh-brand-muted: var(--nh-muted);
+  --nh-brand-active: var(--nh-accent-soft);
+  --nh-brand-accent: var(--nh-accent);
+  border-right: 1px solid var(--nh-border);
+}
+html[data-theme='light'] .app.app-studio .app-rail .rail-item.active {
+  color: var(--nh-accent);
+}
+html[data-theme='light'] .app.app-studio .app-rail .rail-brand .brand-mark-icon {
+  color: var(--nh-accent);
+}

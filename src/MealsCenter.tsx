@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import WorkspaceHeading from './WorkspaceHeading';
 import WeeklyShoppingDialog from './WeeklyShoppingDialog';
 import WorkspaceTitle from './WorkspaceTitle';
@@ -343,7 +344,7 @@ export default function MealsCenter({
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Quitar este producto de la despensa?')) return;
+    if (!(await confirmAction('¿Quitar este producto de la despensa?'))) return;
     setMessage('');
     const {error} = await supabase
       .from('pantry_items')
@@ -480,7 +481,7 @@ export default function MealsCenter({
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Archivar esta receta? Los planes anteriores se conservarán.')) return;
+    if (!(await confirmAction('¿Archivar esta receta? Los planes anteriores se conservarán.'))) return;
     setMessage('');
     const {error} = await supabase
       .from('recipes')

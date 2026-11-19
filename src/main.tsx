@@ -29,6 +29,8 @@ import './styles/refinements.css';
 import './styles/layers/clarity.css';
 import './styles/layers/lively.css';
 import './styles/components/financial-review.css';
+import './styles/components/premium-finish.css';
+import BootScreen from './BootScreen';
 let content: React.ReactNode;
 let configured = false;
 try {
@@ -38,7 +40,7 @@ try {
     <>
       <AppEnvironment environment={config.environment} />
       <AppStartupBoundary>
-        <React.Suspense fallback={<p role="status">Cargando Nuestro Hogar…</p>}>
+        <React.Suspense fallback={<BootScreen />}>
           <App />
         </React.Suspense>
       </AppStartupBoundary>

@@ -86,6 +86,8 @@ export default function GlobalCommandCenter({
   onChanged?: () => void;
 }) {
   const canEdit = (module: string) => !access || access[module] === 'edit';
+  const financeEditable = useRef(false);
+  financeEditable.current = canEdit('finance');
   const hasQuickEdit =
     canEdit('finance') || canEdit('lists') || canEdit('calendar') || canEdit('documents') || canEdit('maintenance');
   const [mode, setMode] = useState<Mode>(null),
@@ -109,7 +111,12 @@ export default function GlobalCommandCenter({
   const [history, setHistory] = useState<QuickHistoryRow[]>([]),
     [rateValue, setRateValue] = useState<unknown>(null),
     [prefill, setPrefill] = useState<RepeatChip | null>(null),
-    [saved, setSaved] = useState<{type: MovementType; text: string; detail: string} | null>(null);
+    [saved, setSaved] = useState<{
+      type: MovementType;
+      text: string;
+      detail: string;
+      undo?: {table: 'transactions' | 'private_transactions'; id: string};
+    } | null>(null);
   const rateFor = useRef(''),
     currentHousehold = useRef(household.id),
     againButton = useRef<HTMLButtonElement>(null);
@@ -129,7 +136,24 @@ export default function GlobalCommandCenter({
         openSearch();
       }
     };
-    const quick = () => openQuick();
+    // "Compartir" from a bank SMS or notification arrives as text: open Registrar already filled in.
+    const quick = (event: Event) => {
+      openQuick();
+      const shared = String((event as CustomEvent<{text?: string} | undefined>).detail?.text || '')
+        .trim()
+        .slice(0, 500);
+      if (!shared || !financeEditable.current) return;
+      const entry = parseSpokenEntry(shared, iso());
+      pickAction(entry.type);
+      if (entry.amount != null && entry.currency === 'GTQ')
+        setPrefill({
+          key: 'shared-' + Date.now(),
+          description: entry.description.slice(0, 250),
+          type: entry.type,
+          category_id: null,
+          amount: entry.amount
+        });
+    };
     window.addEventListener('keydown', key);
     window.addEventListener('nh:quick-add', quick as EventListener);
     return () => {
@@ -326,6 +350,8 @@ export default function GlobalCommandCenter({
     }
     // Dollars: the movement keeps quetzales as its amount and also stores what was paid and the rate used (one atomic save).
     const original = usd ? {original_currency: 'USD', original_amount: entered, exchange_rate: rate} : null;
+    // The saved row, so "Deshacer" can remove exactly this movement.
+    let savedId = visibility === 'private' ? requestId : '';
     try {
       if (visibility === 'private') {
         // The request id is the row id: a retry after a lost response finds the row already saved instead of duplicating it.
@@ -396,6 +422,7 @@ export default function GlobalCommandCenter({
           setMessage(error?.message || 'No se confirmó el movimiento.');
           return false;
         }
+        if (typeof data === 'string') savedId = data;
         setHistory(current =>
           [
             {
@@ -422,6 +449,9 @@ export default function GlobalCommandCenter({
         });
       setSaved({
         type,
+        undo: savedId
+          ? {table: visibility === 'private' ? 'private_transactions' : 'transactions', id: savedId}
+          : undefined,
         text: formatEntryAmount(amount, original || {}),
         detail: [
           categoryName ? (type === 'expense' ? 'Gasto en ' : 'Ingreso en ') + categoryName : description,
@@ -446,6 +476,26 @@ export default function GlobalCommandCenter({
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Removes the movement that was just saved (a quick-entry undo, like the best money apps offer). */
+  async function undoSaved() {
+    const target = saved?.undo;
+    if (!target || busy) return;
+    setBusy(true);
+    setMessage('');
+    const {error} = await supabase.from(target.table).delete().eq('id', target.id).eq('household_id', household.id);
+    setBusy(false);
+    if (error) {
+      setMessageTone('error');
+      setMessage('No se pudo deshacer: ' + (error.message || 'intenta eliminarlo desde Movimientos.'));
+      return;
+    }
+    const type = saved!.type;
+    onChanged?.();
+    pickAction(type);
+    setMessage('Se deshizo el registro. Puedes volver a escribirlo.');
+    setMessageTone('success');
   }
 
   async function ensureList(title: string, listType: string) {
@@ -830,6 +880,11 @@ export default function GlobalCommandCenter({
                         <Plus aria-hidden="true" />
                         Registrar otro
                       </button>
+                      {saved.undo && (
+                        <button type="button" className="quick-entry-done" onClick={undoSaved} disabled={busy}>
+                          Deshacer
+                        </button>
+                      )}
                       <button type="button" className="quick-entry-done" onClick={close}>
                         Listo
                       </button>

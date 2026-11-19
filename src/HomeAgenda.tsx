@@ -80,24 +80,27 @@ export default function HomeAgenda({
             </button>
           ))}
         </div>
-        <label>
-          <span>Responsable</span>
-          <select
-            aria-label="Filtrar actividades por responsable"
-            value={person}
-            onChange={e => {
-              setPerson(e.target.value);
-              setExpanded(false);
-            }}
-          >
-            <option value="">Todo el hogar</option>
-            {members.map(m => (
-              <option key={m.user_id} value={m.user_id}>
-                {m.full_name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* A household of one has nobody to filter by. */}
+        {members.length > 1 && (
+          <label>
+            <span>Responsable</span>
+            <select
+              aria-label="Filtrar actividades por responsable"
+              value={person}
+              onChange={e => {
+                setPerson(e.target.value);
+                setExpanded(false);
+              }}
+            >
+              <option value="">Todo el hogar</option>
+              {members.map(m => (
+                <option key={m.user_id} value={m.user_id}>
+                  {m.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {scope === 'week' && (
           <label>
             <span>Día</span>

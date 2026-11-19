@@ -1,3 +1,4 @@
+import {confirmAction} from './ui';
 import WorkspaceHeading from './WorkspaceHeading';
 import WorkspaceTitle from './WorkspaceTitle';
 import ModuleLoading from './ModuleLoading';
@@ -297,7 +298,7 @@ export default function DocumentVault({household, readOnly = false}: {household:
       setMessage('Modo solo lectura.');
       return;
     }
-    if (!window.confirm('¿Eliminar este documento de la bóveda?')) return;
+    if (!(await confirmAction('¿Eliminar este documento de la bóveda?'))) return;
     setBusy(true);
     setMessage('');
     const {error} = await supabase

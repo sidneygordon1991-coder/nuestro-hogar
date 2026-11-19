@@ -1,4 +1,4 @@
-const CACHE = 'nuestro-hogar-v40';
+const CACHE = 'nuestro-hogar-v42';
 const BASE = '/nuestro-hogar/';
 const SHELL = [
   BASE,
@@ -29,6 +29,21 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  // Pages other than the app shell (the public calculators) are cached under their own address, never as the shell.
+  if (request.mode === 'navigate' && url.pathname !== BASE && url.pathname !== BASE + 'index.html') {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(CACHE).then(cache => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then(cached => cached || caches.match(BASE)))
+    );
+    return;
+  }
   if (request.mode === 'navigate') {
     // Network first, but a weak or captive connection never leaves the installed app hanging: after 3.5 s the cached
     // shell opens and the network answer (if any) still refreshes the cache for next time.
